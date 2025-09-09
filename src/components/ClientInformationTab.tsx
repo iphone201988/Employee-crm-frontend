@@ -14,6 +14,7 @@ import ClientNameLink from './ClientNameLink';
 import ClientDetailsDialog from './ClientDetailsDialog';
 import ServiceChangesLogDialog from './ServiceChangesLogDialog';
 import CustomTabs from './Tabs';
+import AddClient from './client/AddClient';
 
 interface ClientInfo {
   name: string;
@@ -38,6 +39,7 @@ const ClientInformationTab = () => {
   const [serviceSelections, setServiceSelections] = useState<{ [key: string]: { [key: string]: boolean } }>({});
   const [servicesLocked, setServicesLocked] = useState(false);
   const [showServiceLog, setShowServiceLog] = useState(false);
+  const [addClient, setAddClient] = useState(false);
   const [clientInfo] = useState<ClientInfo[]>([
     {
       name: 'Water Savers Limited',
@@ -411,7 +413,7 @@ const ClientInformationTab = () => {
               ))}
             </SelectContent>
           </Select>
-          <Button style={{ backgroundColor: '#017DB9', color: 'white' }} className="hover:opacity-90">
+          <Button onClick={()=>setAddClient(true)} style={{ backgroundColor: '#017DB9', color: 'white' }} className="hover:opacity-90">
             + New Client
           </Button>
         </div>
@@ -634,6 +636,7 @@ const ClientInformationTab = () => {
           }}
         />
       )}
+      <AddClient dialogOpen={addClient} setDialogOpen={setAddClient}/>
     </div>
   );
 };

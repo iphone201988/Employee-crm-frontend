@@ -7,11 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
-import { Checkbox } from "@/components/ui/checkbox";
+import { DashboardCard, DashboardGrid } from "@/components/ui/dashboard-card";
 type SortField = 'name' | 'department' | 'capacity' | 'logged' | 'variance' | 'submitted';
 type SortDirection = 'asc' | 'desc' | null;
-import { Layout } from "@/components/Layout";
-// Sample data matching the interface
 const generateRandomTime = () => {
   const hours = Math.floor(Math.random() * 10) + 30; // 30-39 hours
   const minutes = Math.floor(Math.random() * 60);
@@ -478,380 +476,387 @@ export function TimesheetDashboard() {
     label: "Time Logs"
   }];
   return <div className="flex-1 p-6 bg-background">
-      {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-4">
-              <h1 className="text-2xl font-semibold text-foreground">Time</h1>
-              <div className="flex -space-x-2">
-                {/* User avatars */}
-                <Avatar className="border-2 border-background">
-                  <AvatarImage src="/lovable-uploads/faf9d4db-b73b-4771-9b8a-fbf1d0e1c69a.png" />
-                  <AvatarFallback>NK</AvatarFallback>
-                </Avatar>
-                <Avatar className="border-2 border-background">
-                  <AvatarImage src="/lovable-uploads/4f26d575-4f3c-42d8-a83e-e7a97e2b7e70.png" />
-                  <AvatarFallback>MD</AvatarFallback>
-                </Avatar>
-                <Avatar className="border-2 border-background">
-                  <AvatarImage src="/lovable-uploads/f713038f-661b-4859-829f-22567834d707.png" />
-                  <AvatarFallback>JC</AvatarFallback>
-                </Avatar>
-                <Avatar className="border-2 border-background">
-                  <AvatarImage src="/lovable-uploads/71cb7f14-f958-4960-a6ae-688e313603a5.png" />
-                  <AvatarFallback>JT</AvatarFallback>
-                </Avatar>
-                <Avatar className="border-2 border-background">
-                  <AvatarImage src="/lovable-uploads/3c214215-2945-4eb0-b253-52de50f12239.png" />
-                  <AvatarFallback>JW</AvatarFallback>
-                </Avatar>
-                <Avatar className="border-2 border-background">
-                  <AvatarImage src="/lovable-uploads/c1b6c757-1457-46be-b74b-d870e28417ac.png" />
-                  <AvatarFallback>JH</AvatarFallback>
-                </Avatar>
-                <Avatar className="border-2 border-background">
-                  <AvatarImage src="/lovable-uploads/69927594-4747-4d86-a60e-64c607e67d1f.png" />
-                  <AvatarFallback>JS</AvatarFallback>
-                </Avatar>
-                <Avatar className="border-2 border-background">
-                  <AvatarImage src="/lovable-uploads/229c8a34-da0e-4b64-bda9-444834d2242b.png" />
-                  <AvatarFallback>LA</AvatarFallback>
-                </Avatar>
-                
-              </div>
-            </div>
+    {/* Header */}
+    <div className="mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <h1 className="text-xl sm:text-2xl font-semibold text-foreground">Time</h1>
+          <div className="flex -space-x-2 overflow-x-auto pb-2 sm:pb-0">
+            {/* User avatars */}
+            <Avatar className="border-2 border-background w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0">
+              <AvatarImage src="/lovable-uploads/faf9d4db-b73b-4771-9b8a-fbf1d0e1c69a.png" />
+              <AvatarFallback className="text-xs">NK</AvatarFallback>
+            </Avatar>
+            <Avatar className="border-2 border-background w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0">
+              <AvatarImage src="/lovable-uploads/4f26d575-4f3c-42d8-a83e-e7a97e2b7e70.png" />
+              <AvatarFallback className="text-xs">MD</AvatarFallback>
+            </Avatar>
+            <Avatar className="border-2 border-background w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0">
+              <AvatarImage src="/lovable-uploads/f713038f-661b-4859-829f-22567834d707.png" />
+              <AvatarFallback className="text-xs">JC</AvatarFallback>
+            </Avatar>
+            <Avatar className="border-2 border-background w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0">
+              <AvatarImage src="/lovable-uploads/71cb7f14-f958-4960-a6ae-688e313603a5.png" />
+              <AvatarFallback className="text-xs">JT</AvatarFallback>
+            </Avatar>
+            <Avatar className="border-2 border-background w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0">
+              <AvatarImage src="/lovable-uploads/3c214215-2945-4eb0-b253-52de50f12239.png" />
+              <AvatarFallback className="text-xs">JW</AvatarFallback>
+            </Avatar>
+            <Avatar className="border-2 border-background w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0">
+              <AvatarImage src="/lovable-uploads/c1b6c757-1457-46be-b74b-d870e28417ac.png" />
+              <AvatarFallback className="text-xs">JH</AvatarFallback>
+            </Avatar>
+            <Avatar className="border-2 border-background w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0">
+              <AvatarImage src="/lovable-uploads/69927594-4747-4d86-a60e-64c607e67d1f.png" />
+              <AvatarFallback className="text-xs">JS</AvatarFallback>
+            </Avatar>
+            <Avatar className="border-2 border-background w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0">
+              <AvatarImage src="/lovable-uploads/229c8a34-da0e-4b64-bda9-444834d2242b.png" />
+              <AvatarFallback className="text-xs">LA</AvatarFallback>
+            </Avatar>
+
+          </div>
         </div>
+      </div>
 
       {/* Tabs */}
       <div className="flex items-center border-b border-border mt-6">
-        <div className="flex">
-          {tabs.map(tab => <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === tab.id ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
-              {tab.label}
-            </button>)}
+        <div className="flex overflow-x-auto w-full">
+          {tabs.map(tab => <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`px-3 sm:px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex-shrink-0 ${activeTab === tab.id ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+            {tab.label}
+          </button>)}
         </div>
       </div>
+    </div>
+
+    {/* Date Range Navigation - Only show in all-timesheets tab */}
+    {activeTab === "all-timesheets" && <div className="mb-3">
+      <WeekNavigation />
+    </div>}
+
+    {/* Status Summary Cards - Only show in all-timesheets tab */}
+    {activeTab === "all-timesheets" && <DashboardGrid columns={4} className="mb-3">
+      <DashboardCard 
+        title="Total Team" 
+        value={statusCounts.total}
+        valueColor="text-[#381980]"
+      />
+      <DashboardCard 
+        title="For Review" 
+        value={statusCounts.forReview}
+        valueColor="text-[#381980]"
+      />
+      <DashboardCard 
+        title="Rejected" 
+        value={statusCounts.rejected}
+        valueColor="text-[#381980]"
+      />
+      <DashboardCard 
+        title="Approved" 
+        value={statusCounts.approved}
+        valueColor="text-[#381980]"
+      />
+    </DashboardGrid>}
+
+    {/* Filter Badges - Only show in all-timesheets tab */}
+    {activeTab === "all-timesheets" && <div className="flex flex-col sm:flex-row gap-2 mb-3">
+      <div className="flex bg-muted/30 rounded-full p-1 overflow-x-auto">
+        <button onClick={() => setActiveFilter("all-timesheets")} className={`inline-flex items-center gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium transition-colors rounded-full whitespace-nowrap flex-shrink-0 ${activeFilter === "all-timesheets" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted/50"}`}>
+          All Timesheets
+          <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${activeFilter === "all-timesheets" ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted-foreground/20 text-muted-foreground"}`}>{statusCounts.allTimesheets}</span>
+        </button>
       </div>
 
-      {/* Date Range Navigation - Only show in all-timesheets tab */}
-      {activeTab === "all-timesheets" && <div className="mb-3">
-          <WeekNavigation />
-        </div>}
+      <div className="flex bg-muted/30 rounded-full p-1 overflow-x-auto">
+        <button onClick={() => setActiveFilter("not-submitted")} className={`inline-flex items-center gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium transition-colors rounded-l-full whitespace-nowrap flex-shrink-0 ${activeFilter === "not-submitted" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted/50"}`}>
+          Not Submitted
+          <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${activeFilter === "not-submitted" ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted-foreground/20 text-muted-foreground"}`}>{statusCounts.notSubmitted}</span>
+        </button>
 
-      {/* Status Summary Cards - Only show in all-timesheets tab */}
-      {activeTab === "all-timesheets" && <div className="grid grid-cols-4 gap-4 mb-3">
-          <div className="p-3 bg-card rounded-lg border">
-            <div className="text-sm text-muted-foreground">Total Team</div>
-            <div className="text-2xl font-bold" style={{
-          color: '#381980'
-        }}>{statusCounts.total}</div>
-          </div>
-          <div className="p-3 bg-card rounded-lg border">
-            <div className="text-sm text-muted-foreground">For Review</div>
-            <div className="text-2xl font-bold" style={{
-          color: '#381980'
-        }}>{statusCounts.forReview}</div>
-          </div>
-          <div className="p-3 bg-card rounded-lg border">
-            <div className="text-sm text-muted-foreground">Rejected</div>
-            <div className="text-2xl font-bold" style={{
-          color: '#381980'
-        }}>{statusCounts.rejected}</div>
-          </div>
-          <div className="p-3 bg-card rounded-lg border">
-            <div className="text-sm text-muted-foreground">Approved</div>
-            <div className="text-2xl font-bold" style={{
-          color: '#381980'
-        }}>{statusCounts.approved}</div>
-          </div>
-        </div>}
+        <button onClick={() => setActiveFilter("review")} className={`inline-flex items-center gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0 ${activeFilter === "review" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted/50"}`}>
+          For Review
+          <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${activeFilter === "review" ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted-foreground/20 text-muted-foreground"}`}>{statusCounts.forReview}</span>
+        </button>
 
-      {/* Filter Badges - Only show in all-timesheets tab */}
-      {activeTab === "all-timesheets" && <div className="flex gap-2 mb-3">
-          <div className="flex bg-muted/30 rounded-full p-1">
-            <button onClick={() => setActiveFilter("all-timesheets")} className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors rounded-full ${activeFilter === "all-timesheets" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted/50"}`}>
-              All Timesheets
-              <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${activeFilter === "all-timesheets" ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted-foreground/20 text-muted-foreground"}`}>{statusCounts.allTimesheets}</span>
-            </button>
-          </div>
-          
-          <div className="flex bg-muted/30 rounded-full p-1">
-            <button onClick={() => setActiveFilter("not-submitted")} className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors rounded-l-full ${activeFilter === "not-submitted" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted/50"}`}>
-              Not Submitted
-              <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${activeFilter === "not-submitted" ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted-foreground/20 text-muted-foreground"}`}>{statusCounts.notSubmitted}</span>
-            </button>
-            
-            <button onClick={() => setActiveFilter("review")} className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${activeFilter === "review" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted/50"}`}>
-              For Review
-              <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${activeFilter === "review" ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted-foreground/20 text-muted-foreground"}`}>{statusCounts.forReview}</span>
-            </button>
-            
-            <button onClick={() => setActiveFilter("rejected")} className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${activeFilter === "rejected" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted/50"}`}>
-              Rejected
-              <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${activeFilter === "rejected" ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted-foreground/20 text-muted-foreground"}`}>{statusCounts.rejected}</span>
-            </button>
-            
-            <button onClick={() => setActiveFilter("approved")} className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors rounded-r-full ${activeFilter === "approved" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted/50"}`}>
-              Approved
-              <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${activeFilter === "approved" ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted-foreground/20 text-muted-foreground"}`}>{statusCounts.approved}</span>
-            </button>
-          </div>
-        </div>}
+        <button onClick={() => setActiveFilter("rejected")} className={`inline-flex items-center gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0 ${activeFilter === "rejected" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted/50"}`}>
+          Rejected
+          <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${activeFilter === "rejected" ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted-foreground/20 text-muted-foreground"}`}>{statusCounts.rejected}</span>
+        </button>
 
-      {/* Search and Filters - Only show in all-timesheets tab */}
-      {activeTab === "all-timesheets" && <div className="flex items-center gap-2 mb-3">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input placeholder="Search..." className="pl-10 bg-white" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
-          </div>
-          
-          <Button variant="outline" size="sm" className="bg-white">
-            Team Name
-            <ChevronDown className="ml-2 w-4 h-4" />
+        <button onClick={() => setActiveFilter("approved")} className={`inline-flex items-center gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium transition-colors rounded-r-full whitespace-nowrap flex-shrink-0 ${activeFilter === "approved" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted/50"}`}>
+          Approved
+          <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${activeFilter === "approved" ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted-foreground/20 text-muted-foreground"}`}>{statusCounts.approved}</span>
+        </button>
+      </div>
+    </div>}
+
+    {/* Search and Filters - Only show in all-timesheets tab */}
+    {activeTab === "all-timesheets" && <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mb-3">
+      <div className="relative flex-1 max-w-sm">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input placeholder="Search..." className="pl-10 bg-white" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" size="sm" className="bg-white text-xs sm:text-sm">
+          <span className="hidden sm:inline">Team Name</span>
+          <span className="sm:hidden">Team</span>
+          <ChevronDown className="ml-1 sm:ml-2 w-3 h-3 sm:w-4 sm:h-4" />
+        </Button>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="bg-white text-xs sm:text-sm">
+              <span className="hidden sm:inline">Department</span>
+              <span className="sm:hidden">Dept</span>
+              <ChevronDown className="ml-1 sm:ml-2 w-3 h-3 sm:w-4 sm:h-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            {departments.map(dept => <DropdownMenuCheckboxItem key={dept} checked={selectedDepartments.includes(dept)} onCheckedChange={checked => {
+              if (checked) {
+                setSelectedDepartments([...selectedDepartments, dept]);
+              } else {
+                setSelectedDepartments(selectedDepartments.filter(d => d !== dept));
+              }
+            }}>
+              {dept}
+            </DropdownMenuCheckboxItem>)}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="bg-white text-xs sm:text-sm">
+              Status
+              <ChevronDown className="ml-1 sm:ml-2 w-3 h-3 sm:w-4 sm:h-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            {statuses.map(status => <DropdownMenuCheckboxItem key={status} checked={selectedStatuses.includes(status)} onCheckedChange={checked => {
+              if (checked) {
+                setSelectedStatuses([...selectedStatuses, status]);
+              } else {
+                setSelectedStatuses(selectedStatuses.filter(s => s !== status));
+              }
+            }}>
+              {status.charAt(0).toUpperCase() + status.slice(1).replace('-', ' ')}
+            </DropdownMenuCheckboxItem>)}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <Button variant="outline" size="sm" className="bg-primary text-primary-foreground p-2 hover:bg-primary/90" onClick={handleRefresh}>
+          <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4" />
+        </Button>
+      </div>
+    </div>}
+
+    {/* Data Table - Only show in all-timesheets tab */}
+    {activeTab === "all-timesheets" && <>
+      <div className="bg-card rounded-lg border overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[800px]">
+            <thead className="bg-muted/50">
+              <tr>
+                <th className="text-left px-2 sm:px-4 py-3 text-xs sm:text-sm font-medium text-muted-foreground min-w-[120px]">
+                  <button className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleSort('name')}>
+                    <span className="hidden sm:inline">TEAM NAME</span>
+                    <span className="sm:hidden">NAME</span>
+                    {getSortIcon('name')}
+                  </button>
+                </th>
+                <th className="text-left px-2 sm:px-4 py-3 text-xs sm:text-sm font-medium text-muted-foreground min-w-[100px]">
+                  <button className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleSort('department')}>
+                    <span className="hidden sm:inline">DEPARTMENT</span>
+                    <span className="sm:hidden">DEPT</span>
+                    {getSortIcon('department')}
+                  </button>
+                </th>
+                <th className="text-left px-2 sm:px-4 py-3 text-xs sm:text-sm font-medium text-muted-foreground min-w-[80px]">
+                  <button className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleSort('capacity')}>
+                    CAPACITY
+                    {getSortIcon('capacity')}
+                  </button>
+                </th>
+                <th className="text-left px-2 sm:px-4 py-3 text-xs sm:text-sm font-medium text-muted-foreground min-w-[80px]">
+                  <button className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleSort('logged')}>
+                    LOGGED
+                    {getSortIcon('logged')}
+                  </button>
+                </th>
+                <th className="text-left px-2 sm:px-4 py-3 text-xs sm:text-sm font-medium text-muted-foreground min-w-[80px]">
+                  <button className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleSort('variance')}>
+                    VARIANCE
+                    {getSortIcon('variance')}
+                  </button>
+                </th>
+                <th className="text-left px-2 sm:px-4 py-3 text-xs sm:text-sm font-medium text-muted-foreground min-w-[100px]">STATUS</th>
+                <th className="text-left px-2 sm:px-4 py-3 text-xs sm:text-sm font-medium text-muted-foreground min-w-[60px]">NOTES</th>
+                <th className="text-left px-2 sm:px-4 py-3 text-xs sm:text-sm font-medium text-muted-foreground min-w-[100px]">
+                  <button className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleSort('submitted')}>
+                    SUBMITTED
+                    {getSortIcon('submitted')}
+                  </button>
+                </th>
+                <th className="text-left px-2 sm:px-4 py-3 text-xs sm:text-sm font-medium text-muted-foreground min-w-[150px]">ACTIONS</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paginatedData.map(item => <tr key={item.id} className="border-t border-border hover:bg-muted/25">
+                <td className="px-2 sm:px-4 py-2">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <Avatar className="w-6 h-6 sm:w-8 sm:h-8 flex-shrink-0">
+                      <AvatarImage src={item.avatar} />
+                      <AvatarFallback className="text-xs">{item.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm sm:text-base text-foreground truncate">{item.name}</span>
+                  </div>
+                </td>
+                <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm text-muted-foreground">{item.department}</td>
+                <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm text-foreground">{item.capacity.toFixed(2)}</td>
+                <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm text-foreground">{formatTime(item.logged)}</td>
+                <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm text-foreground">{formatVariance(item.variance)}</td>
+                <td className="px-2 sm:px-4 py-2">
+                  <StatusBadge status={item.status}>
+                    {item.status === "approved" && "Approved"}
+                    {item.status === "review" && "For Review"}
+                    {item.status === "rejected" && "Rejected"}
+                    {item.status === "not-submitted" && "Not Submitted"}
+                  </StatusBadge>
+                </td>
+                <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm text-muted-foreground">
+                  {item.notes > 0 ? item.notes : "-"}
+                </td>
+                <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm text-muted-foreground">{item.submitted}</td>
+                <td className="px-2 sm:px-4 py-2">
+                  <div className="flex flex-col sm:flex-row gap-1">
+                    <Button variant="outline" size="sm" className="text-xs">
+                      <span className="hidden sm:inline">View Timesheets</span>
+                      <span className="sm:hidden">View</span>
+                    </Button>
+                    {item.status === "review" && <Button variant="outline" size="sm" className="text-xs">
+                      Remind
+                    </Button>}
+                  </div>
+                </td>
+              </tr>)}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Pagination - Only show if more than 10 results */}
+      {filteredData.length > 10 && <div className="flex flex-col sm:flex-row items-center justify-between px-4 py-3 mt-1 gap-2">
+        <div className="text-xs sm:text-sm text-muted-foreground text-center sm:text-left">
+          Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredData.length)} of {filteredData.length} results
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} disabled={currentPage === 1} className="text-xs sm:text-sm">
+            <ChevronLeft className="w-3 h-3 sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline ml-1">Previous</span>
           </Button>
-          
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="bg-white">
-                Department
-                <ChevronDown className="ml-2 w-4 h-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              {departments.map(dept => <DropdownMenuCheckboxItem key={dept} checked={selectedDepartments.includes(dept)} onCheckedChange={checked => {
-            if (checked) {
-              setSelectedDepartments([...selectedDepartments, dept]);
-            } else {
-              setSelectedDepartments(selectedDepartments.filter(d => d !== dept));
-            }
-          }}>
-                  {dept}
-                </DropdownMenuCheckboxItem>)}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="bg-white">
-                Status
-                <ChevronDown className="ml-2 w-4 h-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              {statuses.map(status => <DropdownMenuCheckboxItem key={status} checked={selectedStatuses.includes(status)} onCheckedChange={checked => {
-            if (checked) {
-              setSelectedStatuses([...selectedStatuses, status]);
-            } else {
-              setSelectedStatuses(selectedStatuses.filter(s => s !== status));
-            }
-          }}>
-                  {status.charAt(0).toUpperCase() + status.slice(1).replace('-', ' ')}
-                </DropdownMenuCheckboxItem>)}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          
-          <Button variant="outline" size="sm" className="bg-primary text-primary-foreground p-2 hover:bg-primary/90" onClick={handleRefresh}>
-            <RefreshCw className="w-4 h-4" />
+          <Button variant="outline" size="sm" onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))} disabled={currentPage === totalPages} className="text-xs sm:text-sm">
+            <span className="hidden sm:inline mr-1">Next</span>
+            <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4" />
           </Button>
-        </div>}
+        </div>
+      </div>}
+    </>}
 
-      {/* Data Table - Only show in all-timesheets tab */}
-      {activeTab === "all-timesheets" && <>
-          <div className="bg-card rounded-lg border overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-muted/50">
-                  <tr>
-                    <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                      <button className="flex items-center gap-2 hover:text-foreground transition-colors" onClick={() => handleSort('name')}>
-                        TEAM NAME
-                        {getSortIcon('name')}
-                      </button>
-                    </th>
-                    <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                      <button className="flex items-center gap-2 hover:text-foreground transition-colors" onClick={() => handleSort('department')}>
-                        DEPARTMENT
-                        {getSortIcon('department')}
-                      </button>
-                    </th>
-                    <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                      <button className="flex items-center gap-2 hover:text-foreground transition-colors" onClick={() => handleSort('capacity')}>
-                        CAPACITY
-                        {getSortIcon('capacity')}
-                      </button>
-                    </th>
-                    <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                      <button className="flex items-center gap-2 hover:text-foreground transition-colors" onClick={() => handleSort('logged')}>
-                        LOGGED
-                        {getSortIcon('logged')}
-                      </button>
-                    </th>
-                    <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                      <button className="flex items-center gap-2 hover:text-foreground transition-colors" onClick={() => handleSort('variance')}>
-                        VARIANCE
-                        {getSortIcon('variance')}
-                      </button>
-                    </th>
-                    <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">STATUS</th>
-                    <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">NOTES</th>
-                    <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                      <button className="flex items-center gap-2 hover:text-foreground transition-colors" onClick={() => handleSort('submitted')}>
-                        SUBMITTED
-                        {getSortIcon('submitted')}
-                      </button>
-                    </th>
-                    <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">ACTIONS</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedData.map(item => <tr key={item.id} className="border-t border-border hover:bg-muted/25">
-                      <td className="px-4 py-2">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="w-8 h-8">
-                            <AvatarImage src={item.avatar} />
-                            <AvatarFallback>{item.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
-                          </Avatar>
-                          <span className="text-foreground">{item.name}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-2 text-muted-foreground">{item.department}</td>
-                      <td className="px-4 py-2 text-foreground">{item.capacity.toFixed(2)}</td>
-                      <td className="px-4 py-2 text-foreground">{formatTime(item.logged)}</td>
-                      <td className="px-4 py-2 text-foreground">{formatVariance(item.variance)}</td>
-                      <td className="px-4 py-2">
-                        <StatusBadge status={item.status}>
-                          {item.status === "approved" && "Approved"}
-                          {item.status === "review" && "For Review"}
-                          {item.status === "rejected" && "Rejected"}
-                          {item.status === "not-submitted" && "Not Submitted"}
-                        </StatusBadge>
-                      </td>
-                      <td className="px-4 py-2 text-muted-foreground">
-                        {item.notes > 0 ? item.notes : "-"}
-                      </td>
-                      <td className="px-4 py-2 text-muted-foreground">{item.submitted}</td>
-                      <td className="px-4 py-2">
-                        <div className="flex gap-1">
-                          <Button variant="outline" size="sm">
-                            View Timesheets
-                          </Button>
-                          {item.status === "review" && <Button variant="outline" size="sm">
-                              Remind
-                            </Button>}
-                        </div>
-                      </td>
-                    </tr>)}
-                </tbody>
-              </table>
-            </div>
+    {/* My Timesheets Tab Content */}
+    {activeTab === "my-timesheets" && <div className="space-y-6">
+      {/* Header with Profile and Actions */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 sm:p-6 bg-card rounded-lg border gap-4">
+        <div className="flex items-center gap-4">
+          <Avatar className="w-10 h-10 sm:w-12 sm:h-12">
+            <AvatarImage src="/lovable-uploads/69927594-4747-4d86-a60e-64c607e67d1f.png" />
+            <AvatarFallback>JS</AvatarFallback>
+          </Avatar>
+          <div>
+            <h2 className="text-lg sm:text-xl font-semibold text-foreground">John Smith</h2>
           </div>
-          
-          {/* Pagination - Only show if more than 10 results */}
-          {filteredData.length > 10 && <div className="flex items-center justify-between px-4 py-3 mt-1">
-              <div className="text-sm text-muted-foreground">
-                Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredData.length)} of {filteredData.length} results
-              </div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} disabled={currentPage === 1}>
-                  <ChevronLeft className="w-4 h-4" />
-                  Previous
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))} disabled={currentPage === totalPages}>
-                  Next
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>}
-        </>}
-
-      {/* My Timesheets Tab Content */}
-      {activeTab === "my-timesheets" && <div className="space-y-6">
-          {/* Header with Profile and Actions */}
-          <div className="flex items-center justify-between p-6 bg-card rounded-lg border h-[90px]">
-            <div className="flex items-center gap-4">
-              <Avatar className="w-12 h-12">
-                <AvatarImage src="/lovable-uploads/69927594-4747-4d86-a60e-64c607e67d1f.png" />
-                <AvatarFallback>JS</AvatarFallback>
-              </Avatar>
-              <div>
-                <h2 className="text-xl font-semibold text-foreground">John Smith</h2>
-              </div>
-            </div>
-            <div className="flex items-center justify-center flex-1">
-              <p className="text-muted-foreground font-medium">23/06/2025 to 29/06/2025 - Week 26</p>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" className="text-green-600 border-green-600 hover:bg-green-50" onClick={() => {
+        </div>
+        <div className="flex items-center justify-center flex-1">
+          <p className="text-sm sm:text-base text-muted-foreground font-medium text-center sm:text-left">23/06/2025 to 29/06/2025 - Week 26</p>
+        </div>
+        <div className="flex gap-2 w-full sm:w-auto">
+          <Button variant="outline" className="text-green-600 border-green-600 hover:bg-green-50 flex-1 sm:flex-none text-sm" onClick={() => {
             alert('Timesheet submitted for approval!');
           }}>
-                Submit for Approval
-              </Button>
-            </div>
-          </div>
+            Submit for Approval
+          </Button>
+        </div>
+      </div>
 
-          {/* Summary Cards */}
-          <div className="grid grid-cols-4 gap-4">
-            <div className="p-3 bg-card rounded-lg border">
-              <div className="text-sm text-muted-foreground">Billable</div>
-              <div className="flex items-center gap-2">
-                <div className="text-2xl font-bold" style={{
-              color: '#381980'
-            }}>{formatHours(totals.billable.total)}</div>
-                <div className="flex flex-col justify-end">
-                  <span className="text-base text-muted-foreground mt-1">({totals.logged.total > 0 ? (totals.billable.total / totals.logged.total * 100).toFixed(1) : 0}%)</span>
-                </div>
-              </div>
-            </div>
-            <div className="p-3 bg-card rounded-lg border">
-              <div className="text-sm text-muted-foreground">Non-Billable</div>
-              <div className="flex items-center gap-2">
-                <div className="text-2xl font-bold" style={{
-              color: '#381980'
-            }}>{formatHours(totals.nonBillable.total)}</div>
-                <div className="flex flex-col justify-end">
-                  <span className="text-base text-muted-foreground mt-1">({totals.logged.total > 0 ? (totals.nonBillable.total / totals.logged.total * 100).toFixed(1) : 0}%)</span>
-                </div>
-              </div>
-            </div>
-            <div className="p-3 bg-card rounded-lg border">
-              <div className="text-sm text-muted-foreground">Total Logged</div>
-              <div className="flex items-center gap-2">
-                <div className="text-2xl font-bold" style={{
-              color: '#381980'
-            }}>{formatHours(totals.logged.total)}</div>
-                <div className="flex flex-col justify-end">
-                  <span className="text-base text-muted-foreground mt-1">({(totals.logged.total / 40 * 100).toFixed(1)}%)</span>
-                </div>
-              </div>
-            </div>
-            <div className="p-3 bg-card rounded-lg border">
-              <div className="text-sm text-muted-foreground">Variance</div>
-              <div className="flex items-center gap-2">
-                <div className="text-2xl font-bold" style={{
-              color: '#381980'
-            }}>{formatHours(40 - totals.logged.total)}</div>
-                <div className="flex flex-col justify-end">
-                  <span className="text-base text-muted-foreground mt-1">({((40 - totals.logged.total) / 40 * 100).toFixed(1)}%)</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex items-center justify-between">
+      {/* Summary Cards */}
+      <DashboardGrid columns={4}>
+        <DashboardCard 
+          title="Billable" 
+          value={
             <div className="flex items-center gap-2">
-              <Button variant="outline" className="text-green-600 border-green-600 hover:bg-green-50 h-9">
-                Approve
-              </Button>
-              <Button variant="outline" className="text-red-600 border-red-600 hover:bg-red-50 h-9">
-                Reject
-              </Button>
+              <span>{formatHours(totals.billable.total)}</span>
+              <span className="text-xs sm:text-sm text-muted-foreground">
+                ({totals.logged.total > 0 ? (totals.billable.total / totals.logged.total * 100).toFixed(1) : 0}%)
+              </span>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Hide Weekend</span>
-                <Switch checked={hideWeekend} onCheckedChange={setHideWeekend} />
-              </div>
-              <Button variant="outline" className="flex items-center gap-2 text-primary border-primary hover:bg-primary/10 h-9" onClick={() => {
+          }
+          valueColor="text-[#381980]"
+        />
+        <DashboardCard 
+          title="Non-Billable" 
+          value={
+            <div className="flex items-center gap-2">
+              <span>{formatHours(totals.nonBillable.total)}</span>
+              <span className="text-xs sm:text-sm text-muted-foreground">
+                ({totals.logged.total > 0 ? (totals.nonBillable.total / totals.logged.total * 100).toFixed(1) : 0}%)
+              </span>
+            </div>
+          }
+          valueColor="text-[#381980]"
+        />
+        <DashboardCard 
+          title="Total Logged" 
+          value={
+            <div className="flex items-center gap-2">
+              <span>{formatHours(totals.logged.total)}</span>
+              <span className="text-xs sm:text-sm text-muted-foreground">
+                ({(totals.logged.total / 40 * 100).toFixed(1)}%)
+              </span>
+            </div>
+          }
+          valueColor="text-[#381980]"
+        />
+        <DashboardCard 
+          title="Variance" 
+          value={
+            <div className="flex items-center gap-2">
+              <span>{formatHours(40 - totals.logged.total)}</span>
+              <span className="text-xs sm:text-sm text-muted-foreground">
+                ({((40 - totals.logged.total) / 40 * 100).toFixed(1)}%)
+              </span>
+            </div>
+          }
+          valueColor="text-[#381980]"
+        />
+      </DashboardGrid>
+
+      {/* Action Buttons */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" className="text-green-600 border-green-600 hover:bg-green-50 h-9 text-sm">
+            Approve
+          </Button>
+          <Button variant="outline" className="text-red-600 border-red-600 hover:bg-red-50 h-9 text-sm">
+            Reject
+          </Button>
+        </div>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <div className="flex items-center justify-between sm:justify-start gap-2">
+            <span className="text-sm text-muted-foreground">Hide Weekend</span>
+            <Switch checked={hideWeekend} onCheckedChange={setHideWeekend} />
+          </div>
+          <Button variant="outline" className="flex items-center justify-center gap-2 text-primary border-primary hover:bg-primary/10 h-9 text-sm" onClick={() => {
             const newId = Math.max(...timesheetRows.map(r => r.id)) + 1;
             const generateClientRef = (clientName: string) => {
               const firstThreeLetters = clientName.substring(0, 3).toUpperCase();
@@ -878,92 +883,97 @@ export function TimesheetDashboard() {
               }
             }]);
           }}>
-                <Plus className="w-4 h-4" />
-                New Row
-              </Button>
-            </div>
-          </div>
+            <Plus className="w-4 h-4" />
+            New Row
+          </Button>
+        </div>
+      </div>
 
-          {/* Detailed Timesheet Table */}
-          <div className="bg-card rounded-lg border overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-muted/50">
-                  <tr>
-                    <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground w-24">
-                      <button className="flex items-center gap-2 hover:text-foreground transition-colors" onClick={() => handleTimesheetSort('ref')}>
-                        CLIENT REF
-                        {getTimesheetSortIcon('ref')}
-                      </button>
-                    </th>
-                    <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground w-32">
-                      <button className="flex items-center gap-2 hover:text-foreground transition-colors" onClick={() => handleTimesheetSort('client')}>
-                        CLIENT NAME
-                        {getTimesheetSortIcon('client')}
-                      </button>
-                    </th>
-                    <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground w-40">
-                      <button className="flex items-center gap-2 hover:text-foreground transition-colors" onClick={() => handleTimesheetSort('job')}>
-                        JOB NAME
-                        {getTimesheetSortIcon('job')}
-                      </button>
-                    </th>
-                    <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground w-24">
-                      <button className="flex items-center gap-2 hover:text-foreground transition-colors" onClick={() => handleTimesheetSort('category')}>
-                        CATEGORY
-                        {getTimesheetSortIcon('category')}
-                      </button>
-                    </th>
-                    <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground w-48">
-                      <button className="flex items-center gap-2 hover:text-foreground transition-colors" onClick={() => handleTimesheetSort('description')}>
-                        DESCRIPTION
-                        {getTimesheetSortIcon('description')}
-                      </button>
-                    </th>
-                    <th className="text-center px-3 py-2 text-xs font-medium text-muted-foreground w-20">BILLABLE</th>
-                    <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground w-16">
-                      <button className="flex items-center gap-2 hover:text-foreground transition-colors" onClick={() => handleTimesheetSort('rate')}>
-                        RATE
-                        {getTimesheetSortIcon('rate')}
-                      </button>
-                    </th>
-                    <th className="text-center px-3 py-2 text-xs font-medium text-muted-foreground w-16">MON 23</th>
-                    <th className="text-center px-3 py-2 text-xs font-medium text-muted-foreground w-16">TUE 24</th>
-                    <th className="text-center px-3 py-2 text-xs font-medium text-muted-foreground w-16">WED 25</th>
-                    <th className="text-center px-3 py-2 text-xs font-medium text-muted-foreground w-16">THU 26</th>
-                    <th className="text-center px-3 py-2 text-xs font-medium text-muted-foreground w-16">FRI 27</th>
-                    {!hideWeekend && <th className="text-center px-3 py-2 text-xs font-medium text-muted-foreground w-16">SAT 28</th>}
-                    {!hideWeekend && <th className="text-center px-3 py-2 text-xs font-medium text-muted-foreground w-16">SUN 29</th>}
-                    <th className="text-right px-3 py-2 text-xs font-medium text-muted-foreground w-12"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {timesheetRows.sort((a, b) => {
-                    if (!timesheetSortField || !timesheetSortDirection) return 0;
-                    let aValue = a[timesheetSortField];
-                    let bValue = b[timesheetSortField];
-                    
-                    if (typeof aValue === 'string' && typeof bValue === 'string') {
-                      aValue = aValue.toLowerCase();
-                      bValue = bValue.toLowerCase();
-                    }
-                    
-                    if (timesheetSortDirection === 'asc') {
-                      return aValue > bValue ? 1 : -1;
-                    } else {
-                      return aValue < bValue ? 1 : -1;
-                    }
-                  }).map(row => <tr key={row.id} className="border-t border-border hover:bg-muted/25">
-                      <td className="px-3 py-2 text-sm text-left text-muted-foreground">{row.ref}</td>
-                      <td className="px-3 py-2 text-sm">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="text-left p-0 h-8 font-normal w-full justify-start">
-                              {row.client} <ChevronDown className="ml-1 w-3 h-3" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent>
-                            {clients.map(client => <DropdownMenuItem key={client} onClick={() => {
+      {/* Detailed Timesheet Table */}
+      <div className="bg-card rounded-lg border overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1200px]">
+            <thead className="bg-muted/50">
+              <tr>
+                <th className="text-left px-2 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-20 sm:w-24">
+                  <button className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleTimesheetSort('ref')}>
+                    <span className="hidden sm:inline">CLIENT REF</span>
+                    <span className="sm:hidden">REF</span>
+                    {getTimesheetSortIcon('ref')}
+                  </button>
+                </th>
+                <th className="text-left px-2 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-24 sm:w-32">
+                  <button className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleTimesheetSort('client')}>
+                    <span className="hidden sm:inline">CLIENT NAME</span>
+                    <span className="sm:hidden">CLIENT</span>
+                    {getTimesheetSortIcon('client')}
+                  </button>
+                </th>
+                <th className="text-left px-2 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-32 sm:w-40">
+                  <button className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleTimesheetSort('job')}>
+                    <span className="hidden sm:inline">JOB NAME</span>
+                    <span className="sm:hidden">JOB</span>
+                    {getTimesheetSortIcon('job')}
+                  </button>
+                </th>
+                <th className="text-left px-2 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-20 sm:w-24">
+                  <button className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleTimesheetSort('category')}>
+                    <span className="hidden sm:inline">CATEGORY</span>
+                    <span className="sm:hidden">CAT</span>
+                    {getTimesheetSortIcon('category')}
+                  </button>
+                </th>
+                <th className="text-left px-2 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-32 sm:w-48">
+                  <button className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleTimesheetSort('description')}>
+                    <span className="hidden sm:inline">DESCRIPTION</span>
+                    <span className="sm:hidden">DESC</span>
+                    {getTimesheetSortIcon('description')}
+                  </button>
+                </th>
+                <th className="text-center px-2 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-16 sm:w-20">BILLABLE</th>
+                <th className="text-left px-2 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-12 sm:w-16">
+                  <button className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleTimesheetSort('rate')}>
+                    RATE
+                    {getTimesheetSortIcon('rate')}
+                  </button>
+                </th>
+                <th className="text-center px-1 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-12 sm:w-16">MON 23</th>
+                <th className="text-center px-1 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-12 sm:w-16">TUE 24</th>
+                <th className="text-center px-1 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-12 sm:w-16">WED 25</th>
+                <th className="text-center px-1 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-12 sm:w-16">THU 26</th>
+                <th className="text-center px-1 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-12 sm:w-16">FRI 27</th>
+                {!hideWeekend && <th className="text-center px-1 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-12 sm:w-16">SAT 28</th>}
+                {!hideWeekend && <th className="text-center px-1 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-12 sm:w-16">SUN 29</th>}
+                <th className="text-right px-1 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-8 sm:w-12"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {timesheetRows.sort((a, b) => {
+                if (!timesheetSortField || !timesheetSortDirection) return 0;
+                let aValue = a[timesheetSortField];
+                let bValue = b[timesheetSortField];
+
+                if (typeof aValue === 'string' && typeof bValue === 'string') {
+                  aValue = aValue.toLowerCase();
+                  bValue = bValue.toLowerCase();
+                }
+
+                if (timesheetSortDirection === 'asc') {
+                  return aValue > bValue ? 1 : -1;
+                } else {
+                  return aValue < bValue ? 1 : -1;
+                }
+              }).map(row => <tr key={row.id} className="border-t border-border hover:bg-muted/25">
+                <td className="px-3 py-2 text-sm text-left text-muted-foreground">{row.ref}</td>
+                <td className="px-3 py-2 text-sm">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="text-left p-0 h-8 font-normal w-full justify-start">
+                        {row.client} <ChevronDown className="ml-1 w-3 h-3" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      {clients.map(client => <DropdownMenuItem key={client} onClick={() => {
                         const generateClientRef = (clientName: string) => {
                           const firstThreeLetters = clientName.substring(0, 3).toUpperCase();
                           const year = new Date().getFullYear().toString().slice(-2);
@@ -975,88 +985,88 @@ export function TimesheetDashboard() {
                           ref: generateClientRef(client)
                         } : r));
                       }}>
-                                {client}
-                              </DropdownMenuItem>)}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </td>
-                      <td className="px-3 py-2 text-sm">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="text-left p-0 h-8 font-normal w-full justify-start">
-                              {row.job} <ChevronDown className="ml-1 w-3 h-3" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent>
-                            {jobs.map(job => <DropdownMenuItem key={job} onClick={() => {
+                        {client}
+                      </DropdownMenuItem>)}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </td>
+                <td className="px-3 py-2 text-sm">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="text-left p-0 h-8 font-normal w-full justify-start">
+                        {row.job} <ChevronDown className="ml-1 w-3 h-3" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      {jobs.map(job => <DropdownMenuItem key={job} onClick={() => {
                         setTimesheetRows(rows => rows.map(r => r.id === row.id ? {
                           ...r,
                           job
                         } : r));
                       }}>
-                                {job}
-                              </DropdownMenuItem>)}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </td>
-                      <td className="px-3 py-2">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="text-left p-0 h-8 font-normal">
-                              <span className={`px-2 py-1 text-xs rounded whitespace-nowrap flex items-center ${row.category === 'Client Work' ? 'bg-blue-100 text-blue-800' : row.category === 'Admin' ? 'bg-green-100 text-green-800' : row.category === 'Training' ? 'bg-orange-100 text-orange-800' : row.category === 'Meeting' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}`}>
-                                {row.category} <ChevronDown className="ml-1 w-3 h-3" />
-                              </span>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent>
-                            {categories.map(category => <DropdownMenuItem key={category} onClick={() => {
+                        {job}
+                      </DropdownMenuItem>)}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </td>
+                <td className="px-3 py-2">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="text-left p-0 h-8 font-normal">
+                        <span className={`px-2 py-1 text-xs rounded whitespace-nowrap flex items-center ${row.category === 'Client Work' ? 'bg-blue-100 text-blue-800' : row.category === 'Admin' ? 'bg-green-100 text-green-800' : row.category === 'Training' ? 'bg-orange-100 text-orange-800' : row.category === 'Meeting' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}`}>
+                          {row.category} <ChevronDown className="ml-1 w-3 h-3" />
+                        </span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      {categories.map(category => <DropdownMenuItem key={category} onClick={() => {
                         setTimesheetRows(rows => rows.map(r => r.id === row.id ? {
                           ...r,
                           category
                         } : r));
                       }}>
-                                {category}
-                              </DropdownMenuItem>)}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </td>
-                      <td className="px-3 py-2 text-sm">
-                        <Input value={row.description} onChange={e => {
+                        {category}
+                      </DropdownMenuItem>)}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </td>
+                <td className="px-3 py-2 text-sm">
+                  <Input value={row.description} onChange={e => {
                     setTimesheetRows(rows => rows.map(r => r.id === row.id ? {
                       ...r,
                       description: e.target.value
                     } : r));
                   }} className="border border-input p-1 h-8 bg-background text-sm rounded" placeholder="Add description..." />
-                      </td>
-                      <td className="px-3 py-2 text-center">
-                        <Switch checked={row.billable} onCheckedChange={checked => {
+                </td>
+                <td className="px-3 py-2 text-center">
+                  <Switch checked={row.billable} onCheckedChange={checked => {
                     setTimesheetRows(rows => rows.map(r => r.id === row.id ? {
                       ...r,
                       billable: checked
                     } : r));
                   }} />
-                      </td>
-                      <td className="px-3 py-2 text-sm">
-                        {row.billable ? <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm" className="text-left p-0 h-8 font-normal">
-                                {row.rate} <ChevronDown className="ml-1 w-3 h-3" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent>
-                              {rates.map(rate => <DropdownMenuItem key={rate} onClick={() => {
+                </td>
+                <td className="px-3 py-2 text-sm">
+                  {row.billable ? <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="text-left p-0 h-8 font-normal">
+                        {row.rate} <ChevronDown className="ml-1 w-3 h-3" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      {rates.map(rate => <DropdownMenuItem key={rate} onClick={() => {
                         setTimesheetRows(rows => rows.map(r => r.id === row.id ? {
                           ...r,
                           rate
                         } : r));
                       }}>
-                                  {rate}
-                                </DropdownMenuItem>)}
-                            </DropdownMenuContent>
-                          </DropdownMenu> : null}
-                      </td>
-                      <td className="px-3 py-2 text-center text-sm">
-                        <Input type="text" value={row.hours.mon === 0 ? "" : formatHours(row.hours.mon)} onChange={e => {
+                        {rate}
+                      </DropdownMenuItem>)}
+                    </DropdownMenuContent>
+                  </DropdownMenu> : null}
+                </td>
+                <td className="px-3 py-2 text-center text-sm">
+                  <Input type="text" value={row.hours.mon === 0 ? "" : formatHours(row.hours.mon)} onChange={e => {
                     const timeStr = e.target.value;
                     if (timeStr === "") {
                       setTimesheetRows(rows => rows.map(r => r.id === row.id ? {
@@ -1087,9 +1097,9 @@ export function TimesheetDashboard() {
                       } : r));
                     }
                   }} placeholder="" className="w-16 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
-                      </td>
-                      <td className="px-3 py-2 text-center text-sm">
-                        <Input type="text" value={row.hours.tue === 0 ? "" : formatHours(row.hours.tue)} onChange={e => {
+                </td>
+                <td className="px-3 py-2 text-center text-sm">
+                  <Input type="text" value={row.hours.tue === 0 ? "" : formatHours(row.hours.tue)} onChange={e => {
                     const timeStr = e.target.value;
                     if (timeStr === "") {
                       setTimesheetRows(rows => rows.map(r => r.id === row.id ? {
@@ -1120,9 +1130,9 @@ export function TimesheetDashboard() {
                       } : r));
                     }
                   }} placeholder="" className="w-16 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
-                      </td>
-                      <td className="px-3 py-2 text-center text-sm">
-                        <Input type="text" value={row.hours.wed === 0 ? "" : formatHours(row.hours.wed)} onChange={e => {
+                </td>
+                <td className="px-3 py-2 text-center text-sm">
+                  <Input type="text" value={row.hours.wed === 0 ? "" : formatHours(row.hours.wed)} onChange={e => {
                     const timeStr = e.target.value;
                     if (timeStr === "") {
                       setTimesheetRows(rows => rows.map(r => r.id === row.id ? {
@@ -1153,9 +1163,9 @@ export function TimesheetDashboard() {
                       } : r));
                     }
                   }} placeholder="" className="w-16 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
-                      </td>
-                      <td className="px-3 py-2 text-center text-sm">
-                        <Input type="text" value={row.hours.thu === 0 ? "" : formatHours(row.hours.thu)} onChange={e => {
+                </td>
+                <td className="px-3 py-2 text-center text-sm">
+                  <Input type="text" value={row.hours.thu === 0 ? "" : formatHours(row.hours.thu)} onChange={e => {
                     const timeStr = e.target.value;
                     if (timeStr === "") {
                       setTimesheetRows(rows => rows.map(r => r.id === row.id ? {
@@ -1186,9 +1196,9 @@ export function TimesheetDashboard() {
                       } : r));
                     }
                   }} placeholder="" className="w-16 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
-                      </td>
-                      <td className="px-3 py-2 text-center text-sm">
-                        <Input type="text" value={row.hours.fri === 0 ? "" : formatHours(row.hours.fri)} onChange={e => {
+                </td>
+                <td className="px-3 py-2 text-center text-sm">
+                  <Input type="text" value={row.hours.fri === 0 ? "" : formatHours(row.hours.fri)} onChange={e => {
                     const timeStr = e.target.value;
                     if (timeStr === "") {
                       setTimesheetRows(rows => rows.map(r => r.id === row.id ? {
@@ -1219,9 +1229,9 @@ export function TimesheetDashboard() {
                       } : r));
                     }
                   }} placeholder="" className="w-16 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
-                      </td>
-                      {!hideWeekend && <td className="px-3 py-2 text-center text-sm">
-                         <Input type="text" value={row.hours.sat === 0 ? "" : formatHours(row.hours.sat)} onChange={e => {
+                </td>
+                {!hideWeekend && <td className="px-3 py-2 text-center text-sm">
+                  <Input type="text" value={row.hours.sat === 0 ? "" : formatHours(row.hours.sat)} onChange={e => {
                     const timeStr = e.target.value;
                     if (timeStr === "") {
                       setTimesheetRows(rows => rows.map(r => r.id === row.id ? {
@@ -1252,9 +1262,9 @@ export function TimesheetDashboard() {
                       } : r));
                     }
                   }} placeholder="" className="w-16 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
-                      </td>}
-                      {!hideWeekend && <td className="px-3 py-2 text-center text-sm">
-                         <Input type="text" value={row.hours.sun === 0 ? "" : formatHours(row.hours.sun)} onChange={e => {
+                </td>}
+                {!hideWeekend && <td className="px-3 py-2 text-center text-sm">
+                  <Input type="text" value={row.hours.sun === 0 ? "" : formatHours(row.hours.sun)} onChange={e => {
                     const timeStr = e.target.value;
                     if (timeStr === "") {
                       setTimesheetRows(rows => rows.map(r => r.id === row.id ? {
@@ -1285,83 +1295,83 @@ export function TimesheetDashboard() {
                       } : r));
                     }
                   }} placeholder="" className="w-16 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
-                      </td>}
-                      <td className="px-3 py-2 text-right">
-                        <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700" onClick={() => {
+                </td>}
+                <td className="px-3 py-2 text-right">
+                  <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700" onClick={() => {
                     setTimesheetRows(rows => rows.filter(r => r.id !== row.id));
                   }}>
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </td>
-                    </tr>)}
-                </tbody>
-                {/* Summary rows */}
-                <tbody className="border-t-2 border-border">
-                  <tr className="bg-blue-50">
-                    <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right">BILLABLE</td>
-                    <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.billable.mon)}</td>
-                    <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.billable.tue)}</td>
-                    <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.billable.wed)}</td>
-                    <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.billable.thu)}</td>
-                    <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.billable.fri)}</td>
-                    {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.billable.sat)}</td>}
-                    {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.billable.sun)}</td>}
-                    <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.billable.total)}</td>
-                  </tr>
-                  <tr className="bg-gray-50">
-                    <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right">NON BILLABLE</td>
-                    <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.nonBillable.mon)}</td>
-                    <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.nonBillable.tue)}</td>
-                    <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.nonBillable.wed)}</td>
-                    <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.nonBillable.thu)}</td>
-                    <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.nonBillable.fri)}</td>
-                    {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.nonBillable.sat)}</td>}
-                    {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.nonBillable.sun)}</td>}
-                    <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.nonBillable.total)}</td>
-                  </tr>
-                  <tr className="bg-blue-50">
-                    <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right">LOGGED</td>
-                    <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.logged.mon)}</td>
-                    <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.logged.tue)}</td>
-                    <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.logged.wed)}</td>
-                    <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.logged.thu)}</td>
-                    <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.logged.fri)}</td>
-                    {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.logged.sat)}</td>}
-                    {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.logged.sun)}</td>}
-                    <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.logged.total)}</td>
-                  </tr>
-                  <tr className="bg-gray-100">
-                    <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right">CAPACITY</td>
-                    <td className="px-3 py-2 text-center text-sm font-normal">08:00</td>
-                    <td className="px-3 py-2 text-center text-sm font-normal">08:00</td>
-                    <td className="px-3 py-2 text-center text-sm font-normal">08:00</td>
-                    <td className="px-3 py-2 text-center text-sm font-normal">08:00</td>
-                    <td className="px-3 py-2 text-center text-sm font-normal">08:00</td>
-                    {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">00:00</td>}
-                    {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">00:00</td>}
-                    <td className="px-3 py-2 text-center text-sm font-normal">40:00</td>
-                  </tr>
-                  <tr className="bg-red-50">
-                    <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right">VARIANCE</td>
-                    <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(8 - totals.logged.mon)}</td>
-                    <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(8 - totals.logged.tue)}</td>
-                    <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(8 - totals.logged.wed)}</td>
-                    <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(8 - totals.logged.thu)}</td>
-                    <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(8 - totals.logged.fri)}</td>
-                    {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(0 - totals.logged.sat)}</td>}
-                    {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(0 - totals.logged.sun)}</td>}
-                    <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(40 - totals.logged.total)}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>}
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </td>
+              </tr>)}
+            </tbody>
+            {/* Summary rows */}
+            <tbody className="border-t-2 border-border">
+              <tr className="bg-blue-50">
+                <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right">BILLABLE</td>
+                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.billable.mon)}</td>
+                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.billable.tue)}</td>
+                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.billable.wed)}</td>
+                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.billable.thu)}</td>
+                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.billable.fri)}</td>
+                {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.billable.sat)}</td>}
+                {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.billable.sun)}</td>}
+                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.billable.total)}</td>
+              </tr>
+              <tr className="bg-gray-50">
+                <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right">NON BILLABLE</td>
+                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.nonBillable.mon)}</td>
+                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.nonBillable.tue)}</td>
+                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.nonBillable.wed)}</td>
+                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.nonBillable.thu)}</td>
+                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.nonBillable.fri)}</td>
+                {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.nonBillable.sat)}</td>}
+                {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.nonBillable.sun)}</td>}
+                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.nonBillable.total)}</td>
+              </tr>
+              <tr className="bg-blue-50">
+                <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right">LOGGED</td>
+                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.logged.mon)}</td>
+                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.logged.tue)}</td>
+                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.logged.wed)}</td>
+                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.logged.thu)}</td>
+                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.logged.fri)}</td>
+                {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.logged.sat)}</td>}
+                {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.logged.sun)}</td>}
+                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.logged.total)}</td>
+              </tr>
+              <tr className="bg-gray-100">
+                <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right">CAPACITY</td>
+                <td className="px-3 py-2 text-center text-sm font-normal">08:00</td>
+                <td className="px-3 py-2 text-center text-sm font-normal">08:00</td>
+                <td className="px-3 py-2 text-center text-sm font-normal">08:00</td>
+                <td className="px-3 py-2 text-center text-sm font-normal">08:00</td>
+                <td className="px-3 py-2 text-center text-sm font-normal">08:00</td>
+                {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">00:00</td>}
+                {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">00:00</td>}
+                <td className="px-3 py-2 text-center text-sm font-normal">40:00</td>
+              </tr>
+              <tr className="bg-red-50">
+                <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right">VARIANCE</td>
+                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(8 - totals.logged.mon)}</td>
+                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(8 - totals.logged.tue)}</td>
+                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(8 - totals.logged.wed)}</td>
+                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(8 - totals.logged.thu)}</td>
+                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(8 - totals.logged.fri)}</td>
+                {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(0 - totals.logged.sat)}</td>}
+                {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(0 - totals.logged.sun)}</td>}
+                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(40 - totals.logged.total)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>}
 
-      {/* Time Logs Tab Content */}
-      {activeTab === "time-logs" && <div className="flex items-center justify-center h-64">
-          <p className="text-muted-foreground">Time Logs content coming soon...</p>
-        </div>}
-    </div>;
+    {/* Time Logs Tab Content */}
+    {activeTab === "time-logs" && <div className="flex items-center justify-center h-64">
+      <p className="text-muted-foreground">Time Logs content coming soon...</p>
+    </div>}
+  </div>;
 }
 
