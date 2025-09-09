@@ -129,3 +129,13 @@ export interface RateUpdate { userId: string; [key: string]: any; }
 export interface PermissionUpdate { userId: string; [key: string]: any; }
 export interface FeatureAccessUpdate { userId: string; [key: string]: any; }
 export interface SingleMemberUpdate { userId: string; [key: string]: any; }
+
+export interface SendInviteRequest {
+    email: string;
+}
+
+export interface SendInviteResponse {
+    success: boolean;
+    message: string;
+    data?: any; // You can make this more specific based on your API response
+}

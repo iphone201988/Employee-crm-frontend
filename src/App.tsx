@@ -19,6 +19,7 @@ import Settings from "./pages/Settings";
 import Login from "./pages/Login";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PublicRoute from "./components/PublicRoute";
+import SetPassword from "./pages/SetPassword";
 
 const queryClient = new QueryClient();
 
@@ -37,6 +38,14 @@ const App = () => (
                 element={
                   <PublicRoute>
                     <Login />
+                  </PublicRoute>
+                } 
+              />
+              <Route 
+                path="/set-password" 
+                element={
+                  <PublicRoute>
+                    <SetPassword />
                   </PublicRoute>
                 } 
               />

@@ -1,5 +1,5 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import { AddTeamMemberRequest, AddTeamMemberResponse, UploadImageResponse, TeamMember, GetAllTeamMembersRequest,GetAllTeamMembersResponse, UpdateTeamMembersResponse, UpdateTeamMembersRequest } from '../types/APIs/teamApiType';
+import { AddTeamMemberRequest, AddTeamMemberResponse, UploadImageResponse, TeamMember, GetAllTeamMembersRequest,GetAllTeamMembersResponse, UpdateTeamMembersResponse, UpdateTeamMembersRequest, SendInviteResponse, SendInviteRequest } from '../types/APIs/teamApiType';
 
 
 type UploadImageRequest = File;
@@ -62,6 +62,13 @@ export const teamApi = createApi({
             },
 
         }),
+         sendInviteToTeamMember: builder.mutation<SendInviteResponse, SendInviteRequest>({
+            query: (inviteData) => ({
+                url: '/send-invite-to-team-member',
+                method: 'POST',
+                body: inviteData,
+            }),
+        }),
     }),
 });
 
@@ -69,5 +76,6 @@ export const {
     useAddTeamMemberMutation,
     useUploadImageMutation, 
     useGetAllTeamMembersQuery,
-    useUpdateTeamMembersMutation
+    useUpdateTeamMembersMutation,
+    useSendInviteToTeamMemberMutation
 } = teamApi;
