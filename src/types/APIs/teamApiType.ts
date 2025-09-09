@@ -39,6 +39,13 @@ export interface TeamMember {
     departmentId: string;
     hourlyRate: number;
     billableRate: number;
+    accounts: number;
+    audits: number;
+    bookkeeping: number;
+    payroll: number;
+    vat: number;
+    companySecretarial: number;
+    cgt: number;
     workSchedule: WorkSchedule;
     createdAt: string;
     updatedAt: string;

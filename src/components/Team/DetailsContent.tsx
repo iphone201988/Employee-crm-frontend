@@ -16,6 +16,7 @@ import {
 import { TeamMember } from '@/types/APIs/teamApiType';
 import { toast } from 'sonner';
 
+
 const DetailsContent = () => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);

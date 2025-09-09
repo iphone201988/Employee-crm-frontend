@@ -1,90 +1,46 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
-import { ArrowUpDown } from 'lucide-react';
-import { TEAM_MEMBER_NAMES, DEFAULT_SERVICE_RATES } from '@/constants/teamConstants';
+import { ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { DEFAULT_SERVICE_RATES } from '@/constants/teamConstants';
 import { getProfileImage, getUserInitials } from '@/utils/profiles';
-
+import { TeamMember as ApiTeamMember } from '@/types/APIs/teamApiType';
 import { useGetAllTeamMembersQuery, useUpdateTeamMembersMutation } from '@/store/teamApi';
-interface TeamMember {
-    id: string;
-    name: string;
-    defaultRate: number;
-    isDefaultRateLocked: boolean;
-    rates: {
-        accounts: number | string;
-        audit: number | string;
-        bookkeeping: number | string;
-        companySecretary: number | string;
-        corporationTax: number | string;
-        managementAccounts: number | string;
-        payroll: number | string;
-        personalTax: number | string;
-        vat: number | string;
-        cgt: number | string;
-    };
-}
 
-const initialTeamMembers: TeamMember[] = TEAM_MEMBER_NAMES.map((name, index) => {
-    const rates = { ...DEFAULT_SERVICE_RATES };
-
-    // Add some N/A values throughout the table
-    if (index === 2) { // Michael Brown
-        rates.bookkeeping = 'N/A' as any;
-        rates.payroll = 'N/A' as any;
-    }
-    if (index === 5) { // Lisa Anderson
-        rates.audit = 'N/A' as any;
-        rates.corporationTax = 'N/A' as any;
-    }
-    if (index === 8) { // Robert Thomas
-        rates.companySecretary = 'N/A' as any;
-        rates.cgt = 'N/A' as any;
-    }
-    if (index === 11) { // Amanda Lewis
-        rates.personalTax = 'N/A' as any;
-        rates.managementAccounts = 'N/A' as any;
-    }
-
-    // Add VAT values for all members
-    if (index === 0) rates.vat = 130; // John Smith
-    if (index === 1) rates.vat = 140; // Sarah Johnson
-    if (index === 2) rates.vat = 120; // Michael Brown
-    if (index === 3) rates.vat = 135; // Emma Wilson
-    if (index === 4) rates.vat = 145; // David Wilson
-    if (index === 5) rates.vat = 'N/A' as any; // Lisa Anderson
-    if (index === 6) rates.vat = 125; // James Taylor
-    if (index === 7) rates.vat = 150; // Jennifer White
-    if (index === 8) rates.vat = 115; // Robert Thomas
-    if (index === 9) rates.vat = 140; // Jessica Hall
-    if (index === 10) rates.vat = 130; // Christopher Rodriguez
-    if (index === 11) rates.vat = 135; // Amanda Lewis
-    if (index === 12) rates.vat = 145; // Matthew Walker
-
-    // Mix and match lock default values
-    const isLocked = index % 3 === 0; // Lock every third member
-
+const transformApiTeamMember = (apiMember: ApiTeamMember): ServiceRatesTeamMember => {
     return {
-        id: (index + 1).toString(),
-        name,
-        defaultRate: 75 + (index * 5), // Different default rates for each member
-        isDefaultRateLocked: isLocked,
-        rates
+        id: apiMember._id,
+        name: apiMember.name,
+        email: apiMember.email,
+        avatarUrl: apiMember.avatarUrl || '',
+        department: apiMember.department?.name || 'Unknown',
+        defaultRate: apiMember.billableRate || apiMember.hourlyRate * 2,
+        hourlyRate: apiMember.hourlyRate,
+        isDefaultRateLocked: false,
+        rates: {
+            accounts: (apiMember as any).accounts || 0,
+            audits: (apiMember as any).audits || 0,
+            bookkeeping: (apiMember as any).bookkeeping || 0,
+            companySecretarial: (apiMember as any).companySecretarial || 0,
+            payroll: (apiMember as any).payroll || 0,
+            vat: (apiMember as any).vat || 0,
+            cgt: (apiMember as any).cgt || 0,
+        }
     };
-});
+};
 
 const mainServices = [
     { key: 'accounts', label: 'Accounts' },
-    { key: 'audit', label: 'Audit' },
+    { key: 'audits', label: 'Audits' },
     { key: 'bookkeeping', label: 'Bookkeeping' },
     { key: 'payroll', label: 'Payroll' },
     { key: 'vat', label: 'VAT' },
-    { key: 'companySecretary', label: 'Company Secretarial' },
+    { key: 'companySecretarial', label: 'Company Secretarial' },
     { key: 'cgt', label: 'CGT' },
 ];
 
@@ -92,9 +48,29 @@ const mainServices = [
 export const ServiceRatesContent = () => {
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
     const [sortField, setSortField] = useState<'name' | keyof typeof DEFAULT_SERVICE_RATES | null>(null);
-    const [teamMembers, setTeamMembers] = useState<TeamMember[]>(initialTeamMembers);
+    const [teamMembers, setTeamMembers] = useState<ServiceRatesTeamMember[]>([]);
     const [editingCell, setEditingCell] = useState<string | null>(null);
     const [editingValue, setEditingValue] = useState<string>('');
+    const [editAble, setEditable] = useState(false);
+    const [page, setPage] = useState(1);
+    const [limit, setLimit] = useState(10);
+
+    const { data: teamData, isLoading, error } = useGetAllTeamMembersQuery({ page, limit });
+    const [updateTeamMembers] = useUpdateTeamMembersMutation();
+
+    const pagination = teamData?.data?.pagination;
+
+    useEffect(() => {
+        if (teamData?.data?.teamMembers) {
+            const transformedMembers = teamData.data.teamMembers.map(transformApiTeamMember);
+            setTeamMembers(transformedMembers);
+        }
+    }, [teamData]);
+
+    useEffect(() => {
+        setPage(1);
+    }, [limit]);
+
     const handleSort = (field: 'name' | keyof typeof DEFAULT_SERVICE_RATES) => {
         if (sortField === field) {
             setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -117,7 +93,6 @@ export const ServiceRatesContent = () => {
             const aValue = a.rates[sortField];
             const bValue = b.rates[sortField];
 
-            // Handle N/A values - put them at the end
             if (aValue === 'N/A' && bValue === 'N/A') return 0;
             if (aValue === 'N/A') return 1;
             if (bValue === 'N/A') return -1;
@@ -129,15 +104,34 @@ export const ServiceRatesContent = () => {
         }
     });
 
-    const calculateHourlyRate = (member: TeamMember) => {
-        // Return 50% of the member's default rate (billable rate)
-        return member.defaultRate / 2;
+    const calculateHourlyRate = (member: ServiceRatesTeamMember) => {
+        return member.hourlyRate;
+    };
+
+    const handleSaveChanges = async () => {
+        try {
+            const rateUpdates = teamMembers.map(member => ({
+                userId: member.id,
+                accounts: member.rates.accounts,
+                audits: member.rates.audits,
+                bookkeeping: member.rates.bookkeeping,
+                companySecretarial: member.rates.companySecretarial,
+                payroll: member.rates.payroll,
+                vat: member.rates.vat,
+                cgt: member.rates.cgt,
+                hourlyRate: member.hourlyRate,
+                billableRate: member.defaultRate,
+            }));
+            
+            await updateTeamMembers({ rates: rateUpdates }).unwrap();
+
+        } catch (error) {
+        }
     };
 
     const handleCellSave = (memberId: string, serviceKey: string) => {
         let finalValue: number | string = editingValue.trim();
 
-        // Allow N/A as a valid value
         if (finalValue.toLowerCase() === 'n/a' || finalValue === '') {
             finalValue = 'N/A';
         } else {
@@ -184,12 +178,30 @@ export const ServiceRatesContent = () => {
         const cellId = `${memberId}-${serviceKey}`;
         setEditingCell(cellId);
         setEditingValue(currentValue === 'N/A' ? 'N/A' : currentValue.toString());
+        setEditable(true);
     };
+    if (isLoading) {
+        return (
+            <div className="space-y-6">
+                <div className="flex items-center justify-center py-8">
+                    <div className="text-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+                        <p className="mt-2 text-sm text-gray-600">Loading team members...</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-end pt-4">
-                <Button className="flex items-center gap-2">
-                    Save Changes
+                <Button
+                    className={`flex items-center gap-2 ${!editAble ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    onClick={handleSaveChanges}
+                    disabled={isLoading}
+                >
+                    {isLoading ? 'Saving...' : 'Save Changes'}
                 </Button>
             </div>
 
@@ -199,7 +211,7 @@ export const ServiceRatesContent = () => {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead className="sticky left-0 border-r">
+                                    <TableHead className="sticky left-0 border-r opacity-100 bg-opacity-100">
                                         <Button
                                             variant="ghost"
                                             size="sm"
@@ -255,13 +267,19 @@ export const ServiceRatesContent = () => {
                             <TableBody>
                                 {sortedTeamMembers.map((member) => (
                                     <TableRow key={member.id} className="border-b transition-colors">
-                                        <TableCell className="p-4 align-middle font-medium sticky left-0 border-r">
+                                        <TableCell className="p-4 align-middle font-medium sticky left-0 border-r bg-opacity-100 opacity-100">
                                             <div className="flex items-center gap-3">
                                                 <Avatar className="h-8 w-8">
-                                                    <AvatarImage src={getProfileImage(member.name)} alt={member.name} />
+                                                    <AvatarImage
+                                                        src={member.avatarUrl || getProfileImage(member.name)}
+                                                        alt={member.name}
+                                                    />
                                                     <AvatarFallback>{getUserInitials(member.name)}</AvatarFallback>
                                                 </Avatar>
-                                                {member.name}
+                                                <div>
+                                                    <div className="font-medium">{member.name}</div>
+                                                    {/* <div className="text-xs text-gray-500">{member.department}</div> */}
+                                                </div>
                                             </div>
                                         </TableCell>
                                         <TableCell className="p-4 align-middle border-r">
@@ -324,6 +342,83 @@ export const ServiceRatesContent = () => {
                     </div>
                 </CardContent>
             </Card>
+
+            {pagination && (
+                <div className="space-y-4 mt-6">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <span className="text-sm text-gray-600">Show:</span>
+                            <select
+                                value={limit}
+                                onChange={(e) => setLimit(Number(e.target.value))}
+                                className="border border-gray-300 rounded px-2 py-1 text-sm"
+                                disabled={isLoading}
+                            >
+                                <option value={5}>5 per page</option>
+                                <option value={10}>10 per page</option>
+                                <option value={20}>20 per page</option>
+                                <option value={50}>50 per page</option>
+                            </select>
+                        </div>
+
+                        <div className="text-sm text-gray-500">
+                            Showing {((page - 1) * limit) + 1} to {Math.min(page * limit, pagination.total)} of {pagination.total} team members
+                        </div>
+                    </div>
+
+                    {pagination.totalPages > 1 && (
+                        <div className="flex justify-center items-center gap-2">
+                            <Button
+                                onClick={() => setPage(p => Math.max(1, p - 1))}
+                                disabled={page === 1 || isLoading}
+                                variant="outline"
+                                size="sm"
+                            >
+                                <ChevronLeft className="h-4 w-4" />
+                                Previous
+                            </Button>
+
+                            <div className="flex items-center gap-1">
+                                {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                                    let pageNum;
+                                    if (pagination.totalPages <= 5) {
+                                        pageNum = i + 1;
+                                    } else if (page <= 3) {
+                                        pageNum = i + 1;
+                                    } else if (page >= pagination.totalPages - 2) {
+                                        pageNum = pagination.totalPages - 4 + i;
+                                    } else {
+                                        pageNum = page - 2 + i;
+                                    }
+
+                                    return (
+                                        <Button
+                                            key={pageNum}
+                                            onClick={() => setPage(pageNum)}
+                                            disabled={isLoading}
+                                            variant={page === pageNum ? "default" : "outline"}
+                                            size="sm"
+                                            className="w-8 h-8 p-0"
+                                        >
+                                            {pageNum}
+                                        </Button>
+                                    );
+                                })}
+                            </div>
+
+                            <Button
+                                onClick={() => setPage(p => p + 1)}
+                                disabled={page >= pagination.totalPages || isLoading}
+                                variant="outline"
+                                size="sm"
+                            >
+                                Next
+                                <ChevronRight className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     )
 }

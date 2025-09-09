@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const SetPassword = () => {
     const [formData, setFormData] = useState({
         password: '',
         confirmPassword: ''
     });
+    const navigate = useNavigate();
     const [errors, setErrors] = useState<any>();
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -71,13 +73,27 @@ const SetPassword = () => {
             });
 
             const result = await response.json();
-            console.log('================tertertretertert',result);
+            console.log('================tertertretertert', result);
             if (response.ok) {
                 console.log("Password set successfully:", result);
                 alert("✅ Password has been set successfully!");
+                setFormData({
+                    password: '',
+                    confirmPassword: ''
+                });
+
+                // Clear any errors
+                setErrors({});
+
+                // Navigate to login page
+                navigate('/login');
             } else {
                 console.error("Error:", result);
-                alert(`❌ Failed: ${result.message || "Something went wrong"}`);
+                setFormData({
+                    password: '',
+                    confirmPassword: ''
+                });
+                alert(`❌ "Link is invalid or has expired. Please request a new password reset."`);
             }
         } catch (error) {
             console.error("Error:", error);

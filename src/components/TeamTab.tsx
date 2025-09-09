@@ -19,6 +19,7 @@ import DetailsContent from './Team/DetailsContent';
 import { ServiceRatesContent } from './Team/ServiceRatesContent';
 import ApprovalsContent from './Team/ApprovalsContent';
 import AccessContent from './Team/AccessContent';
+import { useGetAllTeamMembersQuery } from '@/store/teamApi';
 
 interface TeamMember {
   id: string;
@@ -64,7 +65,10 @@ const services = [
 ];
 
 const TeamTab = () => {
+  
   const [activeTab, setActiveTab] = useState<string>('details');
+  
+
   const tabs = [
     {
       id: 'details',
