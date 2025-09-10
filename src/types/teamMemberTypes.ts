@@ -1,6 +1,5 @@
 import { TeamMember as ApiTeamMember } from './APIs/teamApiType';
 
-// Base interface for all team member components
 export interface BaseTeamMember {
   id: string;
   name: string;
@@ -9,7 +8,7 @@ export interface BaseTeamMember {
   department: string;
   defaultRate: number;
   hourlyRate: number;
-  isDefaultRateLocked: boolean;
+  isDefaultRateLocked: boolean|any;
   rates: {
     accounts: number | string;
     audits: number | string;
@@ -67,7 +66,6 @@ export interface AccessTeamMember extends BaseTeamMember {
   };
 }
 
-// Transform functions
 export const transformToServiceRates = (apiMember: ApiTeamMember): ServiceRatesTeamMember => ({
   id: apiMember._id,
   name: apiMember.name,
@@ -76,7 +74,7 @@ export const transformToServiceRates = (apiMember: ApiTeamMember): ServiceRatesT
   department: apiMember.department?.name || 'Unknown',
   defaultRate: apiMember.billableRate || apiMember.hourlyRate * 2,
   hourlyRate: apiMember.hourlyRate,
-  isDefaultRateLocked: false,
+  isDefaultRateLocked: apiMember?.status === 'active' ? true : false,
   rates: {
     accounts: (apiMember as any).accounts || 0,
     audits: (apiMember as any).audits || 0,

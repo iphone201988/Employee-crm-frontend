@@ -33,7 +33,7 @@ export interface TeamMember {
     _id: string;
     name: string;
     email: string;
-    status: 'active' | 'inactive';
+    status: 'active' | 'inActive';
     avatarUrl: string;
     role: 'team' | 'admin'; // Or other roles
     departmentId: string;

@@ -111,6 +111,20 @@ export const ServiceRatesContent = () => {
         }
     };
 
+    const handleLockUnlock = async(userId: string,status:string) => {
+        try {
+            const payload = {
+                singleTeamMenber:{
+                    userId,
+                    status
+                }
+            }
+            await updateTeamMembers(payload).unwrap();
+        } catch (error) {
+        console.error('Failed to update team member rates:', error); 
+        }
+    }
+
     const handleCellSave = (memberId: string, serviceKey: string) => {
         let finalValue: number | string = editingValue.trim();
 
@@ -275,6 +289,7 @@ export const ServiceRatesContent = () => {
                                                 <Switch
                                                     checked={member.isDefaultRateLocked}
                                                     onCheckedChange={() => toggleDefaultRateLock(member.id)}
+                                                    onClick={() => handleLockUnlock( member.id,member.isDefaultRateLocked?'inActive':'active')}
                                                 />
                                             </div>
                                         </TableCell>
