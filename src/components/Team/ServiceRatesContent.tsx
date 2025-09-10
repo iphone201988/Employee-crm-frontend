@@ -12,6 +12,7 @@ import { getProfileImage, getUserInitials } from '@/utils/profiles';
 import { TeamMember as ApiTeamMember } from '@/types/APIs/teamApiType';
 import { useGetAllTeamMembersQuery, useUpdateTeamMembersMutation } from '@/store/teamApi';
 
+
 const transformApiTeamMember = (apiMember: ApiTeamMember): ServiceRatesTeamMember => {
     return {
         id: apiMember._id,
@@ -51,7 +52,7 @@ export const ServiceRatesContent = () => {
     const [teamMembers, setTeamMembers] = useState<ServiceRatesTeamMember[]>([]);
     const [editingCell, setEditingCell] = useState<string | null>(null);
     const [editingValue, setEditingValue] = useState<string>('');
-    const [editAble, setEditable] = useState(false);
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const [page, setPage] = useState(1);
     const [limit, setLimit] = useState(10);
 
@@ -122,10 +123,12 @@ export const ServiceRatesContent = () => {
                 hourlyRate: member.hourlyRate,
                 billableRate: member.defaultRate,
             }));
-            
+
             await updateTeamMembers({ rates: rateUpdates }).unwrap();
+            setHasUnsavedChanges(false);
 
         } catch (error) {
+            console.error('Failed to update team member rates:', error);
         }
     };
 
@@ -154,6 +157,7 @@ export const ServiceRatesContent = () => {
         );
         setEditingCell(null);
         setEditingValue('');
+        setHasUnsavedChanges(true);
     };
 
     const toggleDefaultRateLock = (memberId: string) => {
@@ -178,7 +182,6 @@ export const ServiceRatesContent = () => {
         const cellId = `${memberId}-${serviceKey}`;
         setEditingCell(cellId);
         setEditingValue(currentValue === 'N/A' ? 'N/A' : currentValue.toString());
-        setEditable(true);
     };
     if (isLoading) {
         return (
@@ -197,9 +200,9 @@ export const ServiceRatesContent = () => {
         <div className="space-y-6">
             <div className="flex items-center justify-end pt-4">
                 <Button
-                    className={`flex items-center gap-2 ${!editAble ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    className={`flex items-center gap-2 ${!hasUnsavedChanges ? 'opacity-50 cursor-not-allowed' : ''}`}
                     onClick={handleSaveChanges}
-                    disabled={isLoading}
+                    disabled={isLoading || !hasUnsavedChanges}
                 >
                     {isLoading ? 'Saving...' : 'Save Changes'}
                 </Button>

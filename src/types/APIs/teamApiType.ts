@@ -76,7 +76,31 @@ interface FeatureAccess {
     userId: string;
     myTimesheet: boolean;
     allTimesheets: boolean;
-    // Add other feature access flags as needed...
+    timeLogs: boolean;
+    WIP: boolean;
+    agedWIP: boolean;
+    invoices: boolean;
+    agedDebtors: boolean;
+    writeOff: boolean;
+    clientList: boolean;
+    clientBreakdown: boolean;
+    services: boolean;
+    jobTemplates: boolean;
+    jobBuilder: boolean;
+    jobList: boolean;
+    clientExpenses: boolean;
+    teamExpenses: boolean;
+    reports: boolean;
+    teamList: boolean;
+    rates: boolean;
+    permissions: boolean;
+    access: boolean;
+    general: boolean;
+    invoicing: boolean;
+    tags: boolean;
+    clientImport: boolean;
+    timeLogsImport: boolean;
+    integrations: boolean;
     __v: number;
 }
 
