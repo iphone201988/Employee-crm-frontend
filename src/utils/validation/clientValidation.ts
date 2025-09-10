@@ -11,7 +11,7 @@ export interface ValidationResult {
 }
 
 export const validateClientRef = (clientRef: string): string | null => {
-    if (!clientRef.trim()) {
+    if (!clientRef || !clientRef.trim()) {
         return 'Client reference is required';
     }
     if (clientRef.trim().length < 2) {
@@ -21,7 +21,7 @@ export const validateClientRef = (clientRef: string): string | null => {
 };
 
 export const validateClientName = (clientName: string): string | null => {
-    if (!clientName.trim()) {
+    if (!clientName || !clientName.trim()) {
         return 'Client name is required';
     }
     if (clientName.trim().length < 2) {
@@ -31,14 +31,14 @@ export const validateClientName = (clientName: string): string | null => {
 };
 
 export const validateBusinessType = (businessType: string): string | null => {
-    if (!businessType.trim()) {
+    if (!businessType || !businessType.trim()) {
         return 'Business type is required';
     }
     return null;
 };
 
 export const validateTaxNumber = (taxNumber: string): string | null => {
-    if (!taxNumber.trim()) {
+    if (!taxNumber || !taxNumber.trim()) {
         return 'Tax number is required';
     }
     if (!/^[0-9]+$/.test(taxNumber.trim())) {
@@ -55,7 +55,7 @@ export const validateCroNumber = (croNumber?: string): string | null => {
 };
 
 export const validateAddress = (address: string): string | null => {
-    if (!address.trim()) {
+    if (!address || !address.trim()) {
         return 'Address is required';
     }
     if (address.trim().length < 10) {
@@ -65,7 +65,7 @@ export const validateAddress = (address: string): string | null => {
 };
 
 export const validateContactName = (contactName: string): string | null => {
-    if (!contactName.trim()) {
+    if (!contactName || !contactName.trim()) {
         return 'Contact name is required';
     }
     if (contactName.trim().length < 2) {
@@ -75,7 +75,7 @@ export const validateContactName = (contactName: string): string | null => {
 };
 
 export const validateEmail = (email: string): string | null => {
-    if (!email.trim()) {
+    if (!email || !email.trim()) {
         return 'Email address is required';
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
@@ -85,7 +85,7 @@ export const validateEmail = (email: string): string | null => {
 };
 
 export const validatePhone = (phone: string): string | null => {
-    if (!phone.trim()) {
+    if (!phone || !phone.trim()) {
         return 'Phone number is required';
     }
     if (!/^[\+]?[0-9\s\-\(\)]{10,}$/.test(phone.trim())) {
@@ -114,8 +114,8 @@ export const validateClientForm = (formData: ClientData): ValidationResult => {
     const clientNameError = validateClientName(formData.clientName);
     if (clientNameError) errors.clientName = clientNameError;
 
-    const businessTypeError = validateBusinessType(formData.businessType);
-    if (businessTypeError) errors.businessType = businessTypeError;
+    const businessTypeError = validateBusinessType(formData.businessTypeId);
+    if (businessTypeError) errors.businessTypeId = businessTypeError;
 
     const taxNumberError = validateTaxNumber(formData.taxNumber);
     if (taxNumberError) errors.taxNumber = taxNumberError;
@@ -150,7 +150,7 @@ export const validateSingleField = (field: keyof ClientData, value: any): string
             return validateClientRef(value);
         case 'clientName':
             return validateClientName(value);
-        case 'businessType':
+        case 'businessTypeId':
             return validateBusinessType(value);
         case 'taxNumber':
             return validateTaxNumber(value);
