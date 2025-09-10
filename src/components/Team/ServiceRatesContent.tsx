@@ -10,30 +10,9 @@ import { ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { DEFAULT_SERVICE_RATES } from '@/constants/teamConstants';
 import { getProfileImage, getUserInitials } from '@/utils/profiles';
 import { TeamMember as ApiTeamMember } from '@/types/APIs/teamApiType';
+import { ServiceRatesTeamMember, transformToServiceRates } from '@/types/teamMemberTypes';
 import { useGetAllTeamMembersQuery, useUpdateTeamMembersMutation } from '@/store/teamApi';
 
-
-const transformApiTeamMember = (apiMember: ApiTeamMember): ServiceRatesTeamMember => {
-    return {
-        id: apiMember._id,
-        name: apiMember.name,
-        email: apiMember.email,
-        avatarUrl: apiMember.avatarUrl || '',
-        department: apiMember.department?.name || 'Unknown',
-        defaultRate: apiMember.billableRate || apiMember.hourlyRate * 2,
-        hourlyRate: apiMember.hourlyRate,
-        isDefaultRateLocked: false,
-        rates: {
-            accounts: (apiMember as any).accounts || 0,
-            audits: (apiMember as any).audits || 0,
-            bookkeeping: (apiMember as any).bookkeeping || 0,
-            companySecretarial: (apiMember as any).companySecretarial || 0,
-            payroll: (apiMember as any).payroll || 0,
-            vat: (apiMember as any).vat || 0,
-            cgt: (apiMember as any).cgt || 0,
-        }
-    };
-};
 
 const mainServices = [
     { key: 'accounts', label: 'Accounts' },
@@ -63,7 +42,7 @@ export const ServiceRatesContent = () => {
 
     useEffect(() => {
         if (teamData?.data?.teamMembers) {
-            const transformedMembers = teamData.data.teamMembers.map(transformApiTeamMember);
+            const transformedMembers = teamData.data.teamMembers.map(transformToServiceRates);
             setTeamMembers(transformedMembers);
         }
     }, [teamData]);

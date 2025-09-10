@@ -7,64 +7,18 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getProfileImage, getUserInitials } from '@/utils/profiles';
 import { TeamMember as ApiTeamMember } from '@/types/APIs/teamApiType';
+import { ApprovalsTeamMember, transformToApprovals } from '@/types/teamMemberTypes';
 import { useGetAllTeamMembersQuery, useUpdateTeamMembersMutation } from '@/store/teamApi';
 
-interface ServiceRatesTeamMember {
-    id: string;
-    name: string;
-    email: string;
-    avatarUrl: string;
-    department: string;
-    defaultRate: number;
-    hourlyRate: number;
-    isDefaultRateLocked: boolean;
-    rates: {
-        accounts: number | string;
-        audits: number | string;
-        bookkeeping: number | string;
-        companySecretarial: number | string;
-        payroll: number | string;
-        vat: number | string;
-        cgt: number | string;
-    };
-    permissions: {
-        approveTimesheets: boolean;
-        editServices: boolean;
-        editJobBuilder: boolean;
-        editJobTemplates: boolean;
-    };
-}
-
-const transformApiTeamMember = (apiMember: ApiTeamMember): ServiceRatesTeamMember => {
-  return {
-    id: apiMember._id,
-    name: apiMember.name,
-    email: apiMember.email,
-    avatarUrl: apiMember.avatarUrl || '',
-    department: apiMember.department?.name || 'Unknown',
-    defaultRate: apiMember.billableRate || apiMember.hourlyRate * 2,
-    hourlyRate: apiMember.hourlyRate,
-    isDefaultRateLocked: false,
-    rates: {
-      accounts: (apiMember as any).accounts || 0,
-      audits: (apiMember as any).audits || 0,
-      bookkeeping: (apiMember as any).bookkeeping || 0,
-      companySecretarial: (apiMember as any).companySecretarial || 0,
-      payroll: (apiMember as any).payroll || 0,
-      vat: (apiMember as any).vat || 0,
-      cgt: (apiMember as any).cgt || 0,
-    },
-    permissions: {
-      approveTimesheets: apiMember.permission?.approveTimesheets || false,
-      editServices: apiMember.permission?.editServices || false,
-      editJobBuilder: apiMember.permission?.editJobBuilder || false,
-      editJobTemplates: apiMember.permission?.editJobTemplates || false,
-    }
-  };
-};
+const permissions = [
+  { key: 'approveTimesheets', label: 'Approve Timesheets' },
+  { key: 'editServices', label: 'Edit Services' },
+  { key: 'editJobBuilder', label: 'Edit Job Builder' },
+  { key: 'editJobTemplates', label: 'Edit Job Templates' }
+];
 
 const ApprovalsContent = () => {
-  const [teamMembers, setTeamMembers] = useState<ServiceRatesTeamMember[]>([]);
+  const [teamMembers, setTeamMembers] = useState<ApprovalsTeamMember[]>([]);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -76,7 +30,7 @@ const ApprovalsContent = () => {
 
   useEffect(() => {
     if (teamData?.data?.teamMembers) {
-      const transformedMembers = teamData.data.teamMembers.map(transformApiTeamMember);
+      const transformedMembers = teamData.data.teamMembers.map(transformToApprovals);
       setTeamMembers(transformedMembers);
     }
   }, [teamData]);
@@ -85,7 +39,7 @@ const ApprovalsContent = () => {
     setPage(1);
   }, [limit]);
 
-  const handlePermissionChange = (memberId: string, permissionKey: keyof ServiceRatesTeamMember['permissions'], checked: boolean) => {
+  const handlePermissionChange = (memberId: string, permissionKey: keyof ApprovalsTeamMember['permissions'], checked: boolean) => {
     setTeamMembers(prev =>
       prev.map(member =>
         member.id === memberId
@@ -140,13 +94,6 @@ const ApprovalsContent = () => {
       console.error('Failed to update team member permissions:', error);
     }
   };
-
-  const permissions = [
-    { key: 'approveTimesheets', label: 'Approve Timesheets' },
-    { key: 'editServices', label: 'Edit Services' },
-    { key: 'editJobBuilder', label: 'Edit Job Builder' },
-    { key: 'editJobTemplates', label: 'Edit Job Templates' }
-  ];
 
   if (isLoading) {
     return (
@@ -219,7 +166,7 @@ const ApprovalsContent = () => {
                             id={`${member.id}-${permission.key}`}
                             checked={member.permissions[permission.key as keyof typeof member.permissions]}
                             onCheckedChange={(checked) =>
-                              handlePermissionChange(member.id, permission.key as keyof ServiceRatesTeamMember['permissions'], !!checked)
+                              handlePermissionChange(member.id, permission.key as keyof ApprovalsTeamMember['permissions'], !!checked)
                             }
                             className="h-4 w-4"
                           />
@@ -234,6 +181,7 @@ const ApprovalsContent = () => {
         </Card>
       </div>
 
+      {/* Pagination Controls */}
       {pagination && (
         <div className="space-y-4 mt-6">
           <div className="flex items-center justify-between">
@@ -314,4 +262,4 @@ const ApprovalsContent = () => {
   );
 };
 
-export default ApprovalsContent
+export default ApprovalsContent;
