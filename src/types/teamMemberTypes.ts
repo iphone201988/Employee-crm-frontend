@@ -102,7 +102,7 @@ export const transformToAccess = (apiMember: ApiTeamMember): AccessTeamMember =>
   ...transformToServiceRates(apiMember),
   featureAccess: {
     myTimesheet: (apiMember.featureAccess as any)?.myTimesheet || false,
-    allTimesheets: (apiMember.featureAccess as any)?.allTimesheet || false,
+    allTimesheets: (apiMember.featureAccess as any)?.allTimesheets || false,
     timeLogs: (apiMember.featureAccess as any)?.timeLogs || false,
     WIP: (apiMember.featureAccess as any)?.WIP || false,
     agedWIP: (apiMember.featureAccess as any)?.agedWIP || false,

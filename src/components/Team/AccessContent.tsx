@@ -214,13 +214,13 @@ const AccessContent = () => {
                     <TableHead key={category} className="p-4 font-medium text-base text-left border-r">
                       <div className="space-y-2">
                         <div className="font-semibold">{category}</div>
-                        <div className="space-y-1">
+                        {/* <div className="space-y-1">
                           {features.map((feature) => (
                             <div key={feature.key} className="text-xs text-gray-600">
                               {feature.label}
                             </div>
                           ))}
-                        </div>
+                        </div> */}
                       </div>
                     </TableHead>
                   ))}
@@ -252,18 +252,27 @@ const AccessContent = () => {
                     {Object.entries(systemFeatures).map(([category, { features }]) => (
                       <TableCell key={category} className="p-4 border-r">
                         <div className="space-y-2">
-                          {features.map((feature) => (
-                            <div key={feature.key} className="flex justify-start">
-                              <Checkbox
-                                id={`${member.id}-${feature.key}`}
-                                checked={member.featureAccess[feature.key as keyof AccessTeamMember['featureAccess']]}
-                                onCheckedChange={(checked) =>
-                                  handlePermissionChange(member.id, feature.key as keyof AccessTeamMember['featureAccess'], !!checked)
-                                }
-                                className="h-4 w-4"
-                              />
-                            </div>
-                          ))}
+                          {features.map((feature) => {
+                            const value = member.featureAccess[feature.key as keyof AccessTeamMember['featureAccess']];
+                            return (
+                              <div key={feature.key} className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Checkbox
+                                    id={`${member.id}-${feature.key}`}
+                                    checked={value}
+                                    onCheckedChange={(checked) =>
+                                      handlePermissionChange(member.id, feature.key as keyof AccessTeamMember['featureAccess'], !!checked)
+                                    }
+                                    className="h-4 w-4"
+                                  />
+                                  <span className="text-xs text-gray-600">{feature.label}</span>
+                                </div>
+                                {/* <div className="text-xs font-medium text-gray-800">
+                                  {value ? '✓' : '✗'}
+                                </div> */}
+                              </div>
+                            );
+                          })}
                         </div>
                       </TableCell>
                     ))}
