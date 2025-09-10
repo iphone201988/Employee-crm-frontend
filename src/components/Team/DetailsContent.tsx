@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Plus } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getProfileImage, getUserInitials } from '@/utils/profiles';
 import AddTeamMemberDialog from '../AddTeamMemberDialog';
 import {
@@ -32,6 +32,11 @@ const DetailsContent = () => {
 
   const teamMembers = teamData?.data?.teamMembers || [];
   const pagination = teamData?.data?.pagination;
+
+  // Reset page to 1 when limit changes
+  useEffect(() => {
+    setPage(1);
+  }, [limit]);
 
   const handleSendInvite = async (member: TeamMember) => {
     setSelectedMemberForInvite(member);
@@ -169,15 +174,83 @@ const DetailsContent = () => {
         </CardContent>
       </Card>
 
-      <div className="flex justify-center items-center gap-4">
-        <Button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1 || isLoading || isUpdating}>
-          Previous
-        </Button>
-        <span>Page {page} of {pagination?.totalPages || 1}</span>
-        <Button onClick={() => setPage(p => p + 1)} disabled={page >= (pagination?.totalPages || 1) || isLoading || isUpdating}>
-          Next
-        </Button>
-      </div>
+      {/* Pagination Controls */}
+      {pagination && (
+        <div className="space-y-4 mt-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">Show:</span>
+              <select
+                value={limit}
+                onChange={(e) => setLimit(Number(e.target.value))}
+                className="border border-gray-300 rounded px-2 py-1 text-sm"
+                disabled={isLoading || isUpdating}
+              >
+                <option value={5}>5 per page</option>
+                <option value={10}>10 per page</option>
+                <option value={20}>20 per page</option>
+                <option value={50}>50 per page</option>
+              </select>
+            </div>
+            
+            <div className="text-sm text-gray-500">
+              Showing {((page - 1) * limit) + 1} to {Math.min(page * limit, pagination.total)} of {pagination.total} team members
+            </div>
+          </div>
+
+          {pagination.totalPages > 1 && (
+            <div className="flex justify-center items-center gap-2">
+              <Button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1 || isLoading || isUpdating}
+                variant="outline"
+                size="sm"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+              </Button>
+              
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (pagination.totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (page <= 3) {
+                    pageNum = i + 1;
+                  } else if (page >= pagination.totalPages - 2) {
+                    pageNum = pagination.totalPages - 4 + i;
+                  } else {
+                    pageNum = page - 2 + i;
+                  }
+                  
+                  return (
+                    <Button
+                      key={pageNum}
+                      onClick={() => setPage(pageNum)}
+                      disabled={isLoading || isUpdating}
+                      variant={page === pageNum ? "default" : "outline"}
+                      size="sm"
+                      className="w-8 h-8 p-0"
+                    >
+                      {pageNum}
+                    </Button>
+                  );
+                })}
+              </div>
+              
+              <Button
+                onClick={() => setPage(p => p + 1)}
+                disabled={page >= pagination.totalPages || isLoading || isUpdating}
+                variant="outline"
+                size="sm"
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
 
       <AddTeamMemberDialog open={isAddMemberDialogOpen} onOpenChange={setIsAddMemberDialogOpen} />
 
