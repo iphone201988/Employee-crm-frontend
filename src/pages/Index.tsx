@@ -1,6 +1,6 @@
 // pages/Index.tsx
 import { Layout } from "@/components/Layout";
-import { TimesheetDashboard } from "@/components/TimesheetDashboard";
+import { TimesheetDashboard } from "./TimesheetDashboard";
 
 const Index = () => {
   return (

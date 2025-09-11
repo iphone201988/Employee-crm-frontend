@@ -1,25 +1,34 @@
-import { useState } from "react";
-import { Search, Filter, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, RotateCcw, RefreshCw, ArrowLeft, Plus, X, Trash2, Edit2 } from "lucide-react";
-import { StatusBadge, FilterBadge } from "@/components/StatusBadge";
-import { WeekNavigation } from "@/components/WeekNavigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Switch } from "@/components/ui/switch";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
-import { Checkbox } from "@/components/ui/checkbox";
+import { useEffect, useState } from "react";
+import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { usePermissionTabs } from '@/hooks/usePermissionTabs';
 type SortField = 'name' | 'department' | 'capacity' | 'logged' | 'variance' | 'submitted';
 type SortDirection = 'asc' | 'desc' | null;
-import { Layout } from "@/components/Layout";
 import WIPTableTab from "@/components/WIP/WIPTableTab";
 import AgedWIPTab from "@/components/AgedWIPTab";
-import InvoicesTab from "@/components/InvoicesTab";
 import AgedDebtorsTab from "@/components/AgedDebtorsTab";
 import WriteOffMergedTab from "@/components/WriteOffMergedTab";
 import InvoiceLogTab from "@/components/InvoiceLogTab";
 import CustomTabs from "@/components/Tabs";
 
-// Sample data matching the interface
+const tabs = [{
+  id: "WIP",
+  label: "WIP"
+}, {
+  id: "agedWIP",
+  label: "Aged WIP"
+}, {
+  id: "invoices",
+  label: "Invoices"
+},
+{
+  id: "agedDebtors",
+  label: "Aged Debtors"
+},
+{
+  id: "Write-off",
+  label: "Write-off"
+}
+];
 const generateRandomTime = () => {
   const hours = Math.floor(Math.random() * 10) + 30; // 30-39 hours
   const minutes = Math.floor(Math.random() * 60);
@@ -175,7 +184,7 @@ const getStatusCounts = (data: typeof timesheetData) => {
   };
 };
 export function WipDebtors() {
-  const [activeTab, setActiveTab] = useState("wip");
+  const [activeTab, setActiveTab] = useState("");
   const [activeFilter, setActiveFilter] = useState("all-timesheets");
   const [invoices, setInvoices] = useState<any[]>([]);
   const [selectedItems, setSelectedItems] = useState<number[]>([]);
@@ -189,6 +198,7 @@ export function WipDebtors() {
   const [hideWeekend, setHideWeekend] = useState(false);
   const [timesheetSortField, setTimesheetSortField] = useState<'ref' | 'client' | 'job' | 'category' | 'description' | 'rate' | null>(null);
   const [timesheetSortDirection, setTimesheetSortDirection] = useState<'asc' | 'desc' | null>(null);
+  const { visibleTabs, isLoading, isError } = usePermissionTabs(tabs);
   const [timesheetRows, setTimesheetRows] = useState([{
     id: 1,
     ref: "JOH-23",
@@ -341,7 +351,11 @@ export function WipDebtors() {
     if (timesheetSortDirection === 'desc') return <ArrowDown className="w-3 h-3" />;
     return <ArrowUpDown className="w-3 h-3 opacity-50" />;
   };
-
+  useEffect(() => {
+    if (visibleTabs.length > 0 && !visibleTabs.some(tab => tab.id === activeTab)) {
+      setActiveTab(visibleTabs[0].id);
+    }
+  }, [visibleTabs, activeTab]);
   // Filter and sort data
   const filteredData = timesheetData.filter(item => {
     // Search filter
@@ -476,25 +490,7 @@ export function WipDebtors() {
       return <span>{formattedTime}</span>;
     }
   };
-  const tabs = [{
-    id: "wip",
-    label: "WIP"
-  }, {
-    id: "aged-wip",
-    label: "Aged WIP"
-  }, {
-    id: "invoices",
-    label: "Invoices"
-  },
-  {
-    id: "aged-debtors",
-    label: "Aged Debtors"
-  },
-  {
-    id: "Write-off",
-    label: "Write-off"
-  }
-  ];
+
   const handleWriteOff = (writeOffEntry: any) => {
     // setWriteOffEntries(prev => [...prev, writeOffEntry]);
     // setActiveTab('write-off-report');
@@ -510,18 +506,18 @@ export function WipDebtors() {
       <div className="mb-6">
         {/* Tabs */}
         <CustomTabs
-          tabs={tabs}
+          tabs={visibleTabs}
           activeTab={activeTab}
           setActiveTab={setActiveTab}
         />
       </div>
 
-      {activeTab === "wip" &&
+      {activeTab === "WIP" &&
         <WIPTableTab onInvoiceCreate={handleInvoiceCreate} onWriteOff={handleWriteOff} />
       }
 
       {
-        activeTab === "aged-wip" &&
+        activeTab === "agedWIP" &&
         <AgedWIPTab />
       }
       {
@@ -529,7 +525,7 @@ export function WipDebtors() {
         <InvoiceLogTab invoiceEntries={invoices} />
       }
       {
-        activeTab == "aged-debtors" && <AgedDebtorsTab />
+        activeTab == "agedDebtors" && <AgedDebtorsTab />
       }
       {
         activeTab == "Write-off" && <WriteOffMergedTab />

@@ -1,86 +1,73 @@
-import  { useState } from 'react';
+import { useEffect, useState } from 'react';
 import CustomTabs from '@/components/Tabs';
 import DetailsContent from '@/components/Team/DetailsContent';
 import { ServiceRatesContent } from '@/components/Team/ServiceRatesContent';
 import ApprovalsContent from '@/components/Team/ApprovalsContent';
 import AccessContent from '@/components/Team/AccessContent';
-
-interface TeamMember {
-  id: string;
-  name: string;
-  defaultRate: number;
-  isDefaultRateLocked: boolean;
-  rates: {
-    accounts: number | string;
-    audit: number | string;
-    bookkeeping: number | string;
-    companySecretary: number | string;
-    corporationTax: number | string;
-    managementAccounts: number | string;
-    payroll: number | string;
-    personalTax: number | string;
-    vat: number | string;
-    cgt: number | string;
-  };
-}
+import { usePermissionTabs } from '@/hooks/usePermissionTabs';
+const tabs = [
+    {
+        id: 'teamList',
+        label: 'Details'
+    },
+    {
+        id: 'rates',
+        label: 'Rates'
+    },
+    {
+        id: 'permissions',
+        label: 'Approvals'
+    },
+    {
+        id: 'access',
+        label: 'Access'
+    }
+]
 
 const TeamTab = () => {
-  
-  const [activeTab, setActiveTab] = useState<string>('details');
-  
 
-  const tabs = [
-    {
-      id: 'details',
-      label: 'Details'
-    },
-    {
-      id: 'rates',
-      label: 'Rates'
-    },
-    {
-      id: 'approvals',
-      label: 'Approvals'
-    },
-    {
-      id: 'access',
-      label: 'Access'
-    }
-  ]
+    const [activeTab, setActiveTab] = useState<string>('teamList');
+    const { visibleTabs, isLoading, isError } = usePermissionTabs(tabs);
 
-  return (
-    <div className="space-y-6">
-      <CustomTabs
-        tabs={tabs}
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-      />
-        {
-          activeTab === 'details' && (
-            <DetailsContent />
-          )
+    useEffect(() => {
+        if (visibleTabs.length > 0 && !visibleTabs.some(tab => tab.id === activeTab)) {
+            setActiveTab(visibleTabs[0].id);
         }
+    }, [visibleTabs, activeTab]);
 
-        {
-          activeTab === 'rates' && (
-            <ServiceRatesContent/>
-          )
-        }
+    return (
+        <div className="space-y-6">
+            <CustomTabs
+                tabs={visibleTabs}
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+            />
+            {
+                activeTab === 'teamList' && (
+                    <DetailsContent />
+                )
+            }
 
-        {
-          activeTab === 'approvals' && (
-            <ApprovalsContent />
-          )
-        }
+            {
+                activeTab === 'rates' && (
+                    <ServiceRatesContent />
+                )
+            }
 
-        {
-          activeTab === 'access' && (
-            <AccessContent />
-          )
-        }
+            {
+                activeTab === 'permissions' && (
+                    <ApprovalsContent />
+                )
+            }
 
-    </div>
-  );
+            {
+                activeTab === 'access' && (
+                    <AccessContent />
+                )
+            }
+
+        </div>
+    );
 };
 
 export default TeamTab;

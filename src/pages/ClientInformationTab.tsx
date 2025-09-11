@@ -15,17 +15,26 @@ import ServiceChangesLogDialog from '@/components/ServiceChangesLogDialog';
 import CustomTabs from '@/components/Tabs';
 import AddClient from '@/components/client/AddClient';
 import { useGetClientsQuery } from '@/store/clientApi';
+import { usePermissionTabs } from '@/hooks/usePermissionTabs';
 
-
-
+const tabs = [
+  {
+    id: 'clientList',
+    label: 'Details',
+  }, {
+    id: 'clientBreakdown',
+    label: 'Client Breakdown',
+  }
+]
 const ClientInformationTab = () => {
-  const [activeTab, setActiveTab] = useState('details');
+  const [activeTab, setActiveTab] = useState('');
   const [serviceSelections, setServiceSelections] = useState<{ [key: string]: { [key: string]: boolean } }>({});
   const [servicesLocked, setServicesLocked] = useState(false);
   const [showServiceLog, setShowServiceLog] = useState(false);
   const [addClient, setAddClient] = useState(false);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
+  const { visibleTabs, isError } = usePermissionTabs(tabs);
 
   const { data: clientsData, isLoading, error } = useGetClientsQuery({ page, limit });
 
@@ -36,7 +45,12 @@ const ClientInformationTab = () => {
   const [clientTypeFilter, setClientTypeFilter] = useState('all');
   const [showClientDetailsDialog, setShowClientDetailsDialog] = useState(false);
   const [selectedClientForDetails, setSelectedClientForDetails] = useState<ClientInfo | null>(null);
-
+  const isTabVisible = (tabId: string) => visibleTabs.some(tab => tab.id === tabId)
+  useEffect(() => {
+    if (visibleTabs.length > 0 && !visibleTabs.some(tab => tab.id === activeTab)) {
+      setActiveTab(visibleTabs[0].id);
+    }
+  }, [visibleTabs, activeTab]);
   const handleClientInfoSort = (key: string) => {
     let direction: 'asc' | 'desc' = 'asc';
     if (clientInfoSortConfig.key === key && clientInfoSortConfig.direction === 'asc') {
@@ -141,24 +155,16 @@ const ClientInformationTab = () => {
     }));
   };
 
-  const tabs = [
-    {
-      id: 'details',
-      label: 'Details',
-    }, {
-      id: 'client-breakdown',
-      label: 'Client Breakdown',
-    }
-  ]
+
 
   return (
     <div className="space-y-6">
       <CustomTabs
-        tabs={tabs}
+        tabs={visibleTabs}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
       />
-      {activeTab == "details" && <>
+      {activeTab === "clientList" && isTabVisible("clientList") && (<>
         <DashboardGrid columns={4}>
           <DashboardCard
             title="Total Clients"
@@ -496,11 +502,11 @@ const ClientInformationTab = () => {
             )}
           </div>
         )}
-      </>
+      </>)
       }
 
 
-      {activeTab == "client-breakdown" && <ClientsTab />}
+      {activeTab === "clientBreakdown" && isTabVisible("clientBreakdown") && <ClientsTab />}
 
       <ServiceChangesLogDialog
         open={showServiceLog}

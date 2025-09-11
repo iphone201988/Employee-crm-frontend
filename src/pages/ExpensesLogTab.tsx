@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CreditCard, Search, Filter, Eye, Edit, Download, Upload, Paperclip, ExternalLink } from "lucide-react";
 import sampleReceipt from "@/assets/sample-receipt.png";
 import CustomTabs from '@/components/Tabs';
-
+import { usePermissionTabs } from '@/hooks/usePermissionTabs';
 interface Expense {
   id: string;
   date: string;
@@ -448,18 +448,35 @@ const sampleExpenses: Expense[] = [
   }
 ];
 
+const tabs = [
+  {
+    label: 'Client',
+    id: 'clientExpenses'
+  },
+  {
+    label: 'Team',
+    id: 'teamExpenses'
+  }
+]
+
 const ExpensesLogTab = () => {
   const [expenses, setExpenses] = useState<Expense[]>(sampleExpenses);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'invoiced' | 'not invoiced' | 'paid' | 'not paid'>('all');
-  const [activeTab, setActiveTab] = useState<'client' | 'team'>('client');
+  const [activeTab, setActiveTab] = useState('');
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<string | null>(null);
   const [addClientExpenseOpen, setAddClientExpenseOpen] = useState(false);
   const [addTeamExpenseOpen, setAddTeamExpenseOpen] = useState(false);
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState<string | null>(null);
+  const { visibleTabs, isLoading, isError } = usePermissionTabs(tabs);
 
+  useEffect(() => {
+    if (visibleTabs.length > 0 && !visibleTabs.some(tab => tab.id === activeTab)) {
+      setActiveTab(visibleTabs[0].id);
+    }
+  }, [visibleTabs, activeTab]);
   const formatDate = (dateString: string) => {
     const [year, month, day] = dateString.split('-');
     return `${day}/${month}/${year}`;
@@ -468,7 +485,7 @@ const ExpensesLogTab = () => {
   const clientExpenses = expenses.filter(expense => expense.client);
   const teamExpenses = expenses.filter(expense => !expense.client);
 
-  const currentExpenses = activeTab === 'client' ? clientExpenses : teamExpenses;
+  const currentExpenses = activeTab === 'clientExpenses' ? clientExpenses : teamExpenses;
 
   const filteredExpenses = currentExpenses.filter(expense => {
     const matchesSearch = (expense.client?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
@@ -482,7 +499,7 @@ const ExpensesLogTab = () => {
 
   // Group expenses by client (for client tab) or by team member (for team tab)
   const groupedExpenses = filteredExpenses.reduce((acc, expense) => {
-    const groupKey = activeTab === 'client' ? (expense.client || 'No Client') : expense.submittedBy;
+    const groupKey = activeTab === 'clientExpenses' ? (expense.client || 'No Client') : expense.submittedBy;
     if (!acc[groupKey]) {
       acc[groupKey] = [];
     }
@@ -516,7 +533,7 @@ const ExpensesLogTab = () => {
   };
 
   const handleExport = () => {
-    const csvHeaders = activeTab === 'client'
+    const csvHeaders = activeTab === 'clientExpenses'
       ? ['Date', 'Submitted By', 'Client', 'Description', 'Category', 'Net', 'VAT%', 'VAT', 'Gross', 'Status', 'Invoice']
       : ['Date', 'Submitted By', 'Description', 'Category', 'Net', 'VAT%', 'VAT', 'Gross', 'Status'];
 
@@ -554,31 +571,21 @@ const ExpensesLogTab = () => {
 
   // Calculate totals based on filtered expenses
   const totalPaid = filteredExpenses
-    .filter(expense => activeTab === 'client' ? expense.status === 'invoiced' : expense.status === 'paid')
+    .filter(expense => activeTab === 'clientExpenses' ? expense.status === 'invoiced' : expense.status === 'paid')
     .reduce((sum, expense) => sum + expense.amount, 0);
 
   const totalUnpaid = filteredExpenses
-    .filter(expense => activeTab === 'client' ? expense.status === 'not invoiced' : expense.status === 'not paid')
+    .filter(expense => activeTab === 'clientExpenses' ? expense.status === 'not invoiced' : expense.status === 'not paid')
     .reduce((sum, expense) => sum + expense.amount, 0);
 
   const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
 
-  const tabs = [
-    {
-      label: 'Client',
-      id: 'client'
-    },
-    {
-      label: 'Team',
-      id: 'team'
-    }
-  ]
 
   return (
     <div className="space-y-6">
 
       <CustomTabs
-        tabs={tabs}
+        tabs={visibleTabs}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
       />
@@ -632,7 +639,7 @@ const ExpensesLogTab = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Expenses</SelectItem>
-                  {activeTab === 'client' ? (
+                  {activeTab === 'clientExpenses' ? (
                     <>
                       <SelectItem value="invoiced">Invoiced</SelectItem>
                       <SelectItem value="not invoiced">Not Invoiced</SelectItem>
@@ -668,7 +675,7 @@ const ExpensesLogTab = () => {
                 <Filter className="h-4 w-4" />
                 All
               </Button>
-              {activeTab === 'client' ? (
+              {activeTab === 'clientExpenses' ? (
                 <>
                   <Button
                     variant={statusFilter === 'not invoiced' ? 'default' : 'outline'}
@@ -712,8 +719,8 @@ const ExpensesLogTab = () => {
                 </>
               )}
             </div>
-            <Button onClick={() => activeTab === 'client' ? setAddClientExpenseOpen(true) : setAddTeamExpenseOpen(true)} className="gap-2">
-              + {activeTab === 'client' ? 'Client' : 'Team'} Expense
+            <Button onClick={() => activeTab === 'clientExpenses' ? setAddClientExpenseOpen(true) : setAddTeamExpenseOpen(true)} className="gap-2">
+              + {activeTab === 'clientExpenses' ? 'Client' : 'Team'} Expense
             </Button>
           </div>
         </CardContent>
@@ -727,7 +734,7 @@ const ExpensesLogTab = () => {
               <TableRow>
                 <TableHead className="w-24 text-left">Date</TableHead>
                 <TableHead className="w-40 text-left">Submitted By</TableHead>
-                {activeTab === 'client' && <TableHead className="w-40 text-left">Client</TableHead>}
+                {activeTab === 'clientExpenses' && <TableHead className="w-40 text-left">Client</TableHead>}
                 <TableHead className="w-60 text-left">Description</TableHead>
                 <TableHead className="w-32 text-left">Category</TableHead>
                 <TableHead className="w-20 text-left">Net</TableHead>
@@ -743,7 +750,7 @@ const ExpensesLogTab = () => {
                 <React.Fragment key={groupName}>
                   {/* Group header row */}
                   <TableRow className="bg-muted/50">
-                    <TableCell colSpan={activeTab === 'client' ? 11 : 10} className="font-semibold py-3">
+                    <TableCell colSpan={activeTab === 'clientExpenses' ? 11 : 10} className="font-semibold py-3">
                       {groupName} ({expenses.length} expense{expenses.length > 1 ? 's' : ''})
                     </TableCell>
                   </TableRow>
@@ -760,7 +767,7 @@ const ExpensesLogTab = () => {
                           <span className="truncate">{expense.submittedBy}</span>
                         </div>
                       </TableCell>
-                      {activeTab === 'client' && (
+                      {activeTab === 'clientExpenses' && (
                         <TableCell className="text-left">
                           <span className="truncate block" title={expense.client}>
                             {expense.client || <span className="text-muted-foreground">N/A</span>}
@@ -782,7 +789,7 @@ const ExpensesLogTab = () => {
                       <TableCell className="text-left">
                         <div className="flex items-center gap-2">
                           {getStatusBadge(expense.status)}
-                          {activeTab === 'client' && expense.invoiceNumber && (
+                          {activeTab === 'clientExpenses' && expense.invoiceNumber && (
                             <Button
                               variant="ghost"
                               size="sm"
