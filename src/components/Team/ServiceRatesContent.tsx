@@ -10,7 +10,7 @@ import { ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { DEFAULT_SERVICE_RATES } from '@/constants/teamConstants';
 import { getProfileImage, getUserInitials } from '@/utils/profiles';
 import { TeamMember as ApiTeamMember } from '@/types/APIs/teamApiType';
-import { ServiceRatesTeamMember, transformToServiceRates } from '@/types/teamMemberTypes';
+import { transformToServiceRates } from '@/types/teamMemberTypes';
 import { useGetAllTeamMembersQuery, useUpdateTeamMembersMutation } from '@/store/teamApi';
 
 

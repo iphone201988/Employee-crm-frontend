@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CreditCard, Search, Filter, Eye, Edit, Download, Upload, Paperclip, ExternalLink } from "lucide-react";
 import sampleReceipt from "@/assets/sample-receipt.png";
-import CustomTabs from './Tabs';
+import CustomTabs from '@/components/Tabs';
 
 interface Expense {
   id: string;

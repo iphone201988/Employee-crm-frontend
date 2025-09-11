@@ -2,21 +2,13 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, UserCheck, X, Trash2 } from 'lucide-react';
-import { TEAM_MEMBER_NAMES } from '@/constants/teamConstants';
-import { getProfileImage, getUserInitials } from '@/utils/profiles';
-import ImportTab from '@/components/ImportTab';
+import { Plus,  X } from 'lucide-react';
 import CustomTabs from './Tabs';
 import { useGetAllCategorieasQuery, useAddCategoryMutation, useDeleteCategoryMutation } from '@/store/categoryApi';
-import { add } from 'date-fns';
 import { toast } from 'sonner';
 interface SettingsTabProps {
   autoApproveTimesheets: boolean;
@@ -28,34 +20,7 @@ interface User {
   email: string;
   visibleTabs: string[];
 }
-const availableTabs = [{
-  id: 'team',
-  label: 'Team'
-}, {
-  id: 'time',
-  label: 'Time'
-}, {
-  id: 'sheets',
-  label: 'Timesheets'
-}, {
-  id: 'wip-table',
-  label: 'WIP Report'
-}, {
-  id: 'write-off-report',
-  label: 'Write Off Log'
-}, {
-  id: 'clients',
-  label: 'Clients'
-}, {
-  id: 'invoices',
-  label: 'Invoices'
-}, {
-  id: 'aged-debtors',
-  label: 'Aged Debtors'
-}, {
-  id: 'settings',
-  label: 'Settings'
-}];
+
 const defaultJobTypes = ['Accounts', 'Audit', 'Bookkeeping', 'Company Secretary', 'Corporation Tax', 'Management Accounts', 'Payroll', 'Personal Tax', 'VAT', 'Other'];
 const SettingsTab = ({
   autoApproveTimesheets,

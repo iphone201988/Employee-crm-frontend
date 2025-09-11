@@ -9,12 +9,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowUpDown, Search, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
 import { DashboardCard, DashboardGrid } from "@/components/ui/dashboard-card";
 import { Switch } from "@/components/ui/switch";
-import ClientsTab from './ClientsTab';
-import ClientNameLink from './ClientNameLink';
-import ClientDetailsDialog from './ClientDetailsDialog';
-import ServiceChangesLogDialog from './ServiceChangesLogDialog';
-import CustomTabs from './Tabs';
-import AddClient from './client/AddClient';
+import ClientsTab from '@/components/ClientsTab';
+import ClientDetailsDialog from '@/components/ClientDetailsDialog';
+import ServiceChangesLogDialog from '@/components/ServiceChangesLogDialog';
+import CustomTabs from '@/components/Tabs';
+import AddClient from '@/components/client/AddClient';
 import { useGetClientsQuery } from '@/store/clientApi';
 
 

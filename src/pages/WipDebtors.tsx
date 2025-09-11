@@ -17,6 +17,7 @@ import InvoicesTab from "@/components/InvoicesTab";
 import AgedDebtorsTab from "@/components/AgedDebtorsTab";
 import WriteOffMergedTab from "@/components/WriteOffMergedTab";
 import InvoiceLogTab from "@/components/InvoiceLogTab";
+import CustomTabs from "@/components/Tabs";
 
 // Sample data matching the interface
 const generateRandomTime = () => {
@@ -502,48 +503,38 @@ export function WipDebtors() {
     // setInvoices(prev => [...prev, invoice]);
     // setActiveTab('invoices');
   };
-  return  <div className="flex-1 p-6 bg-background">
-    {/* Header */}
-    <div className="mb-6">
+  return (
 
-
-      {/* Tabs */}
-      <div className="flex items-center border-b border-border mt-6">
-        <div className="flex">
-          {tabs.map(tab => <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === tab.id ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
-            {tab.label}
-          </button>)}
-        </div>
+    <div className="flex-1 p-6 bg-background">
+      {/* Header */}
+      <div className="mb-6">
+        {/* Tabs */}
+        <CustomTabs
+          tabs={tabs}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+        />
       </div>
-    </div>
 
-    {/* Date Range Navigation - Only show in all-timesheets tab */}
-    {activeTab === "all-timesheets" && <div className="mb-3">
-      <WeekNavigation />
-    </div>}
+      {activeTab === "wip" &&
+        <WIPTableTab onInvoiceCreate={handleInvoiceCreate} onWriteOff={handleWriteOff} />
+      }
 
-    {/* Status Summary Cards - Only show in all-timesheets tab */}
-    {activeTab === "wip" && <div>
-      <WIPTableTab onInvoiceCreate={handleInvoiceCreate} onWriteOff={handleWriteOff} />
-    </div>}
-
-    {
-      activeTab === "aged-wip" && <div>
+      {
+        activeTab === "aged-wip" &&
         <AgedWIPTab />
-      </div>
-    }
-    {
-      activeTab === "invoices" && <div>
+      }
+      {
+        activeTab === "invoices" &&
         <InvoiceLogTab invoiceEntries={invoices} />
-      </div>
-    }
-    {
-      activeTab == "aged-debtors" && <AgedDebtorsTab />
-    }
-    {
-      activeTab == "Write-off" && <WriteOffMergedTab />
-    }
+      }
+      {
+        activeTab == "aged-debtors" && <AgedDebtorsTab />
+      }
+      {
+        activeTab == "Write-off" && <WriteOffMergedTab />
+      }
 
 
-  </div>;
+    </div>);
 }
