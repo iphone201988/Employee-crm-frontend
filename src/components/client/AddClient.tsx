@@ -23,7 +23,7 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd }: IAddClient) => {
 
     const [formData, setFormData] = useState<ClientData>({
         clientRef: '',
-        clientName: '',
+        name: '',
         businessTypeId: '',
         taxNumber: '',
         croNumber: '',
@@ -74,7 +74,7 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd }: IAddClient) => {
             // Reset form and close dialog
             setFormData({
                 clientRef: '',
-                clientName: '',
+                name: '',
                 businessTypeId: '',
                 taxNumber: '',
                 croNumber: '',
@@ -129,11 +129,11 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd }: IAddClient) => {
                             />
                             <InputComponent
                                 label="Client Name"
-                                id="clientName"
-                                value={formData.clientName}
-                                onChange={handleInputChange('clientName')}
+                                id="name"
+                                value={formData.name}
+                                onChange={handleInputChange('name')}
                                 placeholder="Enter client name"
-                                error={errors.clientName}
+                                error={errors.name}
                             />
                             {/* <InputComponent
                                 label="Business Type"

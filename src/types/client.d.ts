@@ -1,6 +1,6 @@
 interface ClientData {
     clientRef: string;
-    clientName: string;
+    name: string;
     businessTypeId: string;
     taxNumber: string;
     croNumber?: string;
@@ -38,7 +38,7 @@ interface Client {
     status: string;
     _id: string;
     clientRef: string;
-    clientName: string;
+    name: string;
     businessTypeId: BusinessType | null;
     taxNumber: string;
     croNumber: string;
@@ -82,7 +82,7 @@ interface GetClientsResponse {
 interface ClientInfo {
   _id: string;
   clientRef: string;
-  clientName: string;
+  name: string;
   businessTypeId: {
     _id: string;
     name: string;
@@ -101,4 +101,65 @@ interface ClientInfo {
   audit: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+
+interface ClientData {
+    [key: string]: any; 
+}
+
+interface IAddClientResponse {
+    [key: string]: any;
+}
+
+ interface GetClientsResponse {
+    [key:string]: any;
+}
+
+interface GetClientServicesRequest {
+    page: number;
+    limit: number;
+    search?: string;
+    businessType?: string;
+}
+
+
+interface ServiceDetail {
+    _id: string;
+    name: string;
+}
+
+ interface ClientWithServiceStatus {
+    _id: string;
+    clientRef: string;
+    name: string;
+    businessTypeId: string;
+    businessType: string;
+    serviceDetails: ServiceDetail[];
+    [key: string]: any;
+}
+
+interface Pagination {
+    currentPage: number;
+    totalPages: number;
+    totalClients: number;
+    limit: number;
+}
+
+interface ServiceBreakdown {
+    serviceId: string;
+    serviceName: string;
+    count: number;
+}
+
+ interface GetClientServicesResponse {
+    success: boolean;
+    message: string;
+    data: ClientWithServiceStatus[];
+    pagination: Pagination;
+    breakdown: ServiceBreakdown[];
+}
+
+interface UpdateClientServicesRequest {
+    clientServices: ClientServiceUpdate[];
 }

@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import ClientDetailsDialog from './ClientDetailsDialog';
 
 interface ClientNameLinkProps {
-  clientName: string;
+  name: string;
   className?: string;
 }
 
-const ClientNameLink = ({ clientName, className = "" }: ClientNameLinkProps) => {
+const ClientNameLink = ({ name, className = "" }: ClientNameLinkProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   // Generate mock client data - in a real app this would come from an API
@@ -224,7 +224,7 @@ const ClientNameLink = ({ clientName, className = "" }: ClientNameLinkProps) => 
     };
   };
 
-  const clientData = generateClientData(clientName);
+  const clientData = generateClientData(name);
 
   return (
     <>
@@ -232,7 +232,7 @@ const ClientNameLink = ({ clientName, className = "" }: ClientNameLinkProps) => 
         onClick={() => setIsDialogOpen(true)}
         className={`text-primary hover:text-primary/80 hover:underline cursor-pointer font-medium text-left ${className}`}
       >
-        {clientName}
+        {name}
       </button>
       
       <ClientDetailsDialog

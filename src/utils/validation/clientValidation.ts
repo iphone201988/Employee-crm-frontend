@@ -111,7 +111,7 @@ export const validateClientForm = (formData: ClientData): ValidationResult => {
     const clientRefError = validateClientRef(formData.clientRef);
     if (clientRefError) errors.clientRef = clientRefError;
 
-    const clientNameError = validateClientName(formData.clientName);
+    const clientNameError = validateClientName(formData.name);
     if (clientNameError) errors.clientName = clientNameError;
 
     const businessTypeError = validateBusinessType(formData.businessTypeId);

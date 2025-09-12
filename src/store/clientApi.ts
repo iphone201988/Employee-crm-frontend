@@ -1,5 +1,6 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 
+
 export const clientApi = createApi({
     reducerPath: 'clientApi',
     baseQuery: fetchBaseQuery({
@@ -12,7 +13,7 @@ export const clientApi = createApi({
             return headers;
         },
     }),
-    tagTypes: ['Client'],
+    tagTypes: ['Client', 'ClientServices'],
     endpoints: (builder) => ({
         addClient: builder.mutation<IAddClientResponse, ClientData>({
             query: (body: ClientData) => ({
@@ -20,16 +21,60 @@ export const clientApi = createApi({
                 method: 'POST',
                 body,
             }),
-            invalidatesTags: ['Client'],
+            invalidatesTags: ['Client', 'ClientServices'],
         }),
         getClients: builder.query<GetClientsResponse, any>({
-            query: ({page,limit}) => ({
-                url: '/all?page='+page+'&limit='+limit,
+            query: ({ page, limit }) => ({
+                url: `/all?page=${page}&limit=${limit}`,
                 method: 'GET'
             }),
             providesTags: ['Client'],
-        })
+        }),
+
+        getClientServices: builder.query<GetClientServicesResponse, GetClientServicesRequest>({
+            query: ({ page, limit, search, businessType }) => {
+                const params = new URLSearchParams({
+                    page: String(page),
+                    limit: String(limit),
+                });
+                if (search) {
+                    params.append('search', search);
+                }
+                if (businessType) {
+                    params.append('businessType', businessType);
+                }
+                return {
+                    url: `/services?${params.toString()}`,
+                    method: 'GET',
+                };
+            },
+            providesTags: (result) => {
+                const services = result?.data;
+                return services
+                    ? [
+                        ...services.map(({ _id }) => ({ type: 'ClientServices' as const, id: _id })),
+                        { type: 'ClientServices', id: 'LIST' },
+                    ]
+                    : [{ type: 'ClientServices', id: 'LIST' }];
+            },
+        }),
+         updateClientServices: builder.mutation<any, UpdateClientServicesRequest>({
+            query: (body) => ({
+                url: '/update-client-services',
+                method: 'PUT',
+                body,
+            }),
+            // Invalidate the list of client services to trigger a refetch
+            invalidatesTags: [{ type: 'ClientServices', id: 'LIST' }],
+        }),
     }),
 });
 
-export const { useAddClientMutation, useGetClientsQuery } = clientApi;
+
+export const {
+    useAddClientMutation,
+    useGetClientsQuery,
+    useGetClientServicesQuery,
+    useUpdateClientServicesMutation
+} = clientApi;
+

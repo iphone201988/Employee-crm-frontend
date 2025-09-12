@@ -65,8 +65,8 @@ const ClientInformationTab = () => {
 
     // Apply search filter
     if (clientInfoSearch) {
-      filtered = filtered.filter(client =>
-        client.clientName.toLowerCase().includes(clientInfoSearch.toLowerCase()) ||
+      filtered = filtered.filter((client: any) =>
+        client.name.toLowerCase().includes(clientInfoSearch.toLowerCase()) ||
         client.contactName.toLowerCase().includes(clientInfoSearch.toLowerCase()) ||
         client.email.toLowerCase().includes(clientInfoSearch.toLowerCase()) ||
         client.clientRef.toLowerCase().includes(clientInfoSearch.toLowerCase())
@@ -81,13 +81,13 @@ const ClientInformationTab = () => {
     // Apply sorting
     if (!clientInfoSortConfig.key) return filtered;
 
-    return [...filtered].sort((a, b) => {
+    return [...filtered].sort((a:any, b:any) => {
       let aValue: any;
       let bValue: any;
 
       if (clientInfoSortConfig.key === 'name') {
-        aValue = a.clientName;
-        bValue = b.clientName;
+        aValue = a.name;
+        bValue = b.name;
       } else if (clientInfoSortConfig.key === 'clientType') {
         aValue = a.businessTypeId?.name || '';
         bValue = b.businessTypeId?.name || '';
@@ -387,7 +387,7 @@ const ClientInformationTab = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredAndSortedClientInfo.map((client, index) => (
+                  filteredAndSortedClientInfo.map((client:any, index) => (
                     <TableRow key={client._id} className="h-12">
                       <TableCell className="p-4 text-sm w-20 border-r text-left">{client.clientRef}</TableCell>
                       <TableCell className="font-medium text-left p-4 text-sm w-32 border-r">
@@ -398,7 +398,7 @@ const ClientInformationTab = () => {
                             setShowClientDetailsDialog(true);
                           }}
                         >
-                          {client.clientName}
+                          {client.name}
                         </span>
                       </TableCell>
                       <TableCell className="p-4 text-sm w-24 border-r text-left">{client.businessTypeId?.name || 'N/A'}</TableCell>
@@ -519,7 +519,7 @@ const ClientInformationTab = () => {
           onOpenChange={setShowClientDetailsDialog}
           clientData={{
             clientRef: selectedClientForDetails.clientRef,
-            name: selectedClientForDetails.clientName,
+            name: selectedClientForDetails.name,
             customerNumber: selectedClientForDetails.taxNumber,
             clientType: selectedClientForDetails.businessTypeId?.name || 'N/A',
             address: selectedClientForDetails.address,
