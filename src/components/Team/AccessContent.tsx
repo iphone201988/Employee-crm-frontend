@@ -94,7 +94,7 @@ const AccessContent: React.FC<AccessContentProps> = ({ onUnsavedChangesChange })
   const teamMembersRef = useRef<AccessTeamMember[]>([]);
 
   const { data: teamData, isLoading, error } = useGetAllTeamMembersQuery({ page, limit });
-  const [updateTeamMember, { isLoading: isUpdating }] = useUpdateTeamMembersMutation();
+  const [updateTeamMembers, { isLoading: isUpdating }] = useUpdateTeamMembersMutation();
 
   const pagination = teamData?.data?.pagination;
 
