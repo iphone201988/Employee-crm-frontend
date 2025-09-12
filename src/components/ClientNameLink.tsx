@@ -2,12 +2,19 @@ import React, { useState } from 'react';
 import ClientDetailsDialog from './ClientDetailsDialog';
 
 interface ClientNameLinkProps {
-  name: string;
+  name?: string;
+  clientName?: string;
   className?: string;
 }
 
-const ClientNameLink = ({ name, className = "" }: ClientNameLinkProps) => {
+const ClientNameLink = ({ name, clientName, className = "" }: ClientNameLinkProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  const displayName = name || clientName;
+
+  if (!displayName) {
+    return <span className={className}>N/A</span>;
+  }
 
   // Generate mock client data - in a real app this would come from an API
   const generateClientData = (name: string) => {
@@ -210,13 +217,13 @@ const ClientNameLink = ({ name, className = "" }: ClientNameLinkProps) => {
     };
 
     return {
-      clientRef: clientRefMap[name] || `REF-${name.charAt(0)}${Math.floor(Math.random() * 1000)}`,
-      name: name,
+      clientRef: clientRefMap[name] || `REF-${name?.charAt(0) || 'X'}${Math.floor(Math.random() * 1000)}`,
+      name: name || 'Unknown Client',
       customerNumber: customerNumberMap[name] || `${Math.floor(Math.random() * 9000000) + 1000000}T`,
       clientType: clientTypeMap[name] || 'Limited Company',
       address: addressMap[name] || `${Math.floor(Math.random() * 999) + 1} Business Street, Dublin`,
       contactPerson: contactMap[name] || 'Contact Person',
-      email: emailMap[name] || `contact@${name.toLowerCase().replace(/[^a-z]/g, '')}.ie`,
+      email: emailMap[name] || `contact@${(name || 'unknown').toLowerCase().replace(/[^a-z]/g, '')}.ie`,
       phone: phoneMap[name] || `+353 1 ${Math.floor(Math.random() * 900) + 100} ${Math.floor(Math.random() * 9000) + 1000}`,
       takeOnDate: '2024-01-15',
       clientTags: clientTagsMap[name] || ['General'],
@@ -224,7 +231,7 @@ const ClientNameLink = ({ name, className = "" }: ClientNameLinkProps) => {
     };
   };
 
-  const clientData = generateClientData(name);
+  const clientData = generateClientData(displayName);
 
   return (
     <>
@@ -232,7 +239,7 @@ const ClientNameLink = ({ name, className = "" }: ClientNameLinkProps) => {
         onClick={() => setIsDialogOpen(true)}
         className={`text-primary hover:text-primary/80 hover:underline cursor-pointer font-medium text-left ${className}`}
       >
-        {name}
+        {displayName}
       </button>
       
       <ClientDetailsDialog
