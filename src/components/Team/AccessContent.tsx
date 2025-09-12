@@ -84,7 +84,7 @@ const AccessContent = () => {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   const { data: teamData, isLoading, error } = useGetAllTeamMembersQuery({ page, limit });
-  const [updateTeamMembers] = useUpdateTeamMembersMutation();
+  const [updateTeamMember, { isLoading: isUpdating }] = useUpdateTeamMembersMutation();
 
   const pagination = teamData?.data?.pagination;
 
@@ -169,7 +169,7 @@ const AccessContent = () => {
         integrations: member.featureAccess.integrations,
       }));
 
-      await updateTeamMembers({ featureAccess: featureAccessUpdates }).unwrap();
+      await updateTeamMember({ featureAccess: featureAccessUpdates }).unwrap();
       setHasUnsavedChanges(false);
     } catch (error) {
       console.error('Failed to update team member feature access:', error);
@@ -197,7 +197,7 @@ const AccessContent = () => {
           onClick={handleSaveChanges}
           disabled={isLoading || !hasUnsavedChanges}
         >
-          {isLoading ? 'Saving...' : 'Save Changes'}
+          {isUpdating ? 'Saving...' : 'Save Changes'}
         </Button>
       </div>
 
