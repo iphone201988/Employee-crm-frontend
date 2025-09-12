@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import CustomTabs from '@/components/Tabs';
 import DetailsContent from '@/components/Team/DetailsContent';
 import { ServiceRatesContent } from '@/components/Team/ServiceRatesContent';
@@ -28,7 +29,8 @@ const tabs = [
 
 
 const TeamTab = () => {
-    const [activeTab, setActiveTab] = useState<string>('teamList');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const navigate = useNavigate();
     const { visibleTabs, isLoading, isError } = usePermissionTabs(tabs);
     const {
         hasUnsavedChanges,
@@ -43,20 +45,47 @@ const TeamTab = () => {
         handleCancelTabChange,
     } = useUnsavedChanges();
 
+    const getActiveTab = () => {
+        const tabFromUrl = searchParams.get('tab');
+        if (tabFromUrl && visibleTabs.some(tab => tab.id === tabFromUrl)) {
+            return tabFromUrl;
+        }
+        if (visibleTabs.some(tab => tab.id === 'teamList')) {
+            return 'teamList';
+        }
+        return visibleTabs.length > 0 ? visibleTabs[0].id : 'teamList';
+    };
+
+    const activeTab = getActiveTab();
+
     useEffect(() => {
         if (visibleTabs.length > 0 && !visibleTabs.some(tab => tab.id === activeTab)) {
-            setActiveTab(visibleTabs[0].id);
+            const defaultTab = visibleTabs.some(tab => tab.id === 'teamList') ? 'teamList' : visibleTabs[0].id;
+            const newParams = new URLSearchParams(searchParams);
+            newParams.set('tab', defaultTab);
+            setSearchParams(newParams);
         }
-    }, [visibleTabs, activeTab]);
+    }, [visibleTabs, activeTab, searchParams, setSearchParams]);
 
     useEffect(() => {
         setCurrentTab(activeTab);
     }, [activeTab, setCurrentTab]);
 
+    useEffect(() => {
+        if (visibleTabs.length > 0 && !searchParams.get('tab')) {
+            const defaultTab = visibleTabs.some(tab => tab.id === 'teamList') ? 'teamList' : visibleTabs[0].id;
+            const newParams = new URLSearchParams(searchParams);
+            newParams.set('tab', defaultTab);
+            setSearchParams(newParams);
+        }
+    }, [visibleTabs, searchParams, setSearchParams]);
+
     const handleTabSwitch = (newTabId: string) => {
         const canSwitch = handleTabChange(newTabId);
         if (canSwitch) {
-            setActiveTab(newTabId);
+            const newParams = new URLSearchParams(searchParams);
+            newParams.set('tab', newTabId);
+            setSearchParams(newParams);
         }
     };
 
@@ -64,7 +93,9 @@ const TeamTab = () => {
         try {
             const canSwitch = await handleSaveAndContinue();
             if (canSwitch && pendingTabId) {
-                setActiveTab(pendingTabId);
+                const newParams = new URLSearchParams(searchParams);
+                newParams.set('tab', pendingTabId);
+                setSearchParams(newParams);
             }
         } catch (error) {
             console.error('Error in handleModalSave:', error);
@@ -74,7 +105,9 @@ const TeamTab = () => {
     const handleModalDiscard = () => {
         const canSwitch = handleDiscardAndContinue();
         if (canSwitch && pendingTabId) {
-            setActiveTab(pendingTabId);
+            const newParams = new URLSearchParams(searchParams);
+            newParams.set('tab', pendingTabId);
+            setSearchParams(newParams);
         }
     };
 
