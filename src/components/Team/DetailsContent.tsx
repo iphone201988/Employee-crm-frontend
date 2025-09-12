@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,16 @@ import { TeamMember } from '@/types/APIs/teamApiType';
 import { toast } from 'sonner';
 
 
-const DetailsContent = () => {
+interface DetailsContentProps {
+  onUnsavedChangesChange?: (
+    hasChanges: boolean,
+    saveFn?: () => Promise<void>,
+    discardFn?: () => void,
+    tabId?: string
+  ) => void;
+}
+
+const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange }) => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
@@ -25,6 +34,9 @@ const DetailsContent = () => {
   const [isAddMemberDialogOpen, setIsAddMemberDialogOpen] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [detailsCapacities, setDetailsCapacities] = useState<{ [key: string]: { [key: string]: number } }>({});
+
+  const detailsCapacitiesRef = useRef<{ [key: string]: { [key: string]: number } }>({});
+  const teamMembersRef = useRef<TeamMember[]>([]);
 
   const { data: teamData, isLoading, isError } = useGetAllTeamMembersQuery({ page, limit });
   const [updateTeamMembers, { isLoading: isUpdating }] = useUpdateTeamMembersMutation();
@@ -36,6 +48,14 @@ const DetailsContent = () => {
   useEffect(() => {
     setPage(1);
   }, [limit]);
+
+  useEffect(() => {
+    detailsCapacitiesRef.current = detailsCapacities;
+  }, [detailsCapacities]);
+
+  useEffect(() => {
+    teamMembersRef.current = teamMembers;
+  }, [teamMembers]);
   const handleSendInvite = async (member: TeamMember) => {
     setSelectedMemberForInvite(member);
     setIsInviteDialogOpen(true);
@@ -55,23 +75,51 @@ const DetailsContent = () => {
 
   const handleCapacityChange = (memberId: string, day: string, value: string) => {
     const numValue = value === '' ? 0 : parseInt(value) || 0;
-    setDetailsCapacities(prev => ({
-      ...prev,
-      [memberId]: {
-        ...(prev[memberId] || {}),
-        [day]: numValue
-      }
-    }));
-    setHasUnsavedChanges(true);
+
+    const originalMember = teamMembers.find(m => m._id === memberId);
+    if (!originalMember) return;
+
+    const originalValue = originalMember.workSchedule[day as keyof typeof originalMember.workSchedule];
+
+    if (numValue === originalValue) {
+      setDetailsCapacities(prev => {
+        const newCapacities = { ...prev };
+        if (newCapacities[memberId]) {
+          delete newCapacities[memberId][day];
+          if (Object.keys(newCapacities[memberId]).length === 0) {
+            delete newCapacities[memberId];
+          }
+        }
+        return newCapacities;
+      });
+    } else {
+      setDetailsCapacities(prev => ({
+        ...prev,
+        [memberId]: {
+          ...(prev[memberId] || {}),
+          [day]: numValue
+        }
+      }));
+    }
+
+    const hasChanges = Object.keys(detailsCapacities).length > 0 ||
+      (numValue !== originalValue && Object.keys(detailsCapacities).length === 0);
+
+    setHasUnsavedChanges(hasChanges);
+
+    if (onUnsavedChangesChange) {
+      onUnsavedChangesChange(hasChanges, handleSaveUpdates, handleDiscardChanges, 'teamList');
+    }
   };
 
   const getCapacityValue = (member: TeamMember, day: keyof typeof member.workSchedule) => {
     return detailsCapacities[member._id]?.[day] ?? member.workSchedule[day];
   };
 
-  const handleSaveUpdates = async () => {
-    const updates = Object.entries(detailsCapacities).map(([userId, changedSchedule]) => {
-      const originalMember = teamMembers.find(m => m._id === userId);
+  const handleSaveUpdates = useCallback(async () => {
+
+    const updates = Object.entries(detailsCapacitiesRef.current).map(([userId, changedSchedule]) => {
+      const originalMember = teamMembersRef.current.find(m => m._id === userId);
       if (!originalMember) return null;
       return {
         userId,
@@ -81,6 +129,8 @@ const DetailsContent = () => {
         }
       };
     }).filter(Boolean);
+
+
     if (updates.length === 0) {
       toast.info("No changes to save.");
       return;
@@ -88,12 +138,40 @@ const DetailsContent = () => {
     try {
       await updateTeamMembers({ blukWeeklyHours: updates as any }).unwrap();
       toast.success("Team hours updated successfully!");
+
       setHasUnsavedChanges(false);
       setDetailsCapacities({});
-    } catch {
+
+      if (onUnsavedChangesChange) {
+        onUnsavedChangesChange(false);
+      }
+
+    } catch (error) {
+
       toast.error("Failed to update team hours.");
+      throw error; // Re-throw to let the modal handle it
     }
-  };
+  }, [updateTeamMembers, onUnsavedChangesChange]);
+
+  const handleDiscardChanges = useCallback(() => {
+    setDetailsCapacities({});
+    setHasUnsavedChanges(false);
+
+    if (onUnsavedChangesChange) {
+      onUnsavedChangesChange(false);
+    }
+  }, [onUnsavedChangesChange]);
+
+  useEffect(() => {
+    if (teamMembers.length > 0 && Object.keys(detailsCapacities).length === 0) {
+    }
+  }, [teamMembers])
+
+  useEffect(() => {
+    if (teamMembers.length > 0 && !hasUnsavedChanges) {
+      setDetailsCapacities({});
+    }
+  }, [teamMembers, hasUnsavedChanges]);
 
   return (
     <div className="space-y-6">
@@ -147,7 +225,7 @@ const DetailsContent = () => {
                     </TableCell>
                     <TableCell>{member.department?.name || 'N/A'}</TableCell>
                     <TableCell>{member.email}</TableCell>
-                    {(['monday','tuesday','wednesday','thursday','friday','saturday','sunday'] as const).map(day => (
+                    {(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const).map(day => (
                       <TableCell key={day}>
                         <Input
                           value={getCapacityValue(member, day)}

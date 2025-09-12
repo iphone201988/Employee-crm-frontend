@@ -5,6 +5,8 @@ import { ServiceRatesContent } from '@/components/Team/ServiceRatesContent';
 import ApprovalsContent from '@/components/Team/ApprovalsContent';
 import AccessContent from '@/components/Team/AccessContent';
 import { usePermissionTabs } from '@/hooks/usePermissionTabs';
+import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
+import ConfirmationModal from '@/components/ui/ConfirmationModal';
 const tabs = [
     {
         id: 'teamList',
@@ -24,10 +26,22 @@ const tabs = [
     }
 ]
 
-const TeamTab = () => {
 
+const TeamTab = () => {
     const [activeTab, setActiveTab] = useState<string>('teamList');
     const { visibleTabs, isLoading, isError } = usePermissionTabs(tabs);
+    const {
+        hasUnsavedChanges,
+        pendingTabId,
+        isModalOpen,
+        isSaving,
+        setUnsavedChanges,
+        setCurrentTab,
+        handleTabChange,
+        handleSaveAndContinue,
+        handleDiscardAndContinue,
+        handleCancelTabChange,
+    } = useUnsavedChanges();
 
     useEffect(() => {
         if (visibleTabs.length > 0 && !visibleTabs.some(tab => tab.id === activeTab)) {
@@ -35,37 +49,93 @@ const TeamTab = () => {
         }
     }, [visibleTabs, activeTab]);
 
+    useEffect(() => {
+        setCurrentTab(activeTab);
+    }, [activeTab, setCurrentTab]);
+
+    const handleTabSwitch = (newTabId: string) => {
+        const canSwitch = handleTabChange(newTabId);
+        if (canSwitch) {
+            setActiveTab(newTabId);
+        }
+    };
+
+    const handleModalSave = async () => {
+        try {
+            const canSwitch = await handleSaveAndContinue();
+            if (canSwitch && pendingTabId) {
+                setActiveTab(pendingTabId);
+            }
+        } catch (error) {
+            console.error('Error in handleModalSave:', error);
+        }
+    };
+
+    const handleModalDiscard = () => {
+        const canSwitch = handleDiscardAndContinue();
+        if (canSwitch && pendingTabId) {
+            setActiveTab(pendingTabId);
+        }
+    };
+
     return (
         <div className="space-y-6">
             <CustomTabs
                 tabs={visibleTabs}
                 activeTab={activeTab}
-                setActiveTab={setActiveTab}
+                setActiveTab={handleTabSwitch}
             />
             {
                 activeTab === 'teamList' && (
-                    <DetailsContent />
+                    <DetailsContent
+                        onUnsavedChangesChange={(hasChanges, saveFn, discardFn) =>
+                            setUnsavedChanges(hasChanges, saveFn, discardFn, 'teamList')
+                        }
+                    />
                 )
             }
 
             {
                 activeTab === 'rates' && (
-                    <ServiceRatesContent />
+                    <ServiceRatesContent
+                        onUnsavedChangesChange={(hasChanges, saveFn, discardFn) =>
+                            setUnsavedChanges(hasChanges, saveFn, discardFn, 'rates')
+                        }
+                    />
                 )
             }
 
             {
                 activeTab === 'permissions' && (
-                    <ApprovalsContent />
+                    <ApprovalsContent
+                        onUnsavedChangesChange={(hasChanges, saveFn, discardFn) =>
+                            setUnsavedChanges(hasChanges, saveFn, discardFn, 'permissions')
+                        }
+                    />
                 )
             }
 
             {
                 activeTab === 'access' && (
-                    <AccessContent />
+                    <AccessContent
+                        onUnsavedChangesChange={(hasChanges, saveFn, discardFn) =>
+                            setUnsavedChanges(hasChanges, saveFn, discardFn, 'access')
+                        }
+                    />
                 )
             }
 
+            <ConfirmationModal
+                isOpen={isModalOpen}
+                onClose={handleCancelTabChange}
+                onConfirm={handleModalSave}
+                onCancel={handleModalDiscard}
+                title="Unsaved Changes"
+                description="You have unsaved changes. What would you like to do?"
+                confirmText="Save Changes"
+                cancelText="Discard Changes"
+                isLoading={isSaving}
+            />
         </div>
     );
 };

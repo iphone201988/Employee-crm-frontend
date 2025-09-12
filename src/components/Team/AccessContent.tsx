@@ -1,15 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getProfileImage, getUserInitials } from '@/utils/profiles';
-import { TeamMember as ApiTeamMember } from '@/types/APIs/teamApiType';
 import { AccessTeamMember, transformToAccess } from '@/types/teamMemberTypes';
 import { useGetAllTeamMembersQuery, useUpdateTeamMembersMutation } from '@/store/teamApi';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const systemFeatures = {
   'Time': {
@@ -77,11 +75,23 @@ const systemFeatures = {
   }
 };
 
-const AccessContent = () => {
+interface AccessContentProps {
+  onUnsavedChangesChange?: (
+    hasChanges: boolean,
+    saveFn?: () => Promise<void>,
+    discardFn?: () => void,
+    tabId?: string
+  ) => void;
+}
+
+
+const AccessContent: React.FC<AccessContentProps> = ({ onUnsavedChangesChange }) => {
   const [teamMembers, setTeamMembers] = useState<AccessTeamMember[]>([]);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  const teamMembersRef = useRef<AccessTeamMember[]>([]);
 
   const { data: teamData, isLoading, error } = useGetAllTeamMembersQuery({ page, limit });
   const [updateTeamMembers] = useUpdateTeamMembersMutation();
@@ -96,10 +106,29 @@ const AccessContent = () => {
   }, [teamData]);
 
   useEffect(() => {
+    teamMembersRef.current = teamMembers;
+  }, [teamMembers]);
+
+  useEffect(() => {
+    if (teamMembers.length > 0 && !hasUnsavedChanges) {
+      console.log('AccessContent: Fresh data received, UI should be updated');
+    }
+  }, [teamMembers, hasUnsavedChanges]);
+
+  useEffect(() => {
     setPage(1);
   }, [limit]);
 
   const handlePermissionChange = (memberId: string, featureKey: keyof AccessTeamMember['featureAccess'], checked: boolean) => {
+    console.log('Feature access changed:', memberId, featureKey, checked);
+
+    const originalMember = teamData?.data?.teamMembers?.find(m => m._id === memberId);
+    if (!originalMember) return;
+
+    const originalValue = originalMember.featureAccess[featureKey as keyof typeof originalMember.featureAccess];
+
+    console.log('Original value:', originalValue, 'New value:', checked);
+
     setTeamMembers(prev =>
       prev.map(member =>
         member.id === memberId
@@ -113,7 +142,15 @@ const AccessContent = () => {
           : member
       )
     );
-    setHasUnsavedChanges(true);
+
+    const hasChanges = checked !== originalValue;
+    console.log('Has changes:', hasChanges);
+
+    setHasUnsavedChanges(hasChanges);
+
+    if (onUnsavedChangesChange) {
+      onUnsavedChangesChange(hasChanges, handleSaveChanges, handleDiscardChanges, 'access');
+    }
   };
 
   const handleSelectAllForMember = (memberId: string) => {
@@ -134,11 +171,18 @@ const AccessContent = () => {
       )
     );
     setHasUnsavedChanges(true);
+
+    if (onUnsavedChangesChange) {
+      onUnsavedChangesChange(true, handleSaveChanges, handleDiscardChanges, 'access');
+    }
   };
 
-  const handleSaveChanges = async () => {
+  const handleSaveChanges = useCallback(async () => {
+    console.log('AccessContent handleSaveChanges called');
+    console.log('Current teamMembers from ref:', teamMembersRef.current);
+
     try {
-      const featureAccessUpdates = teamMembers.map(member => ({
+      const featureAccessUpdates = teamMembersRef.current.map(member => ({
         userId: member.id,
         myTimesheet: member.featureAccess.myTimesheet,
         allTimesheets: member.featureAccess.allTimesheets,
@@ -169,12 +213,39 @@ const AccessContent = () => {
         integrations: member.featureAccess.integrations,
       }));
 
+      console.log('Feature access updates to send:', featureAccessUpdates);
       await updateTeamMembers({ featureAccess: featureAccessUpdates }).unwrap();
+      console.log('Feature access updates successful');
+
+      // Clear local changes and reset state
       setHasUnsavedChanges(false);
+
+      if (onUnsavedChangesChange) {
+        onUnsavedChangesChange(false);
+      }
+
+      // The API will automatically refetch due to invalidatesTags
+      // The fresh data will come from the server and update the UI
+
     } catch (error) {
       console.error('Failed to update team member feature access:', error);
+      throw error; // Re-throw to let the modal handle it
     }
-  };
+  }, [updateTeamMembers, onUnsavedChangesChange]);
+
+  const handleDiscardChanges = useCallback(() => {
+    console.log('AccessContent handleDiscardChanges called');
+    // Reset to original data
+    if (teamData?.data?.teamMembers) {
+      const transformedMembers = teamData.data.teamMembers.map(transformToAccess);
+      setTeamMembers(transformedMembers);
+    }
+    setHasUnsavedChanges(false);
+
+    if (onUnsavedChangesChange) {
+      onUnsavedChangesChange(false);
+    }
+  }, [teamData, onUnsavedChangesChange]);
 
   if (isLoading) {
     return (

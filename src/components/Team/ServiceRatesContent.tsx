@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -25,7 +25,16 @@ const mainServices = [
 ];
 
 
-export const ServiceRatesContent = () => {
+interface ServiceRatesContentProps {
+    onUnsavedChangesChange?: (
+        hasChanges: boolean,
+        saveFn?: () => Promise<void>,
+        discardFn?: () => void,
+        tabId?: string
+    ) => void;
+}
+
+export const ServiceRatesContent: React.FC<ServiceRatesContentProps> = ({ onUnsavedChangesChange }) => {
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
     const [sortField, setSortField] = useState<'name' | keyof typeof DEFAULT_SERVICE_RATES | null>(null);
     const [teamMembers, setTeamMembers] = useState<ServiceRatesTeamMember[]>([]);
@@ -34,6 +43,8 @@ export const ServiceRatesContent = () => {
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const [page, setPage] = useState(1);
     const [limit, setLimit] = useState(10);
+
+    const teamMembersRef = useRef<ServiceRatesTeamMember[]>([]);
 
     const { data: teamData, isLoading, error } = useGetAllTeamMembersQuery({ page, limit });
     const [updateTeamMembers] = useUpdateTeamMembersMutation();
@@ -46,6 +57,15 @@ export const ServiceRatesContent = () => {
             setTeamMembers(transformedMembers);
         }
     }, [teamData]);
+
+    useEffect(() => {
+        teamMembersRef.current = teamMembers;
+    }, [teamMembers]);
+
+    useEffect(() => {
+        if (teamMembers.length > 0 && !hasUnsavedChanges) {
+        }
+    }, [teamMembers, hasUnsavedChanges]);
 
     useEffect(() => {
         setPage(1);
@@ -88,9 +108,10 @@ export const ServiceRatesContent = () => {
         return member.hourlyRate;
     };
 
-    const handleSaveChanges = async () => {
+    const handleSaveChanges = useCallback(async () => {
+
         try {
-            const rateUpdates = teamMembers.map(member => ({
+            const rateUpdates = teamMembersRef.current.map(member => ({
                 userId: member.id,
                 accounts: member.rates.accounts,
                 audits: member.rates.audits,
@@ -104,24 +125,41 @@ export const ServiceRatesContent = () => {
             }));
 
             await updateTeamMembers({ rates: rateUpdates }).unwrap();
+
             setHasUnsavedChanges(false);
+
+            if (onUnsavedChangesChange) {
+                onUnsavedChangesChange(false);
+            }
 
         } catch (error) {
             console.error('Failed to update team member rates:', error);
         }
-    };
+    }, [updateTeamMembers, onUnsavedChangesChange]);
 
-    const handleLockUnlock = async(userId: string,status:string) => {
+    const handleDiscardChanges = useCallback(() => {
+        if (teamData?.data?.teamMembers) {
+            const transformedMembers = teamData.data.teamMembers.map(transformToServiceRates);
+            setTeamMembers(transformedMembers);
+        }
+        setHasUnsavedChanges(false);
+
+        if (onUnsavedChangesChange) {
+            onUnsavedChangesChange(false);
+        }
+    }, [teamData, onUnsavedChangesChange]);
+
+    const handleLockUnlock = async (userId: string, status: string) => {
         try {
             const payload = {
-                singleTeamMenber:{
+                singleTeamMenber: {
                     userId,
                     status
                 }
             }
             await updateTeamMembers(payload).unwrap();
         } catch (error) {
-        console.error('Failed to update team member rates:', error); 
+            console.error('Failed to update team member rates:', error);
         }
     }
 
@@ -134,6 +172,13 @@ export const ServiceRatesContent = () => {
             const numericValue = parseFloat(finalValue);
             finalValue = isNaN(numericValue) ? 'N/A' : numericValue;
         }
+
+        // Find the original member to compare with
+        const originalMember = teamData?.data?.teamMembers?.find(m => m._id === memberId);
+        if (!originalMember) return;
+
+        const originalValue = originalMember[serviceKey as keyof typeof originalMember];
+
 
         setTeamMembers(prev =>
             prev.map(member =>
@@ -150,17 +195,40 @@ export const ServiceRatesContent = () => {
         );
         setEditingCell(null);
         setEditingValue('');
-        setHasUnsavedChanges(true);
+
+        const hasChanges = finalValue !== originalValue;
+
+        setHasUnsavedChanges(hasChanges);
+
+        if (onUnsavedChangesChange) {
+            onUnsavedChangesChange(hasChanges, handleSaveChanges, handleDiscardChanges, 'rates');
+        }
     };
 
     const toggleDefaultRateLock = (memberId: string) => {
+
+        // Find the original member to compare with
+        const originalMember = teamData?.data?.teamMembers?.find(m => m._id === memberId);
+        if (!originalMember) return;
+
+        const currentMember = teamMembers.find(m => m.id === memberId);
+        if (!currentMember) return;
+
+        const newLockState = !currentMember.isDefaultRateLocked;
+
         setTeamMembers(prev =>
             prev.map(member =>
                 member.id === memberId
-                    ? { ...member, isDefaultRateLocked: !member.isDefaultRateLocked }
+                    ? { ...member, isDefaultRateLocked: newLockState }
                     : member
             )
         );
+
+        setHasUnsavedChanges(true);
+
+        if (onUnsavedChangesChange) {
+            onUnsavedChangesChange(true, handleSaveChanges, handleDiscardChanges, 'rates');
+        }
     };
 
     const handleKeyDown = (e: React.KeyboardEvent, memberId: string, serviceKey: string) => {
@@ -289,7 +357,7 @@ export const ServiceRatesContent = () => {
                                                 <Switch
                                                     checked={member.isDefaultRateLocked}
                                                     onCheckedChange={() => toggleDefaultRateLock(member.id)}
-                                                    onClick={() => handleLockUnlock( member.id,member.isDefaultRateLocked?'inActive':'active')}
+                                                    onClick={() => handleLockUnlock(member.id, member.isDefaultRateLocked ? 'inActive' : 'active')}
                                                 />
                                             </div>
                                         </TableCell>

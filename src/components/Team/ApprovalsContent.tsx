@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getProfileImage, getUserInitials } from '@/utils/profiles';
-import { TeamMember as ApiTeamMember } from '@/types/APIs/teamApiType';
 import { ApprovalsTeamMember, transformToApprovals } from '@/types/teamMemberTypes';
 import { useGetAllTeamMembersQuery, useUpdateTeamMembersMutation } from '@/store/teamApi';
 
@@ -17,11 +16,22 @@ const permissions = [
   { key: 'editJobTemplates', label: 'Edit Job Templates' }
 ];
 
-const ApprovalsContent = () => {
+interface ApprovalsContentProps {
+  onUnsavedChangesChange?: (
+    hasChanges: boolean,
+    saveFn?: () => Promise<void>,
+    discardFn?: () => void,
+    tabId?: string
+  ) => void;
+}
+
+const ApprovalsContent: React.FC<ApprovalsContentProps> = ({ onUnsavedChangesChange }) => {
   const [teamMembers, setTeamMembers] = useState<ApprovalsTeamMember[]>([]);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  const teamMembersRef = useRef<ApprovalsTeamMember[]>([]);
 
   const { data: teamData, isLoading, error } = useGetAllTeamMembersQuery({ page, limit });
   const [updateTeamMembers] = useUpdateTeamMembersMutation();
@@ -36,10 +46,24 @@ const ApprovalsContent = () => {
   }, [teamData]);
 
   useEffect(() => {
+    teamMembersRef.current = teamMembers;
+  }, [teamMembers]);
+
+  useEffect(() => {
+    if (teamMembers.length > 0 && !hasUnsavedChanges) {
+    }
+  }, [teamMembers, hasUnsavedChanges]);
+
+  useEffect(() => {
     setPage(1);
   }, [limit]);
 
   const handlePermissionChange = (memberId: string, permissionKey: keyof ApprovalsTeamMember['permissions'], checked: boolean) => {
+    const originalMember = teamData?.data?.teamMembers?.find(m => m._id === memberId);
+    if (!originalMember) return;
+
+    const originalValue = originalMember.permission[permissionKey as keyof typeof originalMember.permission];
+
     setTeamMembers(prev =>
       prev.map(member =>
         member.id === memberId
@@ -53,7 +77,14 @@ const ApprovalsContent = () => {
           : member
       )
     );
-    setHasUnsavedChanges(true);
+
+    const hasChanges = checked !== originalValue;
+
+    setHasUnsavedChanges(hasChanges);
+
+    if (onUnsavedChangesChange) {
+      onUnsavedChangesChange(hasChanges, handleSaveChanges, handleDiscardChanges, 'permissions');
+    }
   };
 
   const handleSelectAllForMember = (memberId: string) => {
@@ -76,11 +107,17 @@ const ApprovalsContent = () => {
       )
     );
     setHasUnsavedChanges(true);
+
+    if (onUnsavedChangesChange) {
+      onUnsavedChangesChange(true, handleSaveChanges, handleDiscardChanges, 'permissions');
+    }
   };
 
-  const handleSaveChanges = async () => {
+  const handleSaveChanges = useCallback(async () => {
+
     try {
-      const permissionUpdates = teamMembers.map(member => ({
+
+      const permissionUpdates = teamMembersRef.current.map(member => ({
         userId: member.id,
         approveTimesheets: member.permissions.approveTimesheets,
         editServices: member.permissions.editServices,
@@ -88,12 +125,32 @@ const ApprovalsContent = () => {
         editJobTemplates: member.permissions.editJobTemplates,
       }));
 
+
       await updateTeamMembers({ permissions: permissionUpdates }).unwrap();
+
       setHasUnsavedChanges(false);
+
+      if (onUnsavedChangesChange) {
+        onUnsavedChangesChange(false);
+      }
     } catch (error) {
       console.error('Failed to update team member permissions:', error);
+      throw error;
     }
-  };
+  }, [updateTeamMembers, onUnsavedChangesChange]);
+
+  const handleDiscardChanges = useCallback(() => {
+
+    if (teamData?.data?.teamMembers) {
+      const transformedMembers = teamData.data.teamMembers.map(transformToApprovals);
+      setTeamMembers(transformedMembers);
+    }
+    setHasUnsavedChanges(false);
+
+    if (onUnsavedChangesChange) {
+      onUnsavedChangesChange(false);
+    }
+  }, [teamData, onUnsavedChangesChange]);
 
   if (isLoading) {
     return (
