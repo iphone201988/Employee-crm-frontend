@@ -12,6 +12,7 @@ import { CreditCard, Search, Filter, Eye, Edit, Download, Upload, Paperclip, Ext
 import sampleReceipt from "@/assets/sample-receipt.png";
 import CustomTabs from '@/components/Tabs';
 import { usePermissionTabs } from '@/hooks/usePermissionTabs';
+
 interface Expense {
   id: string;
   date: string;
@@ -473,14 +474,74 @@ const ExpensesLogTab = () => {
   const { visibleTabs, isLoading, isError } = usePermissionTabs(tabs);
 
   useEffect(() => {
-    if (visibleTabs.length > 0 && !visibleTabs.some(tab => tab.id === activeTab)) {
-      setActiveTab(visibleTabs[0].id);
+    // Reset activeTab when visibleTabs changes
+    if (visibleTabs.length > 0) {
+      if (!visibleTabs.some(tab => tab.id === activeTab)) {
+        setActiveTab(visibleTabs[0].id);
+      }
+    } else {
+      // Clear activeTab if no tabs are visible
+      setActiveTab('');
     }
   }, [visibleTabs, activeTab]);
+
   const formatDate = (dateString: string) => {
     const [year, month, day] = dateString.split('-');
     return `${day}/${month}/${year}`;
   };
+
+  // Early return if no tabs are visible
+  if (!isLoading && !isError && visibleTabs.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center py-12">
+          <p className="text-lg text-muted-foreground">
+            You don't have permission to view any expense tabs.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center py-12">
+          <p className="text-lg text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (isError) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center py-12">
+          <p className="text-lg text-red-600">Error loading permissions.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render content if activeTab is not set or not valid
+  if (!activeTab || !visibleTabs.some(tab => tab.id === activeTab)) {
+    return (
+      <div className="space-y-6">
+        <CustomTabs
+          tabs={visibleTabs}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+        />
+        <div className="text-center py-12">
+          <p className="text-lg text-muted-foreground">
+            Please select a tab to view expenses.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const clientExpenses = expenses.filter(expense => expense.client);
   const teamExpenses = expenses.filter(expense => !expense.client);
@@ -541,7 +602,7 @@ const ExpensesLogTab = () => {
       const baseData = [
         formatDate(expense.date),
         expense.submittedBy,
-        ...(activeTab === 'client' ? [expense.client || ''] : []),
+        ...(activeTab === 'clientExpenses' ? [expense.client || ''] : []),
         expense.description,
         expense.category,
         expense.netAmount.toFixed(2),
@@ -549,7 +610,7 @@ const ExpensesLogTab = () => {
         expense.vatAmount.toFixed(2),
         expense.amount.toFixed(2),
         expense.status,
-        ...(activeTab === 'client' ? [expense.invoiceNumber || ''] : [])
+        ...(activeTab === 'clientExpenses' ? [expense.invoiceNumber || ''] : [])
       ];
       return baseData;
     });
@@ -580,15 +641,14 @@ const ExpensesLogTab = () => {
 
   const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
 
-
   return (
     <div className="space-y-6">
-
       <CustomTabs
         tabs={visibleTabs}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
       />
+      
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
@@ -600,13 +660,13 @@ const ExpensesLogTab = () => {
         <Card>
           <CardContent className="p-4">
             <div className="text-2xl font-bold text-green-600">€{totalPaid.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-            <p className="text-sm text-muted-foreground">{activeTab === 'client' ? 'Invoiced' : 'Paid'}</p>
+            <p className="text-sm text-muted-foreground">{activeTab === 'clientExpenses' ? 'Invoiced' : 'Paid'}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <div className="text-2xl font-bold text-orange-600">€{totalUnpaid.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-            <p className="text-sm text-muted-foreground">{activeTab === 'client' ? 'Not Invoiced' : 'Not Paid'}</p>
+            <p className="text-sm text-muted-foreground">{activeTab === 'clientExpenses' ? 'Not Invoiced' : 'Not Paid'}</p>
           </CardContent>
         </Card>
         <Card>
@@ -639,12 +699,13 @@ const ExpensesLogTab = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Expenses</SelectItem>
-                  {activeTab === 'clientExpenses' ? (
+                  {activeTab === 'clientExpenses' && (
                     <>
                       <SelectItem value="invoiced">Invoiced</SelectItem>
                       <SelectItem value="not invoiced">Not Invoiced</SelectItem>
                     </>
-                  ) : (
+                  )}
+                  {activeTab === 'teamExpenses' && (
                     <>
                       <SelectItem value="paid">Paid</SelectItem>
                       <SelectItem value="not paid">Not Paid</SelectItem>
@@ -675,7 +736,7 @@ const ExpensesLogTab = () => {
                 <Filter className="h-4 w-4" />
                 All
               </Button>
-              {activeTab === 'clientExpenses' ? (
+              {activeTab === 'clientExpenses' && (
                 <>
                   <Button
                     variant={statusFilter === 'not invoiced' ? 'default' : 'outline'}
@@ -696,7 +757,8 @@ const ExpensesLogTab = () => {
                     Invoiced
                   </Button>
                 </>
-              ) : (
+              )}
+              {activeTab === 'teamExpenses' && (
                 <>
                   <Button
                     variant={statusFilter === 'not paid' ? 'default' : 'outline'}

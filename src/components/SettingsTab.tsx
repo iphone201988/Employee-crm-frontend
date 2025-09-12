@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -10,6 +10,7 @@ import { Plus,  X } from 'lucide-react';
 import CustomTabs from './Tabs';
 import { useGetAllCategorieasQuery, useAddCategoryMutation, useDeleteCategoryMutation } from '@/store/categoryApi';
 import { toast } from 'sonner';
+import { usePermissionTabs } from '@/hooks/usePermissionTabs';
 interface SettingsTabProps {
   autoApproveTimesheets: boolean;
   onAutoApproveChange: (enabled: boolean) => void;
@@ -22,6 +23,29 @@ interface User {
 }
 
 const defaultJobTypes = ['Accounts', 'Audit', 'Bookkeeping', 'Company Secretary', 'Corporation Tax', 'Management Accounts', 'Payroll', 'Personal Tax', 'VAT', 'Other'];
+
+ const tabs = [
+    {
+      id: 'general',
+      label: 'General'
+    },
+    {
+      id: 'tags',
+      label: 'Categories'
+    },
+    {
+      id: 'clientImport',
+      label: 'Client Import'
+    },
+    {
+      id: 'timeLogsImport',
+      label: 'Time Logs Import'
+    },
+    {
+      id: 'integrations',
+      label: 'Integrations'
+    }
+  ]
 const SettingsTab = ({
   autoApproveTimesheets,
   onAutoApproveChange
@@ -38,7 +62,13 @@ const SettingsTab = ({
   const [businessTypes, setBusinessTypes] = useState(['CLG', 'Landlord', 'Limited Company', 'Sole Trader', 'Partnership', 'Other']);
   const [newBusinessType, setNewBusinessType] = useState('');
   const [generateInvoices, setGenerateInvoices] = useState(true);
+    const { visibleTabs, isLoading } = usePermissionTabs(tabs);
   
+    useEffect(() => {
+      if (visibleTabs.length > 0 && !visibleTabs.some(tab => tab.id === activeTab)) {
+        setActiveTab(visibleTabs[0].id);
+      }
+    }, [visibleTabs, activeTab]);
   // Dialog open states
   const [isServiceDialogOpen, setIsServiceDialogOpen] = useState(false);
   const [isTimeDialogOpen, setIsTimeDialogOpen] = useState(false);
@@ -107,33 +137,12 @@ const SettingsTab = ({
   };
 
 
-  const tabs = [
-    {
-      id: 'general',
-      label: 'General'
-    },
-    {
-      id: 'tags',
-      label: 'Categories'
-    },
-    {
-      id: 'client-import',
-      label: 'Client Import'
-    },
-    {
-      id: 'time-logs-import',
-      label: 'Time Logs Import'
-    },
-    {
-      id: 'integrations',
-      label: 'Integrations'
-    }
-  ]
+ 
 
 
   return <div className="space-y-6">
     <CustomTabs
-      tabs={tabs}
+      tabs={visibleTabs}
       activeTab={activeTab}
       setActiveTab={setActiveTab}
 
@@ -277,7 +286,7 @@ const SettingsTab = ({
     )}
 
     {
-      activeTab == "client-import" && <>
+      activeTab == "clientImport" && <>
         <Card>
           <CardContent>
             <div className="text-center py-8 text-muted-foreground">
@@ -289,7 +298,7 @@ const SettingsTab = ({
     }
 
     {
-      activeTab == "time-logs-import" && <Card>
+      activeTab == "timeLogsImport" && <Card>
         <CardHeader>
           <CardTitle>Time Logs Import</CardTitle>
         </CardHeader>

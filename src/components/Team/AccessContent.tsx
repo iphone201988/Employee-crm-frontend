@@ -94,7 +94,7 @@ const AccessContent: React.FC<AccessContentProps> = ({ onUnsavedChangesChange })
   const teamMembersRef = useRef<AccessTeamMember[]>([]);
 
   const { data: teamData, isLoading, error } = useGetAllTeamMembersQuery({ page, limit });
-  const [updateTeamMembers] = useUpdateTeamMembersMutation();
+  const [updateTeamMember, { isLoading: isUpdating }] = useUpdateTeamMembersMutation();
 
   const pagination = teamData?.data?.pagination;
 
@@ -213,11 +213,7 @@ const AccessContent: React.FC<AccessContentProps> = ({ onUnsavedChangesChange })
         integrations: member.featureAccess.integrations,
       }));
 
-      console.log('Feature access updates to send:', featureAccessUpdates);
       await updateTeamMembers({ featureAccess: featureAccessUpdates }).unwrap();
-      console.log('Feature access updates successful');
-
-      // Clear local changes and reset state
       setHasUnsavedChanges(false);
 
       if (onUnsavedChangesChange) {
@@ -268,7 +264,7 @@ const AccessContent: React.FC<AccessContentProps> = ({ onUnsavedChangesChange })
           onClick={handleSaveChanges}
           disabled={isLoading || !hasUnsavedChanges}
         >
-          {isLoading ? 'Saving...' : 'Save Changes'}
+          {isUpdating ? 'Saving...' : 'Save Changes'}
         </Button>
       </div>
 
