@@ -15,13 +15,14 @@ import { DEFAULT_SERVICE_RATES } from "@/constants/teamConstants";
 import { formatCurrency } from '@/lib/currency';
 import ClientNameLink from '@/components/ClientNameLink';
 import JobNameLink from '@/components/JobNameLink';
-
+import { useGetDropdownOptionsQuery } from '@/store/teamApi';
 // Import profile images
 import johnSmithProfile from '@/assets/profile-john-smith.png';
 import sarahJohnsonProfile from '@/assets/profile-sarah-johnson.png';
 import mikeWilsonProfile from '@/assets/profile-mike-wilson.png';
 import emilyDavisProfile from '@/assets/profile-emily-davis.png';
 import lisaThompsonProfile from '@/assets/profile-lisa-thompson.png';
+import { JobForm } from './JobForm';
 type JobStatus = 'queued' | 'in-progress' | 'with-client' | 'for-approval' | 'completed';
 type Priority = 'low' | 'medium' | 'high' | 'urgent';
 interface Job {
@@ -518,15 +519,15 @@ const JobsTab = () => {
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [chartView, setChartView] = useState<'jobTypes' | 'teamMembers' | 'late' | 'jobManagers' | 'wipPercentage' | 'distribution'>('distribution');
   const [isReportCollapsed, setIsReportCollapsed] = useState(false);
-  
+
   // Date filter states
   const [dateFilter, setDateFilter] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('yearly');
   const [selectedDate, setSelectedDate] = useState(new Date());
-  
+
   // Distribution filter states
   const [selectedJobType, setSelectedJobType] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
-  
+
   // Sorting states
   const [sortColumn, setSortColumn] = useState<string>('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -535,6 +536,9 @@ const JobsTab = () => {
     name: key === 'vat' ? 'VAT' : key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1')
   }));
   const teamMembers = ['John Smith', 'Sarah Johnson', 'Mike Wilson', 'Emily Davis', 'Lisa Thompson'];
+
+  const { data: categoriesData } = useGetDropdownOptionsQuery("all");
+  console.log('=================================', categoriesData?.data);
 
   // Profile image mapping
   const getProfileImage = (name: string): string => {
@@ -616,7 +620,7 @@ const JobsTab = () => {
   const getDateRange = (date: Date, filter: string) => {
     const start = new Date(date);
     const end = new Date(date);
-    
+
     switch (filter) {
       case 'daily':
         start.setHours(0, 0, 0, 0);
@@ -642,7 +646,7 @@ const JobsTab = () => {
         end.setHours(23, 59, 59, 999);
         break;
     }
-    
+
     return { start, end };
   };
 
@@ -651,12 +655,12 @@ const JobsTab = () => {
   const filteredJobs = jobs.filter(job => {
     const matchesStatus = statusFilter === 'all' || job.status === statusFilter;
     const matchesPriority = priorityFilter === 'all' || job.priority === priorityFilter;
-    
+
     // Date filter - check if job overlaps with selected date range
     const jobStart = new Date(job.startDate);
     const jobEnd = new Date(job.endDate);
     const matchesDate = jobStart <= dateRangeEnd && jobEnd >= dateRangeStart;
-    
+
     return matchesStatus && matchesPriority && matchesDate;
   });
 
@@ -667,7 +671,7 @@ const JobsTab = () => {
       month: '2-digit',
       year: 'numeric'
     };
-    
+
     switch (dateFilter) {
       case 'daily':
         return selectedDate.toLocaleDateString('en-GB', options);
@@ -677,7 +681,7 @@ const JobsTab = () => {
         weekStart.setDate(weekStart.getDate() - dayOfWeek);
         const weekEnd = new Date(weekStart);
         weekEnd.setDate(weekEnd.getDate() + 6);
-        
+
         const weekNumber = Math.ceil(((selectedDate.getTime() - new Date(selectedDate.getFullYear(), 0, 1).getTime()) / 86400000 + 1) / 7);
         return `${weekStart.toLocaleDateString('en-GB', options)} to ${weekEnd.toLocaleDateString('en-GB', options)} - Week ${weekNumber}`;
       case 'monthly':
@@ -691,7 +695,7 @@ const JobsTab = () => {
 
   const navigateDate = (direction: 'prev' | 'next') => {
     const newDate = new Date(selectedDate);
-    
+
     switch (dateFilter) {
       case 'daily':
         newDate.setDate(newDate.getDate() + (direction === 'next' ? 1 : -1));
@@ -706,7 +710,7 @@ const JobsTab = () => {
         newDate.setFullYear(newDate.getFullYear() + (direction === 'next' ? 1 : -1));
         break;
     }
-    
+
     setSelectedDate(newDate);
   };
 
@@ -809,7 +813,7 @@ const JobsTab = () => {
       acc[job.jobType] = (acc[job.jobType] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
-    
+
     const statusBreakdown = memberJobs.reduce((acc, job) => {
       acc[job.status] = (acc[job.status] || 0) + 1;
       return acc;
@@ -826,7 +830,7 @@ const JobsTab = () => {
   // Get unique job types and statuses for distribution filters
   const allJobTypes = [...new Set(filteredJobs.map(job => job.jobType))];
   const allStatuses = [...new Set(filteredJobs.map(job => job.status))];
-  
+
   // Get filtered statuses based on selected job type
   const getFilteredStatuses = () => {
     if (selectedJobType === 'all') return allStatuses;
@@ -851,34 +855,34 @@ const JobsTab = () => {
   // Apply sorting to filtered jobs
   const sortedJobs = useMemo(() => {
     if (!sortColumn) return filteredJobs;
-    
+
     return [...filteredJobs].sort((a, b) => {
       let aValue = a[sortColumn as keyof typeof a];
       let bValue = b[sortColumn as keyof typeof b];
-      
+
       // Handle special cases
       if (sortColumn === 'estimatedCost' || sortColumn === 'actualCost') {
         aValue = Number(aValue);
         bValue = Number(bValue);
       }
-      
+
       if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return sortDirection === 'asc' 
+        return sortDirection === 'asc'
           ? aValue.localeCompare(bValue)
           : bValue.localeCompare(aValue);
       }
-      
+
       if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
       if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
       return 0;
     });
   }, [filteredJobs, sortColumn, sortDirection]);
 
-  const chartData = chartView === 'jobTypes' ? jobTypeChartData : 
-                   chartView === 'teamMembers' ? teamChartData : 
-                   chartView === 'late' ? lateChartData : 
-                   chartView === 'jobManagers' ? jobManagerChartData : 
-                   chartView === 'distribution' ? [] : wipPercentageChartData;
+  const chartData = chartView === 'jobTypes' ? jobTypeChartData :
+    chartView === 'teamMembers' ? teamChartData :
+      chartView === 'late' ? lateChartData :
+        chartView === 'jobManagers' ? jobManagerChartData :
+          chartView === 'distribution' ? [] : wipPercentageChartData;
 
   // Calculate status counts for workflow tabs
   const statusCounts = filteredJobs.reduce((acc, job) => {
@@ -886,178 +890,178 @@ const JobsTab = () => {
     return acc;
   }, {} as Record<string, number>);
   return <div className="space-y-6">
-      {/* Date Filter */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex gap-1">
-              <Button
-                variant={dateFilter === 'daily' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setDateFilter('daily')}
-              >
-                Daily
-              </Button>
-              <Button
-                variant={dateFilter === 'weekly' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setDateFilter('weekly')}
-              >
-                Weekly
-              </Button>
-              <Button
-                variant={dateFilter === 'monthly' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setDateFilter('monthly')}
-              >
-                Monthly
-              </Button>
-              <Button
-                variant={dateFilter === 'yearly' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setDateFilter('yearly')}
-              >
-                Yearly
-              </Button>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigateDate('prev')}
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
-              <span className="text-sm font-medium min-w-[200px] text-center">
-                {formatDateDisplay()}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigateDate('next')}
-              >
-                <ChevronRight className="w-4 h-4" />
-              </Button>
-            </div>
+    {/* Date Filter */}
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex gap-1">
+            <Button
+              variant={dateFilter === 'daily' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setDateFilter('daily')}
+            >
+              Daily
+            </Button>
+            <Button
+              variant={dateFilter === 'weekly' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setDateFilter('weekly')}
+            >
+              Weekly
+            </Button>
+            <Button
+              variant={dateFilter === 'monthly' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setDateFilter('monthly')}
+            >
+              Monthly
+            </Button>
+            <Button
+              variant={dateFilter === 'yearly' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setDateFilter('yearly')}
+            >
+              Yearly
+            </Button>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Distribution Chart */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex gap-2">
-                <Button variant={chartView === 'distribution' ? 'default' : 'outline'} size="sm" onClick={() => setChartView('distribution')}>
-                  Distribution
-                </Button>
-                <Button variant={chartView === 'jobTypes' ? 'default' : 'outline'} size="sm" onClick={() => setChartView('jobTypes')}>
-                  Job Types
-                </Button>
-                <Button variant={chartView === 'teamMembers' ? 'default' : 'outline'} size="sm" onClick={() => setChartView('teamMembers')}>
-                  By Status
-                </Button>
-                <Button variant={chartView === 'jobManagers' ? 'default' : 'outline'} size="sm" onClick={() => setChartView('jobManagers')}>
-                  By Job Manager
-                </Button>
-                <Button variant={chartView === 'late' ? 'default' : 'outline'} size="sm" onClick={() => setChartView('late')}>
-                  Late
-                </Button>
-                <Button variant={chartView === 'wipPercentage' ? 'default' : 'outline'} size="sm" onClick={() => setChartView('wipPercentage')}>
-                  WIP % of Fee
-                </Button>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsReportCollapsed(!isReportCollapsed)}
-                className="ml-2"
-              >
-                {isReportCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigateDate('prev')}
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <span className="text-sm font-medium min-w-[200px] text-center">
+              {formatDateDisplay()}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigateDate('next')}
+            >
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+
+    {/* Distribution Chart */}
+    <Card>
+      <CardContent className="p-6">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex gap-2">
+              <Button variant={chartView === 'distribution' ? 'default' : 'outline'} size="sm" onClick={() => setChartView('distribution')}>
+                Distribution
+              </Button>
+              <Button variant={chartView === 'jobTypes' ? 'default' : 'outline'} size="sm" onClick={() => setChartView('jobTypes')}>
+                Job Types
+              </Button>
+              <Button variant={chartView === 'teamMembers' ? 'default' : 'outline'} size="sm" onClick={() => setChartView('teamMembers')}>
+                By Status
+              </Button>
+              <Button variant={chartView === 'jobManagers' ? 'default' : 'outline'} size="sm" onClick={() => setChartView('jobManagers')}>
+                By Job Manager
+              </Button>
+              <Button variant={chartView === 'late' ? 'default' : 'outline'} size="sm" onClick={() => setChartView('late')}>
+                Late
+              </Button>
+              <Button variant={chartView === 'wipPercentage' ? 'default' : 'outline'} size="sm" onClick={() => setChartView('wipPercentage')}>
+                WIP % of Fee
               </Button>
             </div>
-            {!isReportCollapsed && (chartView === 'distribution' ? (
-                <div className="space-y-4">
-                
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Team Member</TableHead>
-                      <TableHead>Total Jobs</TableHead>
-                      <TableHead className="cursor-pointer" onClick={() => handleJobTypeClick('all')}>
-                        Job Types {selectedJobType !== 'all' && <Badge variant="outline" className="ml-2">Filtered</Badge>}
-                      </TableHead>
-                      <TableHead>Job Statuses</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {teamDistributionData.map((data, index) => {
-                      // Filter the data based on selected filters
-                      const filteredJobTypes = selectedJobType === 'all' 
-                        ? data.jobTypes 
-                        : Object.fromEntries(Object.entries(data.jobTypes).filter(([type]) => type === selectedJobType));
-                      
-                      const filteredStatuses = selectedStatus === 'all'
-                        ? data.statuses
-                        : Object.fromEntries(Object.entries(data.statuses).filter(([status]) => status === selectedStatus));
-                      
-                      const filteredTotalJobs = selectedJobType === 'all' && selectedStatus === 'all'
-                        ? data.totalJobs
-                        : filteredJobs.filter(job => 
-                            job.assignedTo === data.member &&
-                            (selectedJobType === 'all' || job.jobType === selectedJobType) &&
-                            (selectedStatus === 'all' || job.status === selectedStatus)
-                          ).length;
-                      
-                      // Only show rows with jobs matching the filters
-                      if (filteredTotalJobs === 0) return null;
-                      
-                      return (
-                        <TableRow key={data.member}>
-                          <TableCell className="flex items-center gap-3">
-                            <Avatar className="h-8 w-8">
-                              <AvatarImage src={getProfileImage(data.member)} alt={data.member} />
-                              <AvatarFallback>{data.member.split(' ').map(n => n[0]).join('')}</AvatarFallback>
-                            </Avatar>
-                            {data.member}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="secondary">{filteredTotalJobs}</Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-wrap gap-1">
-                              {Object.entries(filteredJobTypes).map(([type, count]) => (
-                                <Badge 
-                                  key={type} 
-                                  variant="outline" 
-                                  className="text-xs cursor-pointer hover:bg-muted"
-                                  onClick={() => handleJobTypeClick(type)}
-                                >
-                                  {type}: {count}
-                                </Badge>
-                              ))}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-wrap gap-1">
-                              {Object.entries(filteredStatuses).map(([status, count]) => (
-                                <Badge key={status} variant="outline" className="text-xs">
-                                  {status}: {count}
-                                </Badge>
-                              ))}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            ) : (
-                <div className="space-y-2">
-                {chartData.map((item, index) => {
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsReportCollapsed(!isReportCollapsed)}
+              className="ml-2"
+            >
+              {isReportCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+            </Button>
+          </div>
+          {!isReportCollapsed && (chartView === 'distribution' ? (
+            <div className="space-y-4">
+
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Team Member</TableHead>
+                    <TableHead>Total Jobs</TableHead>
+                    <TableHead className="cursor-pointer" onClick={() => handleJobTypeClick('all')}>
+                      Job Types {selectedJobType !== 'all' && <Badge variant="outline" className="ml-2">Filtered</Badge>}
+                    </TableHead>
+                    <TableHead>Job Statuses</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {teamDistributionData.map((data, index) => {
+                    // Filter the data based on selected filters
+                    const filteredJobTypes = selectedJobType === 'all'
+                      ? data.jobTypes
+                      : Object.fromEntries(Object.entries(data.jobTypes).filter(([type]) => type === selectedJobType));
+
+                    const filteredStatuses = selectedStatus === 'all'
+                      ? data.statuses
+                      : Object.fromEntries(Object.entries(data.statuses).filter(([status]) => status === selectedStatus));
+
+                    const filteredTotalJobs = selectedJobType === 'all' && selectedStatus === 'all'
+                      ? data.totalJobs
+                      : filteredJobs.filter(job =>
+                        job.assignedTo === data.member &&
+                        (selectedJobType === 'all' || job.jobType === selectedJobType) &&
+                        (selectedStatus === 'all' || job.status === selectedStatus)
+                      ).length;
+
+                    // Only show rows with jobs matching the filters
+                    if (filteredTotalJobs === 0) return null;
+
+                    return (
+                      <TableRow key={data.member}>
+                        <TableCell className="flex items-center gap-3">
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={getProfileImage(data.member)} alt={data.member} />
+                            <AvatarFallback>{data.member.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                          </Avatar>
+                          {data.member}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">{filteredTotalJobs}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {Object.entries(filteredJobTypes).map(([type, count]) => (
+                              <Badge
+                                key={type}
+                                variant="outline"
+                                className="text-xs cursor-pointer hover:bg-muted"
+                                onClick={() => handleJobTypeClick(type)}
+                              >
+                                {type}: {count}
+                              </Badge>
+                            ))}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {Object.entries(filteredStatuses).map(([status, count]) => (
+                              <Badge key={status} variant="outline" className="text-xs">
+                                {status}: {count}
+                              </Badge>
+                            ))}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {chartData.map((item, index) => {
                 const getBarColor = () => {
                   if (chartView === 'wipPercentage') {
                     // Color coded ranges: 0-25% green, 26-50% yellow, 51-75% orange, 76-100% red
@@ -1068,70 +1072,70 @@ const JobsTab = () => {
                 };
                 const percentage = Math.round((item.count / Math.max(...chartData.map(d => d.count)) * 100));
                 return <div key={item.type} onClick={() => handleChartRowClick(item)} className="group flex items-center justify-between cursor-pointer hover:bg-gradient-to-r hover:from-muted/30 hover:to-muted/10 rounded-lg p-3 -m-1 transition-all duration-300 border border-transparent hover:border-border/50 hover:shadow-sm">
-                      <div className="flex items-center gap-3">
-                        <div className="w-4 h-4 rounded-full shadow-sm border border-white/20" style={{
+                  <div className="flex items-center gap-3">
+                    <div className="w-4 h-4 rounded-full shadow-sm border border-white/20" style={{
                       backgroundColor: getBarColor(),
                       boxShadow: `0 2px 8px ${getBarColor()}20`
                     }} />
-                        <span className="text-sm font-medium group-hover:text-foreground transition-colors">{item.type}</span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="w-64 bg-muted/70 rounded-full h-3 overflow-hidden border border-border/30 shadow-inner">
-                          <Progress 
-                            value={percentage} 
-                            className="h-3 [&>div]:transition-all [&>div]:duration-700" 
-                            style={{ 
-                              '--progress-background': getBarColor(),
-                              '--progress-foreground': getBarColor()
-                            } as React.CSSProperties}
-                          />
-                        </div>
-                        <span className="text-sm font-semibold text-foreground w-8 text-right">{item.count}</span>
-                        <span className="text-xs text-muted-foreground w-12 text-right">{percentage}%</span>
-                      </div>
-                    </div>;
+                    <span className="text-sm font-medium group-hover:text-foreground transition-colors">{item.type}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-64 bg-muted/70 rounded-full h-3 overflow-hidden border border-border/30 shadow-inner">
+                      <Progress
+                        value={percentage}
+                        className="h-3 [&>div]:transition-all [&>div]:duration-700"
+                        style={{
+                          '--progress-background': getBarColor(),
+                          '--progress-foreground': getBarColor()
+                        } as React.CSSProperties}
+                      />
+                    </div>
+                    <span className="text-sm font-semibold text-foreground w-8 text-right">{item.count}</span>
+                    <span className="text-xs text-muted-foreground w-12 text-right">{percentage}%</span>
+                  </div>
+                </div>;
               })}
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Workflow Status Tabs */}
-      <Tabs value={statusFilter} onValueChange={setStatusFilter} className="w-full">
-        <div className="flex justify-between items-center mb-6 pb-6">
-          <TabsList>
-            <TabsTrigger value="all">All ({filteredJobs.length})</TabsTrigger>
-            <TabsTrigger value="queued">Queued ({statusCounts.queued || 0})</TabsTrigger>
-            <TabsTrigger value="in-progress">In Progress ({statusCounts['in-progress'] || 0})</TabsTrigger>
-            <TabsTrigger value="with-client">With Client ({statusCounts['with-client'] || 0})</TabsTrigger>
-            <TabsTrigger value="for-approval">For Approval ({statusCounts['for-approval'] || 0})</TabsTrigger>
-            <TabsTrigger value="completed">Completed ({statusCounts.completed || 0})</TabsTrigger>
-          </TabsList>
-          
-          <div className="flex gap-4">
-            <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Filter by priority" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Priority</SelectItem>
-                <SelectItem value="low">Low</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="high">High</SelectItem>
-                <SelectItem value="urgent">Urgent</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            <Button onClick={() => openDialog()}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Job
-            </Button>
-          </div>
+            </div>
+          ))}
         </div>
+      </CardContent>
+    </Card>
 
-        {/* Jobs Table */}
-        <Card>
+    {/* Workflow Status Tabs */}
+    <Tabs value={statusFilter} onValueChange={setStatusFilter} className="w-full">
+      <div className="flex justify-between items-center mb-6 pb-6">
+        <TabsList>
+          <TabsTrigger value="all">All ({filteredJobs.length})</TabsTrigger>
+          <TabsTrigger value="queued">Queued ({statusCounts.queued || 0})</TabsTrigger>
+          <TabsTrigger value="in-progress">In Progress ({statusCounts['in-progress'] || 0})</TabsTrigger>
+          <TabsTrigger value="with-client">With Client ({statusCounts['with-client'] || 0})</TabsTrigger>
+          <TabsTrigger value="for-approval">For Approval ({statusCounts['for-approval'] || 0})</TabsTrigger>
+          <TabsTrigger value="completed">Completed ({statusCounts.completed || 0})</TabsTrigger>
+        </TabsList>
+
+        <div className="flex gap-4">
+          <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="Filter by priority" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Priority</SelectItem>
+              <SelectItem value="low">Low</SelectItem>
+              <SelectItem value="medium">Medium</SelectItem>
+              <SelectItem value="high">High</SelectItem>
+              <SelectItem value="urgent">Urgent</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Button onClick={() => openDialog()}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Job
+          </Button>
+        </div>
+      </div>
+
+      {/* Jobs Table */}
+      <Card>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
@@ -1164,335 +1168,155 @@ const JobsTab = () => {
             </TableHeader>
             <TableBody>
               {sortedJobs.map(job => <TableRow key={job.id}>
-                  <TableCell className="font-medium">
-                    <JobNameLink 
-                      jobName={job.jobName}
-                      jobFee={job.estimatedCost}
-                      wipAmount={job.actualCost}
-                      hoursLogged={Math.round(job.actualCost / 150)}
-                    />
-                  </TableCell>
-                  <TableCell><ClientNameLink clientName={job.clientName} /></TableCell>
-                  <TableCell>{job.jobType}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={`text-xs ${statusColors[job.status]}`}>
-                      {job.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-center">
-                      <Avatar className="h-6 w-6">
-                        <AvatarImage src={getProfileImage(job.jobManager)} />
-                        <AvatarFallback className="text-xs">
-                          {job.jobManager.split(' ').map(n => n[0]).join('')}
-                        </AvatarFallback>
-                      </Avatar>
+                <TableCell className="font-medium">
+                  <JobNameLink
+                    jobName={job.jobName}
+                    jobFee={job.estimatedCost}
+                    wipAmount={job.actualCost}
+                    hoursLogged={Math.round(job.actualCost / 150)}
+                  />
+                </TableCell>
+                <TableCell><ClientNameLink clientName={job.clientName} /></TableCell>
+                <TableCell>{job.jobType}</TableCell>
+                <TableCell>
+                  <Badge variant="outline" className={`text-xs ${statusColors[job.status]}`}>
+                    {job.status}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center justify-center">
+                    <Avatar className="h-6 w-6">
+                      <AvatarImage src={getProfileImage(job.jobManager)} />
+                      <AvatarFallback className="text-xs">
+                        {job.jobManager.split(' ').map(n => n[0]).join('')}
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-1">
+                    {job.team.slice(0, 3).map((member, index) => <Avatar key={index} className="h-6 w-6">
+                      <AvatarImage src={getProfileImage(member)} />
+                      <AvatarFallback className="text-xs">
+                        {member.split(' ').map(n => n[0]).join('')}
+                      </AvatarFallback>
+                    </Avatar>)}
+                    {job.team.length > 3 && <span className="text-xs text-muted-foreground ml-1">
+                      +{job.team.length - 3}
+                    </span>}
+                  </div>
+                </TableCell>
+                <TableCell className="text-right">{formatCurrency(job.estimatedCost)}</TableCell>
+                <TableCell className="text-right">{job.actualCost > 0 ? formatCurrency(job.actualCost) : '-'}</TableCell>
+                <TableCell className="text-right">
+                  {job.estimatedCost > 0 && job.actualCost > 0 ? (
+                    <div className="flex items-center gap-2 justify-end">
+                      <Progress
+                        value={Math.min(100, Math.round(job.actualCost / job.estimatedCost * 100))}
+                        className="w-12 h-2"
+                      />
+                      <span className="text-xs min-w-[2.5rem]">
+                        {Math.round(job.actualCost / job.estimatedCost * 100)}%
+                      </span>
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      {job.team.slice(0, 3).map((member, index) => <Avatar key={index} className="h-6 w-6">
-                          <AvatarImage src={getProfileImage(member)} />
-                          <AvatarFallback className="text-xs">
-                            {member.split(' ').map(n => n[0]).join('')}
-                          </AvatarFallback>
-                        </Avatar>)}
-                      {job.team.length > 3 && <span className="text-xs text-muted-foreground ml-1">
-                          +{job.team.length - 3}
-                        </span>}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">{formatCurrency(job.estimatedCost)}</TableCell>
-                  <TableCell className="text-right">{job.actualCost > 0 ? formatCurrency(job.actualCost) : '-'}</TableCell>
-                  <TableCell className="text-right">
-                    {job.estimatedCost > 0 && job.actualCost > 0 ? (
-                      <div className="flex items-center gap-2 justify-end">
-                        <Progress 
-                          value={Math.min(100, Math.round(job.actualCost / job.estimatedCost * 100))} 
-                          className="w-12 h-2"
-                        />
-                        <span className="text-xs min-w-[2.5rem]">
-                          {Math.round(job.actualCost / job.estimatedCost * 100)}%
-                        </span>
-                      </div>
-                    ) : '-'}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <div className="flex gap-2 justify-center">
-                      <Button variant="ghost" size="sm" onClick={() => openViewDialog(job)}>
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => openDialog(job)}>
-                        <Edit2 className="w-4 h-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => deleteJob(job.id)} className="text-red-500 hover:text-red-700">
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>)}
+                  ) : '-'}
+                </TableCell>
+                <TableCell className="text-center">
+                  <div className="flex gap-2 justify-center">
+                    <Button variant="ghost" size="sm" onClick={() => openViewDialog(job)}>
+                      <Eye className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => openDialog(job)}>
+                      <Edit2 className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => deleteJob(job.id)} className="text-red-500 hover:text-red-700">
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>)}
             </TableBody>
           </Table>
-          </CardContent>
-        </Card>
-      </Tabs>
+        </CardContent>
+      </Card>
+    </Tabs>
 
-      {/* Add/Edit Job Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{editingJob ? 'Edit Job' : 'Add New Job'}</DialogTitle>
-          </DialogHeader>
-          
-          <JobForm job={editingJob} serviceTypes={serviceTypes} teamMembers={teamMembers} onSubmit={handleSubmit} onCancel={() => setDialogOpen(false)} />
-        </DialogContent>
-      </Dialog>
+    {/* Add/Edit Job Dialog */}
+    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{editingJob ? 'Edit Job' : 'Add New Job'}</DialogTitle>
+        </DialogHeader>
 
-      {/* View Job Dialog */}
-      <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Job Details</DialogTitle>
-          </DialogHeader>
-          
-          {selectedJob && <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Job Name</Label>
-                  <p className="text-sm text-muted-foreground">{selectedJob.jobName}</p>
-                </div>
-                <div>
-                  <Label>Client</Label>
-                  <p className="text-sm text-muted-foreground">{selectedJob.clientName}</p>
-                </div>
-                <div>
-                  <Label>Type</Label>
-                  <p className="text-sm text-muted-foreground">{selectedJob.jobType}</p>
-                </div>
-                <div>
-                  <Label>Status</Label>
-                  <Badge variant="outline" className={`text-xs ${statusColors[selectedJob.status]}`}>
-                    {selectedJob.status}
-                  </Badge>
-                </div>
-                <div>
-                  <Label>Priority</Label>
-                  <Badge variant="outline" className={`text-xs ${priorityColors[selectedJob.priority]}`}>
-                    {selectedJob.priority}
-                  </Badge>
-                </div>
-                <div>
-                  <Label>Assigned To</Label>
-                  <p className="text-sm text-muted-foreground">{selectedJob.assignedTo}</p>
-                </div>
-                <div>
-                  <Label>Start Date</Label>
-                  <p className="text-sm text-muted-foreground">{new Date(selectedJob.startDate).toLocaleDateString()}</p>
-                </div>
-                <div>
-                  <Label>End Date</Label>
-                  <p className="text-sm text-muted-foreground">{new Date(selectedJob.endDate).toLocaleDateString()}</p>
-                </div>
-                <div>
-                  <Label>Estimated Cost</Label>
-                  <p className="text-sm text-muted-foreground">{formatCurrency(selectedJob.estimatedCost)}</p>
-                </div>
-                <div>
-                  <Label>Actual Cost</Label>
-                  <p className="text-sm text-muted-foreground">
-                    {selectedJob.actualCost > 0 ? formatCurrency(selectedJob.actualCost) : 'Not yet incurred'}
-                  </p>
-                </div>
-              </div>
-              <div>
-                <Label>Description</Label>
-                <p className="text-sm text-muted-foreground">{selectedJob.description}</p>
-              </div>
-            </div>}
-        </DialogContent>
-      </Dialog>
-    </div>;
+        <JobForm job={editingJob} serviceTypes={serviceTypes} teamMembers={teamMembers} onSubmit={handleSubmit} onCancel={() => setDialogOpen(false)} />
+      </DialogContent>
+    </Dialog>
+
+    {/* View Job Dialog */}
+    <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Job Details</DialogTitle>
+        </DialogHeader>
+
+        {selectedJob && <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Job Name</Label>
+              <p className="text-sm text-muted-foreground">{selectedJob.jobName}</p>
+            </div>
+            <div>
+              <Label>Client</Label>
+              <p className="text-sm text-muted-foreground">{selectedJob.clientName}</p>
+            </div>
+            <div>
+              <Label>Type</Label>
+              <p className="text-sm text-muted-foreground">{selectedJob.jobType}</p>
+            </div>
+            <div>
+              <Label>Status</Label>
+              <Badge variant="outline" className={`text-xs ${statusColors[selectedJob.status]}`}>
+                {selectedJob.status}
+              </Badge>
+            </div>
+            <div>
+              <Label>Priority</Label>
+              <Badge variant="outline" className={`text-xs ${priorityColors[selectedJob.priority]}`}>
+                {selectedJob.priority}
+              </Badge>
+            </div>
+            <div>
+              <Label>Assigned To</Label>
+              <p className="text-sm text-muted-foreground">{selectedJob.assignedTo}</p>
+            </div>
+            <div>
+              <Label>Start Date</Label>
+              <p className="text-sm text-muted-foreground">{new Date(selectedJob.startDate).toLocaleDateString()}</p>
+            </div>
+            <div>
+              <Label>End Date</Label>
+              <p className="text-sm text-muted-foreground">{new Date(selectedJob.endDate).toLocaleDateString()}</p>
+            </div>
+            <div>
+              <Label>Estimated Cost</Label>
+              <p className="text-sm text-muted-foreground">{formatCurrency(selectedJob.estimatedCost)}</p>
+            </div>
+            <div>
+              <Label>Actual Cost</Label>
+              <p className="text-sm text-muted-foreground">
+                {selectedJob.actualCost > 0 ? formatCurrency(selectedJob.actualCost) : 'Not yet incurred'}
+              </p>
+            </div>
+          </div>
+          <div>
+            <Label>Description</Label>
+            <p className="text-sm text-muted-foreground">{selectedJob.description}</p>
+          </div>
+        </div>}
+      </DialogContent>
+    </Dialog>
+  </div>;
 };
 
 // Job Form Component
-interface JobFormProps {
-  job?: Job | null;
-  serviceTypes: Array<{
-    key: string;
-    name: string;
-  }>;
-  teamMembers: string[];
-  onSubmit: (data: Partial<Job>) => void;
-  onCancel: () => void;
-}
-const JobForm = ({
-  job,
-  serviceTypes,
-  teamMembers,
-  onSubmit,
-  onCancel
-}: JobFormProps) => {
-  const [formData, setFormData] = useState<Partial<Job>>({
-    jobName: job?.jobName || '',
-    clientName: job?.clientName || '',
-    jobType: job?.jobType || '',
-    startDate: job?.startDate || '',
-    endDate: job?.endDate || '',
-    estimatedCost: job?.estimatedCost || 0,
-    actualCost: job?.actualCost || 0,
-    status: job?.status || 'queued',
-    priority: job?.priority || 'medium',
-    assignedTo: job?.assignedTo || '',
-    jobManager: job?.jobManager || teamMembers[0] || '',
-    team: job?.team || [],
-    description: job?.description || ''
-  });
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit(formData);
-  };
-  return <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="jobName">Job Name</Label>
-          <Input id="jobName" value={formData.jobName} onChange={e => setFormData({
-          ...formData,
-          jobName: e.target.value
-        })} required />
-        </div>
-        <div>
-          <Label htmlFor="clientName">Client Name</Label>
-          <Input id="clientName" value={formData.clientName} onChange={e => setFormData({
-          ...formData,
-          clientName: e.target.value
-        })} required />
-        </div>
-        <div>
-          <Label htmlFor="jobType">Job Type</Label>
-          <Select value={formData.jobType} onValueChange={value => setFormData({
-          ...formData,
-          jobType: value
-        })}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select job type" />
-            </SelectTrigger>
-            <SelectContent>
-              {serviceTypes.map(type => <SelectItem key={type.key} value={type.name}>
-                  {type.name}
-                </SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label htmlFor="jobManager">Job Manager</Label>
-          <Select value={formData.jobManager} onValueChange={value => setFormData({
-          ...formData,
-          jobManager: value
-        })}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select job manager" />
-            </SelectTrigger>
-            <SelectContent>
-              {teamMembers.map(member => <SelectItem key={member} value={member}>
-                  {member}
-                </SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label htmlFor="startDate">Start Date</Label>
-          <Input id="startDate" type="date" value={formData.startDate} onChange={e => setFormData({
-          ...formData,
-          startDate: e.target.value
-        })} required />
-        </div>
-        <div>
-          <Label htmlFor="endDate">End Date</Label>
-          <Input id="endDate" type="date" value={formData.endDate} onChange={e => setFormData({
-          ...formData,
-          endDate: e.target.value
-        })} required />
-        </div>
-        <div>
-          <Label htmlFor="estimatedCost">Estimated Cost</Label>
-          <Input id="estimatedCost" type="number" value={formData.estimatedCost} onChange={e => setFormData({
-          ...formData,
-          estimatedCost: parseFloat(e.target.value) || 0
-        })} required />
-        </div>
-        <div>
-          <Label htmlFor="actualCost">Actual Cost</Label>
-          <Input id="actualCost" type="number" value={formData.actualCost} onChange={e => setFormData({
-          ...formData,
-          actualCost: parseFloat(e.target.value) || 0
-        })} />
-        </div>
-        <div>
-          <Label htmlFor="team">Team Members</Label>
-          <Select value="" onValueChange={value => {
-          const currentTeam = Array.isArray(formData.team) ? formData.team : [];
-          if (!currentTeam.includes(value)) {
-            setFormData({
-              ...formData,
-              team: [...currentTeam, value]
-            });
-          }
-        }}>
-            <SelectTrigger>
-              <SelectValue placeholder="Add team member" />
-            </SelectTrigger>
-            <SelectContent>
-              {teamMembers.map(member => <SelectItem key={member} value={member}>
-                  {member}
-                </SelectItem>)}
-            </SelectContent>
-          </Select>
-          {Array.isArray(formData.team) && formData.team.length > 0 && <div className="flex flex-wrap gap-1 mt-2">
-              {formData.team.map((member, index) => <Badge key={index} variant="secondary" className="text-xs">
-                  {member}
-                  <button type="button" onClick={() => setFormData({
-              ...formData,
-              team: formData.team?.filter((_, i) => i !== index) || []
-            })} className="ml-1 text-xs">
-                    ×
-                  </button>
-                </Badge>)}
-            </div>}
-        </div>
-        <div>
-          <Label htmlFor="status">Status</Label>
-          <Select value={formData.status} onValueChange={(value: JobStatus) => setFormData({
-          ...formData,
-          status: value
-        })}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="queued">Queued</SelectItem>
-              <SelectItem value="in-progress">In Progress</SelectItem>
-              <SelectItem value="with-client">With Client</SelectItem>
-              <SelectItem value="for-approval">For Approval</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-      <div>
-        <Label htmlFor="description">Description</Label>
-        <Input id="description" value={formData.description} onChange={e => setFormData({
-        ...formData,
-        description: e.target.value
-      })} placeholder="Job description..." />
-      </div>
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button type="submit">
-          {job ? 'Update Job' : 'Add Job'}
-        </Button>
-      </div>
-    </form>;
-};
 export default JobsTab;

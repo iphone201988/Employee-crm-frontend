@@ -1,10 +1,10 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import { AddTeamMemberRequest, AddTeamMemberResponse, UploadImageResponse, TeamMember, GetAllTeamMembersRequest,GetAllTeamMembersResponse, UpdateTeamMembersResponse, UpdateTeamMembersRequest, SendInviteResponse, SendInviteRequest } from '../types/APIs/teamApiType';
+import { AddTeamMemberRequest, AddTeamMemberResponse, UploadImageResponse, TeamMember, GetAllTeamMembersRequest, GetAllTeamMembersResponse, UpdateTeamMembersResponse, UpdateTeamMembersRequest, SendInviteResponse, SendInviteRequest } from '../types/APIs/teamApiType';
 
 
 type UploadImageRequest = File;
 export const teamApi = createApi({
-    reducerPath: 'teamApi', 
+    reducerPath: 'teamApi',
     baseQuery: fetchBaseQuery({
         baseUrl: `${import.meta.env.VITE_API_URL}/user`,
         prepareHeaders: (headers) => {
@@ -18,21 +18,36 @@ export const teamApi = createApi({
     tagTypes: ['Team'],
     endpoints: (builder) => ({
         getAllTeamMembers: builder.query<GetAllTeamMembersResponse, GetAllTeamMembersRequest>({
-            query: ({ page, limit }) => `/get-all-team-members?page=${page}&limit=${limit}`,
+            query: ({ page, limit, search, departmentType }) => {
+                // Build the query parameters dynamically
+                const params = new URLSearchParams();
+                params.append('page', String(page));
+                params.append('limit', String(limit));
+                if (search) {
+                    params.append('search', search);
+                }
+                if (departmentType && departmentType !== 'all') {
+                    params.append('departmentId', departmentType);
+                }
+
+                return {
+                    url: `/get-all-team-members?${params.toString()}`
+                };
+            },
             providesTags: (result) => {
                 const teamMembers = result?.data?.teamMembers;
                 return teamMembers
                     ? [
                         ...teamMembers.map(({ _id }) => ({ type: 'Team' as const, id: _id })),
                         { type: 'Team', id: 'LIST' },
-                      ]
+                    ]
                     : [{ type: 'Team', id: 'LIST' }];
             },
         }),
         updateTeamMembers: builder.mutation<UpdateTeamMembersResponse, UpdateTeamMembersRequest>({
             query: (updateData) => ({
                 url: '/update-team-members',
-                method: 'POST', 
+                method: 'POST',
                 body: updateData,
             }),
             invalidatesTags: [{ type: 'Team', id: 'LIST' }],
@@ -56,26 +71,30 @@ export const teamApi = createApi({
                     body: formData,
 
                     headers: {
-                        'Content-Type': undefined, 
+                        'Content-Type': undefined,
                     },
                 };
             },
 
         }),
-         sendInviteToTeamMember: builder.mutation<SendInviteResponse, SendInviteRequest>({
+        sendInviteToTeamMember: builder.mutation<SendInviteResponse, SendInviteRequest>({
             query: (inviteData) => ({
                 url: '/send-invite-to-team-member',
                 method: 'POST',
                 body: inviteData,
             }),
         }),
+        getDropdownOptions: builder.query<any, any>({
+            query: (type) => '/dropdown-options?type=' + type,
+        })
     }),
 });
 
 export const {
     useAddTeamMemberMutation,
-    useUploadImageMutation, 
+    useUploadImageMutation,
     useGetAllTeamMembersQuery,
     useUpdateTeamMembersMutation,
-    useSendInviteToTeamMemberMutation
+    useSendInviteToTeamMemberMutation,
+    useGetDropdownOptionsQuery
 } = teamApi;

@@ -116,8 +116,10 @@ interface Permission {
 
 
 export interface GetAllTeamMembersRequest {
-    page: number;
-    limit: number;
+    page?: number;
+    limit?: number;
+    search?: string;
+    departmentType?: string;
 }
 
 export interface GetAllTeamMembersResponse {

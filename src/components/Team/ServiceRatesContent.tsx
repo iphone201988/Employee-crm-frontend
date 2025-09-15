@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -7,483 +7,289 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
-import { DEFAULT_SERVICE_RATES } from '@/constants/teamConstants';
 import { getProfileImage, getUserInitials } from '@/utils/profiles';
-import { TeamMember as ApiTeamMember } from '@/types/APIs/teamApiType';
-import { transformToServiceRates } from '@/types/teamMemberTypes';
 import { useGetAllTeamMembersQuery, useUpdateTeamMembersMutation } from '@/store/teamApi';
+import { useGetAllCategorieasQuery } from "@/store/categoryApi";
+
+import { toast } from 'sonner';
 
 
-const mainServices = [
-    { key: 'accounts', label: 'Accounts' },
-    { key: 'audits', label: 'Audits' },
-    { key: 'bookkeeping', label: 'Bookkeeping' },
-    { key: 'payroll', label: 'Payroll' },
-    { key: 'vat', label: 'VAT' },
-    { key: 'companySecretarial', label: 'Company Secretarial' },
-    { key: 'cgt', label: 'CGT' },
-];
+interface JobType { _id: string; name: string; key: string; }
+interface JobFee { jobId: string; fee: number; _id: string; }
+interface ServiceRatesTeamMember {
+    id: string;
+    name: string;
+    avatarUrl?: string;
+    hourlyRate: number;
+    defaultRate: number;
+    isDefaultRateLocked: boolean;
+    rates: { [key: string]: number | 'N/A' };
+}
+
+
+const transformToServiceRates = (member: any, jobTypes: JobType[]): ServiceRatesTeamMember => {
+    const rates: { [key: string]: number | 'N/A' } = {};
+    jobTypes.forEach(jobType => {
+        const jobFee = member.jobFees?.find((fee: JobFee) => fee.jobId === jobType._id);
+        rates[jobType.key] = jobFee ? jobFee.fee : 'N/A';
+    });
+    return {
+        id: member._id,
+        name: member.name,
+        avatarUrl: member.avatarUrl,
+        hourlyRate: member.hourlyRate || 0,
+        defaultRate: member.billableRate || 0,
+        isDefaultRateLocked: member.status === 'active',
+        rates,
+    };
+};
 
 
 interface ServiceRatesContentProps {
-    onUnsavedChangesChange?: (
-        hasChanges: boolean,
-        saveFn?: () => Promise<void>,
-        discardFn?: () => void,
-        tabId?: string
-    ) => void;
+    onUnsavedChangesChange?: (hasChanges: boolean, saveFn?: () => Promise<void>, discardFn?: () => void, tabId?: string) => void;
 }
 
 export const ServiceRatesContent: React.FC<ServiceRatesContentProps> = ({ onUnsavedChangesChange }) => {
+   
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-    const [sortField, setSortField] = useState<'name' | keyof typeof DEFAULT_SERVICE_RATES | null>(null);
+    const [sortField, setSortField] = useState<string | null>('name');
     const [teamMembers, setTeamMembers] = useState<ServiceRatesTeamMember[]>([]);
     const [editingCell, setEditingCell] = useState<string | null>(null);
     const [editingValue, setEditingValue] = useState<string>('');
-    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState<{ [key: string]: boolean }>({});
     const [page, setPage] = useState(1);
     const [limit, setLimit] = useState(10);
+    
 
-    const teamMembersRef = useRef<ServiceRatesTeamMember[]>([]);
+    const { data: categoriesData, isLoading: isLoadingCategories } = useGetAllCategorieasQuery('job');
+    const { data: departmentData } = useGetAllCategorieasQuery("department");
+    const { data: teamData, isLoading: isLoadingTeam, isFetching: isFetchingTeam } = useGetAllTeamMembersQuery({ page, limit });
+    const [updateTeamMembers, { isLoading: isUpdating }] = useUpdateTeamMembersMutation();
 
-    const { data: teamData, isLoading, error } = useGetAllTeamMembersQuery({ page, limit });
-    const [updateTeamMembers] = useUpdateTeamMembersMutation();
+
+    const mainJobTypes: JobType[] = useMemo(() => {
+        const jobList = categoriesData?.data?.jobs || categoriesData?.data;
+        return Array.isArray(jobList) ? jobList.map((job: any) => ({
+            _id: job._id,
+            name: job.name,
+            key: job.name.toLowerCase().replace(/\s/g, ''),
+        })) : [];
+    }, [categoriesData]);
 
     const pagination = teamData?.data?.pagination;
 
+
     useEffect(() => {
-        if (teamData?.data?.teamMembers) {
-            const transformedMembers = teamData.data.teamMembers.map(transformToServiceRates);
+        if (teamData?.data?.teamMembers && mainJobTypes.length > 0 && !isFetchingTeam) {
+            const transformedMembers = teamData.data.teamMembers.map(member => transformToServiceRates(member, mainJobTypes));
             setTeamMembers(transformedMembers);
+            setHasUnsavedChanges({});
         }
-    }, [teamData]);
+    }, [teamData, mainJobTypes, isFetchingTeam]);
 
-    useEffect(() => {
-        teamMembersRef.current = teamMembers;
-    }, [teamMembers]);
+    useEffect(() => { setPage(1); }, [limit]);
 
-    useEffect(() => {
-        if (teamMembers.length > 0 && !hasUnsavedChanges) {
-        }
-    }, [teamMembers, hasUnsavedChanges]);
+    const sortedTeamMembers = useMemo(() => {
 
-    useEffect(() => {
-        setPage(1);
-    }, [limit]);
+        return [...teamMembers].sort((a, b) => {
+            if (!sortField) return 0;
+            if (sortField === 'name') return sortDirection === 'asc' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name);
+            
+            const getSortValue = (member: ServiceRatesTeamMember, field: string) => {
+                if (field === 'hourlyRate') return member.hourlyRate;
+                if (field === 'defaultRate') return member.defaultRate;
+                return member.rates[field];
+            };
 
-    const handleSort = (field: 'name' | keyof typeof DEFAULT_SERVICE_RATES) => {
-        if (sortField === field) {
-            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-        } else {
-            setSortField(field);
-            setSortDirection(field === 'name' ? 'asc' : 'desc');
-        }
-    };
+            const aValue = getSortValue(a, sortField);
+            const bValue = getSortValue(b, sortField);
 
-    const sortedTeamMembers = [...teamMembers].sort((a, b) => {
-        if (!sortField) return 0;
+            if (aValue === 'N/A' || bValue === 'N/A') {
+                if (aValue === bValue) return 0;
+                return aValue === 'N/A' ? 1 : -1;
+            }
+            return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+        });
+    }, [teamMembers, sortField, sortDirection]);
 
-        if (sortField === 'name') {
-            const aValue = a.name;
-            const bValue = b.name;
-            return sortDirection === 'asc'
-                ? aValue.localeCompare(bValue)
-                : bValue.localeCompare(aValue);
-        } else {
-            const aValue = a.rates[sortField];
-            const bValue = b.rates[sortField];
 
-            if (aValue === 'N/A' && bValue === 'N/A') return 0;
-            if (aValue === 'N/A') return 1;
-            if (bValue === 'N/A') return -1;
-
-            const aNum = typeof aValue === 'number' ? aValue : parseFloat(aValue.toString());
-            const bNum = typeof bValue === 'number' ? bValue : parseFloat(bValue.toString());
-
-            return sortDirection === 'asc' ? aNum - bNum : bNum - aNum;
-        }
-    });
-
-    const calculateHourlyRate = (member: ServiceRatesTeamMember) => {
-        return member.hourlyRate;
+    const handleSort = (field: string) => {
+        setSortDirection(prev => sortField === field && prev === 'asc' ? 'desc' : 'asc');
+        setSortField(field);
     };
 
     const handleSaveChanges = useCallback(async () => {
+        const changedMemberIds = Object.keys(hasUnsavedChanges);
+        if (changedMemberIds.length === 0) {
+            toast.info("No changes to save.");
+            return;
+        }
+
+        const rateUpdates = teamMembers
+            .filter(member => changedMemberIds.includes(member.id))
+            .map(member => {
+                const jobFees = mainJobTypes
+                    .map(jobType => {
+                        const rate = member.rates[jobType.key];
+                        return rate !== 'N/A' ? { jobId: jobType._id, fee: rate } : null;
+                    })
+                    .filter(fee => fee !== null) as { jobId: string; fee: number }[];
+
+       
+                return {
+                    userId: member.id,
+                    hourlyRate: member.hourlyRate,
+                    billableRate: member.defaultRate,
+                    jobFees,
+                };
+            });
 
         try {
-            const rateUpdates = teamMembersRef.current.map(member => ({
-                userId: member.id,
-                accounts: member.rates.accounts,
-                audits: member.rates.audits,
-                bookkeeping: member.rates.bookkeeping,
-                companySecretarial: member.rates.companySecretarial,
-                payroll: member.rates.payroll,
-                vat: member.rates.vat,
-                cgt: member.rates.cgt,
-                hourlyRate: member.hourlyRate,
-                billableRate: member.defaultRate,
-            }));
-
             await updateTeamMembers({ rates: rateUpdates }).unwrap();
-
-            setHasUnsavedChanges(false);
-
-            if (onUnsavedChangesChange) {
-                onUnsavedChangesChange(false);
-            }
-
+            toast.success("Rates updated successfully!");
+            setHasUnsavedChanges({});
+            onUnsavedChangesChange?.(false);
         } catch (error) {
-            console.error('Failed to update team member rates:', error);
+            console.error("Failed to update rates:", error);
+            toast.error("Failed to update rates.");
         }
-    }, [updateTeamMembers, onUnsavedChangesChange]);
-
+    }, [teamMembers, mainJobTypes, updateTeamMembers, onUnsavedChangesChange, hasUnsavedChanges]);
+    
     const handleDiscardChanges = useCallback(() => {
-        if (teamData?.data?.teamMembers) {
-            const transformedMembers = teamData.data.teamMembers.map(transformToServiceRates);
-            setTeamMembers(transformedMembers);
+        if (teamData?.data?.teamMembers && mainJobTypes.length > 0) {
+            setTeamMembers(teamData.data.teamMembers.map(member => transformToServiceRates(member, mainJobTypes)));
         }
-        setHasUnsavedChanges(false);
+        setHasUnsavedChanges({});
+        onUnsavedChangesChange?.(false);
+    }, [teamData, mainJobTypes, onUnsavedChangesChange]);
 
-        if (onUnsavedChangesChange) {
-            onUnsavedChangesChange(false);
-        }
-    }, [teamData, onUnsavedChangesChange]);
+    const handleCellSave = (memberId: string, fieldKey: string) => {
+        const value = parseFloat(editingValue);
+        const finalValue: number | 'N/A' = isNaN(value) ? (fieldKey === 'hourlyRate' || fieldKey === 'defaultRate' ? 0 : 'N/A') : value;
 
-    const handleLockUnlock = async (userId: string, status: string) => {
-        try {
-            const payload = {
-                singleTeamMenber: {
-                    userId,
-                    status
-                }
-            }
-            await updateTeamMembers(payload).unwrap();
-        } catch (error) {
-            console.error('Failed to update team member rates:', error);
-        }
-    }
+        setTeamMembers(prev => prev.map(member => {
+            if (member.id !== memberId) return member;
 
-    const handleCellSave = (memberId: string, serviceKey: string) => {
-        let finalValue: number | string = editingValue.trim();
+            if (fieldKey === 'hourlyRate') return { ...member, hourlyRate: finalValue as number };
+            if (fieldKey === 'defaultRate') return { ...member, defaultRate: finalValue as number };
+            
+            return { ...member, rates: { ...member.rates, [fieldKey]: finalValue } };
+        }));
 
-        if (finalValue.toLowerCase() === 'n/a' || finalValue === '') {
-            finalValue = 'N/A';
-        } else {
-            const numericValue = parseFloat(finalValue);
-            finalValue = isNaN(numericValue) ? 'N/A' : numericValue;
-        }
-
-        // Find the original member to compare with
-        const originalMember = teamData?.data?.teamMembers?.find(m => m._id === memberId);
-        if (!originalMember) return;
-
-        const originalValue = originalMember[serviceKey as keyof typeof originalMember];
-
-
-        setTeamMembers(prev =>
-            prev.map(member =>
-                member.id === memberId
-                    ? {
-                        ...member,
-                        rates: {
-                            ...member.rates,
-                            [serviceKey]: finalValue
-                        }
-                    }
-                    : member
-            )
-        );
         setEditingCell(null);
-        setEditingValue('');
-
-        const hasChanges = finalValue !== originalValue;
-
-        setHasUnsavedChanges(hasChanges);
-
-        if (onUnsavedChangesChange) {
-            onUnsavedChangesChange(hasChanges, handleSaveChanges, handleDiscardChanges, 'rates');
-        }
+        setHasUnsavedChanges(prev => ({ ...prev, [memberId]: true }));
+        onUnsavedChangesChange?.(true, handleSaveChanges, handleDiscardChanges, 'rates');
     };
 
     const toggleDefaultRateLock = (memberId: string) => {
-
-        // Find the original member to compare with
-        const originalMember = teamData?.data?.teamMembers?.find(m => m._id === memberId);
-        if (!originalMember) return;
-
         const currentMember = teamMembers.find(m => m.id === memberId);
         if (!currentMember) return;
-
         const newLockState = !currentMember.isDefaultRateLocked;
-
-        setTeamMembers(prev =>
-            prev.map(member =>
-                member.id === memberId
-                    ? { ...member, isDefaultRateLocked: newLockState }
-                    : member
-            )
-        );
-
-        setHasUnsavedChanges(true);
-
-        if (onUnsavedChangesChange) {
-            onUnsavedChangesChange(true, handleSaveChanges, handleDiscardChanges, 'rates');
-        }
+        const status = newLockState ? 'active' : 'inActive';
+        updateTeamMembers({ singleTeamMenber: { userId: memberId, status }})
+            .unwrap()
+            .then(() => {
+                setTeamMembers(prev => prev.map(member =>
+                    member.id === memberId ? { ...member, isDefaultRateLocked: newLockState } : member
+                ));
+                toast.success(`Lock status updated.`);
+            }).catch(() => toast.error("Failed to update lock status."));
+    };
+    
+    const handleKeyDown = (e: React.KeyboardEvent, memberId: string, fieldKey: string) => {
+        if (e.key === 'Enter') handleCellSave(memberId, fieldKey);
+        if (e.key === 'Escape') setEditingCell(null);
     };
 
-    const handleKeyDown = (e: React.KeyboardEvent, memberId: string, serviceKey: string) => {
-        if (e.key === 'Enter') {
-            handleCellSave(memberId, serviceKey);
-        } else if (e.key === 'Escape') {
-            setEditingCell(null);
-            setEditingValue('');
-        }
+    const handleCellClick = (memberId: string, fieldKey: string, currentValue: number | string) => {
+        setEditingCell(`${memberId}-${fieldKey}`);
+        setEditingValue(currentValue === 'N/A' ? '' : String(currentValue));
     };
-    const handleCellClick = (memberId: string, serviceKey: string, currentValue: number | string) => {
-        const cellId = `${memberId}-${serviceKey}`;
-        setEditingCell(cellId);
-        setEditingValue(currentValue === 'N/A' ? 'N/A' : currentValue.toString());
-    };
-    if (isLoading) {
-        return (
-            <div className="space-y-6">
-                <div className="flex items-center justify-center py-8">
-                    <div className="text-center">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-                        <p className="mt-2 text-sm text-gray-600">Loading team members...</p>
-                    </div>
-                </div>
-            </div>
-        );
+
+    // --- Render ---
+    if (isLoadingTeam || isLoadingCategories) {
+        return <div className="flex items-center justify-center py-20"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900"></div><p className="ml-4 text-gray-600">Loading data...</p></div>;
     }
+    
+    const isLoading = isUpdating || isFetchingTeam;
 
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-end pt-4">
-                <Button
-                    className={`flex items-center gap-2 ${!hasUnsavedChanges ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    onClick={handleSaveChanges}
-                    disabled={isLoading || !hasUnsavedChanges}
-                >
-                    {isLoading ? 'Saving...' : 'Save Changes'}
+                <Button onClick={handleSaveChanges} disabled={isLoading || Object.keys(hasUnsavedChanges).length === 0}>
+                    {isUpdating ? 'Saving...' : 'Save Changes'}
                 </Button>
             </div>
-
             <Card>
                 <CardContent className="p-0">
                     <div className="overflow-auto">
                         <Table>
-                            <TableHeader>
+                             <TableHeader>
                                 <TableRow>
-                                    <TableHead className="sticky left-0 border-r opacity-100 bg-opacity-100">
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => handleSort('name')}
-                                            className="h-8 px-1 font-medium"
-                                        >
-                                            Team Member
-                                            <ArrowUpDown className="ml-1 h-4 w-4" />
-                                        </Button>
+                                    <TableHead className="sticky left-0 bg-white z-10 border-r min-w-[250px]">
+                                        <Button variant="ghost" size="sm" className="font-medium" onClick={() => handleSort('name')}>Team Member <ArrowUpDown className="ml-2 h-4 w-4" /></Button>
                                     </TableHead>
-                                    <TableHead className="h-12 text-left align-middle border-r min-w-[120px]">
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-8 px-1 font-medium"
-                                        >
-                                            Hourly Rate
-                                        </Button>
-                                    </TableHead>
-                                    <TableHead className="h-12 text-left align-middle border-r min-w-[120px]">
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-8 px-1 font-medium"
-                                        >
-                                            Billable Rate
-                                        </Button>
-                                    </TableHead>
-                                    <TableHead className="h-12 text-left align-middle border-r min-w-[120px]">
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-8 px-1 font-medium"
-                                        >
-                                            Lock
-                                        </Button>
-                                    </TableHead>
-                                    {mainServices.map((service) => (
-                                        <TableHead key={service.key} className="min-w-[120px] border-r">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => handleSort(service.key as keyof typeof DEFAULT_SERVICE_RATES)}
-                                                className="h-8 px-1 font-medium"
-                                            >
-                                                {service.label}
-                                                <ArrowUpDown className="ml-1 h-4 w-4" />
-                                            </Button>
+                                    <TableHead><Button variant="ghost" size="sm" className="font-medium" onClick={() => handleSort('hourlyRate')}>Hourly Rate <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                    <TableHead><Button variant="ghost" size="sm" className="font-medium" onClick={() => handleSort('defaultRate')}>Billable Rate <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                    <TableHead>Lock</TableHead>
+                                    {mainJobTypes.map((job) => (
+                                        <TableHead key={job.key} className="min-w-[150px]">
+                                            <Button variant="ghost" size="sm" className="font-medium" onClick={() => handleSort(job.key)}>{job.name} <ArrowUpDown className="ml-2 h-4 w-4" /></Button>
                                         </TableHead>
                                     ))}
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {sortedTeamMembers.map((member) => (
-                                    <TableRow key={member.id} className="border-b transition-colors">
-                                        <TableCell className="p-4 align-middle font-medium sticky left-0 border-r bg-opacity-100 opacity-100">
-                                            <div className="flex items-center gap-3">
-                                                <Avatar className="h-8 w-8">
-                                                    <AvatarImage
-                                                        src={member.avatarUrl || getProfileImage(member.name)}
-                                                        alt={member.name}
-                                                    />
-                                                    <AvatarFallback>{getUserInitials(member.name)}</AvatarFallback>
-                                                </Avatar>
-                                                <div>
-                                                    <div className="font-medium">{member.name}</div>
-                                                    {/* <div className="text-xs text-gray-500">{member.department}</div> */}
-                                                </div>
+                                {sortedTeamMembers.map((member) => {
+                                    const renderCell = (fieldKey: 'hourlyRate' | 'defaultRate' | string, rateValue: number | 'N/A') => {
+                                        const isEditing = editingCell === `${member.id}-${fieldKey}`;
+                                        return isEditing ? (
+                                            <Input
+                                                type="text" value={editingValue} onChange={(e) => setEditingValue(e.target.value)}
+                                                onBlur={() => handleCellSave(member.id, fieldKey)} onKeyDown={(e) => handleKeyDown(e, member.id, fieldKey)}
+                                                className="w-24 h-8" autoFocus
+                                            />
+                                        ) : (
+                                            <div onClick={() => handleCellClick(member.id, fieldKey, rateValue)} className="cursor-pointer p-2 rounded hover:bg-gray-100">
+                                                {rateValue === 'N/A' ? <Badge variant="secondary">N/A</Badge> : `€${Number(rateValue).toFixed(2)}`}
                                             </div>
-                                        </TableCell>
-                                        <TableCell className="p-4 align-middle border-r">
-                                            <span className="font-medium">€{calculateHourlyRate(member).toFixed(2)}</span>
-                                        </TableCell>
-                                        <TableCell className="p-4 align-middle border-r">
-                                            <span className="font-medium">€{member.defaultRate.toFixed(2)}</span>
-                                        </TableCell>
-                                        <TableCell className="p-4 align-middle border-r">
-                                            <div className="flex items-center gap-2">
-                                                <Switch
-                                                    checked={member.isDefaultRateLocked}
-                                                    onCheckedChange={() => toggleDefaultRateLock(member.id)}
-                                                    onClick={() => handleLockUnlock(member.id, member.isDefaultRateLocked ? 'inActive' : 'active')}
-                                                />
-                                            </div>
-                                        </TableCell>
-                                        {mainServices.map((service) => {
-                                            const cellId = `${member.id}-${service.key}`;
-                                            const isEditing = editingCell === cellId;
-                                            const rate = member.rates[service.key as keyof typeof member.rates];
+                                        );
+                                    };
 
-                                            return (
-                                                <TableCell key={service.key} className="p-4 align-middle border-r">
-                                                    {!member.isDefaultRateLocked ? (
-                                                        isEditing ? (
-                                                            <Input
-                                                                value={editingValue}
-                                                                onChange={(e) => setEditingValue(e.target.value)}
-                                                                onBlur={() => handleCellSave(member.id, service.key)}
-                                                                onKeyDown={(e) => handleKeyDown(e, member.id, service.key)}
-                                                                className="w-16 h-6 text-sm"
-                                                                placeholder="Enter rate or N/A"
-                                                                autoFocus
-                                                                style={{ position: 'relative' }}
-                                                            />
-                                                        ) : (
-                                                            <div
-                                                                className="cursor-pointer p-2 rounded"
-                                                                onClick={() => handleCellClick(member.id, service.key, rate)}
-                                                            >
-                                                                {rate === 'N/A' ? (
-                                                                    <Badge variant="secondary" className="text-xs">N/A</Badge>
-                                                                ) : (
-                                                                    `€${typeof rate === 'number' ? rate.toFixed(2) : rate}`
-                                                                )}
-                                                            </div>
-                                                        )
-                                                    ) : (
-                                                        <div className="p-2">
-                                                            {/* Empty cell when default rate is locked */}
-                                                        </div>
-                                                    )}
+                                    return (
+                                        <TableRow key={member.id}>
+                                            <TableCell className="sticky left-0 bg-white z-10 border-r font-medium">
+                                                <div className="flex items-center gap-3">
+                                                    <Avatar className="h-8 w-8">
+                                                        <AvatarImage src={member.avatarUrl || getProfileImage(member.name)} alt={member.name} />
+                                                        <AvatarFallback>{getUserInitials(member.name)}</AvatarFallback>
+                                                    </Avatar>
+                                                    {member.name}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>{renderCell('hourlyRate', member.hourlyRate)}</TableCell>
+                                            <TableCell>{renderCell('defaultRate', member.defaultRate)}</TableCell>
+                                            <TableCell><Switch checked={member.isDefaultRateLocked} onCheckedChange={() => toggleDefaultRateLock(member.id)}/></TableCell>
+                                            {mainJobTypes.map((job) => (
+                                                <TableCell key={job.key}>
+                                                    {!member.isDefaultRateLocked ? renderCell(job.key, member.rates[job.key]) : <div className="p-2 text-gray-400">-</div>}
                                                 </TableCell>
-                                            );
-                                        })}
-                                    </TableRow>
-                                ))}
+                                            ))}
+                                        </TableRow>
+                                    );
+                                })}
                             </TableBody>
                         </Table>
                     </div>
                 </CardContent>
             </Card>
-
-            {pagination && (
-                <div className="space-y-4 mt-6">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <span className="text-sm text-gray-600">Show:</span>
-                            <select
-                                value={limit}
-                                onChange={(e) => setLimit(Number(e.target.value))}
-                                className="border border-gray-300 rounded px-2 py-1 text-sm"
-                                disabled={isLoading}
-                            >
-                                <option value={5}>5 per page</option>
-                                <option value={10}>10 per page</option>
-                                <option value={20}>20 per page</option>
-                                <option value={50}>50 per page</option>
-                            </select>
-                        </div>
-
-                        <div className="text-sm text-gray-500">
-                            Showing {((page - 1) * limit) + 1} to {Math.min(page * limit, pagination.total)} of {pagination.total} team members
-                        </div>
-                    </div>
-
-                    {pagination.totalPages > 1 && (
-                        <div className="flex justify-center items-center gap-2">
-                            <Button
-                                onClick={() => setPage(p => Math.max(1, p - 1))}
-                                disabled={page === 1 || isLoading}
-                                variant="outline"
-                                size="sm"
-                            >
-                                <ChevronLeft className="h-4 w-4" />
-                                Previous
-                            </Button>
-
-                            <div className="flex items-center gap-1">
-                                {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
-                                    let pageNum;
-                                    if (pagination.totalPages <= 5) {
-                                        pageNum = i + 1;
-                                    } else if (page <= 3) {
-                                        pageNum = i + 1;
-                                    } else if (page >= pagination.totalPages - 2) {
-                                        pageNum = pagination.totalPages - 4 + i;
-                                    } else {
-                                        pageNum = page - 2 + i;
-                                    }
-
-                                    return (
-                                        <Button
-                                            key={pageNum}
-                                            onClick={() => setPage(pageNum)}
-                                            disabled={isLoading}
-                                            variant={page === pageNum ? "default" : "outline"}
-                                            size="sm"
-                                            className="w-8 h-8 p-0"
-                                        >
-                                            {pageNum}
-                                        </Button>
-                                    );
-                                })}
-                            </div>
-
-                            <Button
-                                onClick={() => setPage(p => p + 1)}
-                                disabled={page >= pagination.totalPages || isLoading}
-                                variant="outline"
-                                size="sm"
-                            >
-                                Next
-                                <ChevronRight className="h-4 w-4" />
-                            </Button>
-                        </div>
-                    )}
+            {pagination && pagination.totalPages > 1 && (
+                 <div className="flex justify-center items-center gap-4 mt-6">
+                    <Button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1 || isLoading}>Previous</Button>
+                    <span>Page {page} of {pagination.totalPages}</span>
+                    <Button onClick={() => setPage(p => p + 1)} disabled={page >= pagination.totalPages || isLoading}>Next</Button>
                 </div>
             )}
         </div>
-    )
-}
+    );
+};

@@ -75,13 +75,13 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
           >
             {cancelText}
           </Button>
-          <Button
+          {/* <Button
             onClick={handleConfirm}
             disabled={isLoading}
             variant={variant === 'destructive' ? 'destructive' : 'default'}
           >
             {isLoading ? 'Saving...' : confirmText}
-          </Button>
+          </Button> */}
         </DialogFooter>
       </DialogContent>
     </Dialog>

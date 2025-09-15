@@ -10,12 +10,15 @@ import { useAddTeamMemberMutation, useUploadImageMutation } from '@/store/teamAp
 import { toast } from 'sonner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
+
 interface AddTeamMemberDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
+
 const AddTeamMemberDialog = ({ open, onOpenChange }: AddTeamMemberDialogProps) => {
+
 
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
@@ -28,15 +31,18 @@ const AddTeamMemberDialog = ({ open, onOpenChange }: AddTeamMemberDialogProps) =
     });
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+
     const { data: categoriesData } = useGetAllCategorieasQuery("department");
     const [uploadImage, { isLoading: isUploadingImage }] = useUploadImageMutation();
     const [addTeamMember, { isLoading: isAddingMember }] = useAddTeamMemberMutation();
+
 
     const departments = categoriesData?.data?.departments || [];
     const days = [
         { key: 'monday', label: 'Mon' }, { key: 'tuesday', label: 'Tue' }, { key: 'wednesday', label: 'Wed' }, 
         { key: 'thursday', label: 'Thu' }, { key: 'friday', label: 'Fri' }, { key: 'saturday', label: 'Sat' }, { key: 'sunday', label: 'Sun' },
     ];
+
 
     const resetForm = () => {
         setName('');
@@ -48,11 +54,14 @@ const AddTeamMemberDialog = ({ open, onOpenChange }: AddTeamMemberDialogProps) =
         setDailyCapacity({ monday: 8, tuesday: 8, wednesday: 8, thursday: 8, friday: 8, saturday: 0, sunday: 0 });
     };
 
+
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
 
+
         setImagePreview(URL.createObjectURL(file)); 
+
 
         try {
             const result = await uploadImage(file).unwrap();
@@ -64,11 +73,13 @@ const AddTeamMemberDialog = ({ open, onOpenChange }: AddTeamMemberDialogProps) =
         }
     };
 
+
     const handleSave = async () => {
         if (!name.trim() || !email.trim() || !departmentId) {
             toast.error('Please fill in all required fields: Name, Email, and Department.');
             return;
         }
+
 
         try {
             await addTeamMember({
@@ -79,6 +90,7 @@ const AddTeamMemberDialog = ({ open, onOpenChange }: AddTeamMemberDialogProps) =
                 hourlyRate: Number(hourlyRate) || 0,
                 workSchedule: dailyCapacity,
             }).unwrap();
+
 
             toast.success('Team member added successfully!');
             resetForm();
@@ -93,6 +105,7 @@ const AddTeamMemberDialog = ({ open, onOpenChange }: AddTeamMemberDialogProps) =
             resetForm();
         }
     }, [open]);
+
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -110,7 +123,7 @@ const AddTeamMemberDialog = ({ open, onOpenChange }: AddTeamMemberDialogProps) =
                             <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Enter email" />
                         </div>
                         <div>
-                            <Label htmlFor="hourlyRate">Hourly Rate ($)</Label>
+                            <Label htmlFor="hourlyRate">Hourly Rate (€)</Label>
                             <Input id="hourlyRate" type="number" value={hourlyRate} onChange={(e) => setHourlyRate(e.target.value)} placeholder="e.g., 50" min="0" />
                         </div>
                         <div>
@@ -126,36 +139,55 @@ const AddTeamMemberDialog = ({ open, onOpenChange }: AddTeamMemberDialogProps) =
                         </div>
                     </div>
 
+
                     {/* --- Profile Image Section --- */}
                     <div>
-                        <Label htmlFor="profileImage">Profile Image</Label>
-                        {imagePreview ? (
-                            <div className="flex items-center gap-4 mt-2">
-                                <Avatar className="h-14 w-14">
-                                    <AvatarImage src={imagePreview} />
-                                    <AvatarFallback>IMG</AvatarFallback>
-                                </Avatar>
-                                <Button variant="destructive" size="sm" onClick={() => { setImagePreview(null); setAvatarUrl(''); }}>
-                                    <X className="h-4 w-4 mr-2" />
-                                    Remove
-                                </Button>
-                            </div>
-                        ) : (
-                            <div className="flex items-center gap-2">
-                                <Input
-                                    id="profileImage"
-                                    value={avatarUrl}
-                                    onChange={(e) => setAvatarUrl(e.target.value)}
-                                    placeholder="Enter image URL or upload"
-                                />
-                                <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
-                                <Button variant="outline" size="icon" onClick={() => fileInputRef.current?.click()} disabled={isUploadingImage}>
-                                    <Upload className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        )}
-                        {isUploadingImage && <p className="text-sm text-muted-foreground mt-2">Uploading image...</p>}
+                        <Label>Profile Image</Label>
+                        <div className="mt-2">
+                            {imagePreview ? (
+                                <div className="flex items-center gap-4">
+                                    <Avatar className="h-14 w-14">
+                                        <AvatarImage src={imagePreview} alt="Image Preview" />
+                                        <AvatarFallback>IMG</AvatarFallback>
+                                    </Avatar>
+                                    <Button
+                                        variant="destructive"
+                                        size="sm"
+                                        onClick={() => {
+                                            setImagePreview(null);
+                                            setAvatarUrl('');
+                                            if (fileInputRef.current) {
+                                                fileInputRef.current.value = '';
+                                            }
+                                        }}
+                                    >
+                                        <X className="h-4 w-4 mr-2" />
+                                        Remove
+                                    </Button>
+                                </div>
+                            ) : (
+                                <>
+                                    <input
+                                        type="file"
+                                        ref={fileInputRef}
+                                        onChange={handleFileChange}
+                                        className="hidden"
+                                        accept="image/*"
+                                    />
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => fileInputRef.current?.click()}
+                                        disabled={isUploadingImage}
+                                    >
+                                        <Upload className="h-4 w-4 mr-2" />
+                                        Upload Image
+                                    </Button>
+                                </>
+                            )}
+                            {isUploadingImage && <p className="text-sm text-muted-foreground mt-2">Uploading image...</p>}
+                        </div>
                     </div>
+
 
                     {/* --- Daily Capacity Section --- */}
                     <div>
@@ -175,6 +207,7 @@ const AddTeamMemberDialog = ({ open, onOpenChange }: AddTeamMemberDialogProps) =
                         </div>
                     </div>
 
+
                     {/* --- Action Buttons --- */}
                     <div className="flex justify-end gap-2">
                         <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
@@ -187,5 +220,6 @@ const AddTeamMemberDialog = ({ open, onOpenChange }: AddTeamMemberDialogProps) =
         </Dialog>
     );
 };
+
 
 export default AddTeamMemberDialog;

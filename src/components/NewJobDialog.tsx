@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
+import {useGetDropdownOptionsQuery} from '@/store/teamApi';
 interface NewJobDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -35,6 +35,9 @@ const NewJobDialog = ({ open, onOpenChange, onSave }: NewJobDialogProps) => {
   const [jobManager, setJobManager] = useState('');
   const [team, setTeam] = useState<string[]>([]);
   const [description, setDescription] = useState('');
+ 
+  const { data: categoriesData } = useGetDropdownOptionsQuery("job");
+  console.log('=================================',categoriesData);
 
   const jobTypes = [
     'Income Tax',
@@ -106,7 +109,7 @@ const NewJobDialog = ({ open, onOpenChange, onSave }: NewJobDialogProps) => {
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="jobName">Job Name</Label>
+              <Label htmlFor="jobName">Job Nameasdsasdasdasdasdasd</Label>
               <Input
                 id="jobName"
                 value={jobName}
