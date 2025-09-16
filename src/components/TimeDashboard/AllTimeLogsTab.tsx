@@ -1,0 +1,777 @@
+import React, { useState, useMemo } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DashboardCard, DashboardGrid } from "@/components/ui/dashboard-card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+
+import { Clock, Users, ChevronDown, ChevronRight, Settings, Download, FileText } from 'lucide-react';
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { formatCurrency } from '@/lib/currency';
+import { getProfileImage, getUserInitials } from '@/utils/profiles';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+
+interface TimeLog {
+  id: string;
+  date: string;
+  teamMember: string;
+  clientName: string;
+  clientRef: string;
+  jobName: string;
+  jobType: string;
+  category: 'client work' | 'meeting' | 'phone call' | 'event' | 'training' | 'other';
+  description: string;
+  hours: number;
+  rate: number;
+  amount: number;
+  billable: boolean;
+  status: 'not-invoiced' | 'invoiced' | 'paid';
+}
+
+const AllTimeLogsTab = () => {
+  
+  const [filters, setFilters] = useState({
+    client: 'all-clients',
+    teamMember: 'all-team-members',
+    status: 'all',
+    dateFrom: '',
+    dateTo: ''
+  });
+  const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
+  const [viewMode, setViewMode] = useState<'clients' | 'jobTypes' | 'jobNames' | 'category' | 'teamMembers' | 'flat'>('flat');
+  
+  // Column visibility state
+  const [visibleColumns, setVisibleColumns] = useState({
+    date: true,
+    teamMember: true,
+    jobType: true,
+    category: true,
+    description: true,
+    hours: true,
+    rate: true,
+    amount: true,
+    billable: true,
+    status: true
+  });
+
+  // Sample time logs data
+  const timeLogsData: TimeLog[] = [
+    { id: '1', date: '2024-01-15', teamMember: 'John Smith', clientName: 'Water Savers Limited', clientRef: 'WAT-24', jobName: 'VAT (01/01/2025 - 28/02/2025)', jobType: 'VAT Return', category: 'client work', description: 'Review financial statements and draft accounts', hours: 3.5, rate: 120, amount: 420, billable: true, status: 'not-invoiced' },
+    { id: '2', date: '2024-01-16', teamMember: 'Sarah Johnson', clientName: 'Water Savers Limited', clientRef: 'WAT-24', jobName: 'Annual Returns - 2024', jobType: 'Annual Returns', category: 'client work', description: 'Complete corporation tax computation', hours: 2.0, rate: 100, amount: 200, billable: true, status: 'not-invoiced' },
+    { id: '3', date: '2024-01-17', teamMember: 'John Smith', clientName: 'Water Savers Limited', clientRef: 'WAT-24', jobName: 'Payroll - W5  2025', jobType: 'Payroll', category: 'client work', description: 'Process monthly payroll', hours: 1.5, rate: 120, amount: 180, billable: true, status: 'invoiced' },
+    { id: '4', date: '2024-01-18', teamMember: 'Mike Wilson', clientName: 'Green Gardens Limited', clientRef: 'GRE-23', jobName: 'Income Tax Returns - 2024', jobType: 'Tax Return', category: 'client work', description: 'Enter transactions and reconcile accounts', hours: 4.0, rate: 85, amount: 340, billable: true, status: 'not-invoiced' },
+    { id: '5', date: '2024-01-19', teamMember: 'Sarah Johnson', clientName: 'Green Gardens Limited', clientRef: 'GRE-23', jobName: 'Audit - 2024', jobType: 'Audit', category: 'client work', description: 'Prepare and submit VAT return', hours: 2.5, rate: 100, amount: 250, billable: true, status: 'paid' },
+    { id: '6', date: '2024-01-20', teamMember: 'John Smith', clientName: 'Brown Enterprises', clientRef: 'BRO-25', jobName: 'Payroll - January 2025', jobType: 'Payroll', category: 'client work', description: 'Audit testing and documentation', hours: 6.0, rate: 120, amount: 720, billable: true, status: 'invoiced' },
+    { id: '7', date: '2024-01-21', teamMember: 'Mike Wilson', clientName: 'Tech Solutions Inc.', clientRef: 'TEC-22', jobName: 'VAT (01/01/2025 - 28/02/2025)', jobType: 'VAT Return', category: 'client work', description: 'Prepare corporation tax return', hours: 3.0, rate: 85, amount: 255, billable: true, status: 'not-invoiced' },
+    { id: '8', date: '2024-01-22', teamMember: 'Sarah Johnson', clientName: 'Smith & Associates', clientRef: 'SMI-21', jobName: 'Annual Returns - 2024', jobType: 'Annual Returns', category: 'client work', description: 'Complete personal tax return', hours: 2.0, rate: 100, amount: 200, billable: true, status: 'paid' },
+    { id: '9', date: '2024-01-23', teamMember: 'John Smith', clientName: 'Marine Consulting Ltd.', clientRef: 'MAR-23', jobName: 'Income Tax Returns - 2024', jobType: 'Tax Return', category: 'client work', description: 'Review compliance procedures', hours: 4.5, rate: 120, amount: 540, billable: true, status: 'not-invoiced' },
+    { id: '10', date: '2024-01-24', teamMember: 'Emily Davis', clientName: 'Digital Media Group', clientRef: 'DIG-24', jobName: 'Audit - 2024', jobType: 'Audit', category: 'meeting', description: 'Prepare monthly management accounts', hours: 3.5, rate: 110, amount: 385, billable: true, status: 'invoiced' },
+    { id: '11', date: '2024-01-25', teamMember: 'Mike Wilson', clientName: 'Construction Pros Ltd.', clientRef: 'CON-22', jobName: 'Payroll - W5  2025', jobType: 'Payroll', category: 'client work', description: 'Process bi-weekly payroll', hours: 2.0, rate: 85, amount: 170, billable: true, status: 'paid' },
+    { id: '12', date: '2024-01-26', teamMember: 'Sarah Johnson', clientName: 'Financial Advisors Co.', clientRef: 'FIN-25', jobName: 'Payroll - January 2025', jobType: 'Payroll', category: 'meeting', description: 'Tax planning consultation', hours: 5.0, rate: 100, amount: 500, billable: true, status: 'not-invoiced' },
+    { id: '13', date: '2024-01-27', teamMember: 'Emily Davis', clientName: 'Healthcare Systems Ltd.', clientRef: 'HEA-23', jobName: 'VAT (01/01/2025 - 28/02/2025)', jobType: 'VAT Return', category: 'client work', description: 'Internal controls audit', hours: 6.0, rate: 110, amount: 660, billable: true, status: 'invoiced' },
+    { id: '14', date: '2024-01-28', teamMember: 'John Smith', clientName: 'Energy Solutions Corp.', clientRef: 'ENE-24', jobName: 'Annual Returns - 2024', jobType: 'Annual Returns', category: 'client work', description: 'Year-end financial audit', hours: 8.0, rate: 120, amount: 960, billable: true, status: 'not-invoiced' },
+    { id: '15', date: '2024-01-29', teamMember: 'Mike Wilson', clientName: 'Transport & Logistics', clientRef: 'TRA-22', jobName: 'Income Tax Returns - 2024', jobType: 'Tax Return', category: 'client work', description: 'Monthly fleet cost analysis', hours: 3.0, rate: 85, amount: 255, billable: true, status: 'paid' },
+    { id: '16', date: '2024-01-30', teamMember: 'Sarah Johnson', clientName: 'Hospitality Group plc', clientRef: 'HOS-25', jobName: 'Staff Payroll', jobType: 'Payroll', category: 'client work', description: 'Monthly staff payroll processing', hours: 2.5, rate: 100, amount: 250, billable: true, status: 'invoiced' },
+    { id: '17', date: '2024-02-01', teamMember: 'Emily Davis', clientName: 'Water Savers Limited', clientRef: 'WAT-24', jobName: 'Management Reports', jobType: 'Management Accounts', category: 'client work', description: 'Quarterly management reporting', hours: 4.0, rate: 110, amount: 440, billable: true, status: 'not-invoiced' },
+    { id: '18', date: '2024-02-02', teamMember: 'John Smith', clientName: 'Green Gardens Limited', clientRef: 'GRE-23', jobName: 'Company Secretarial', jobType: 'Company Secretarial', category: 'meeting', description: 'Board meeting preparation', hours: 1.5, rate: 120, amount: 180, billable: true, status: 'paid' },
+    { id: '19', date: '2024-02-03', teamMember: 'Mike Wilson', clientName: 'Brown Enterprises', clientRef: 'BRO-25', jobName: 'Monthly Bookkeeping', jobType: 'Bookkeeping', category: 'client work', description: 'Bank reconciliation and data entry', hours: 5.0, rate: 85, amount: 425, billable: true, status: 'invoiced' },
+    { id: '20', date: '2024-02-04', teamMember: 'Sarah Johnson', clientName: 'Tech Solutions Inc.', clientRef: 'TEC-22', jobName: 'VAT Return', jobType: 'VAT Return', category: 'client work', description: 'Quarterly VAT return preparation', hours: 3.0, rate: 100, amount: 300, billable: true, status: 'not-invoiced' }
+  ];
+
+  // Filter the time logs
+  const filteredTimeLogs = useMemo(() => {
+    return timeLogsData.filter(log => {
+      if (filters.client && filters.client !== 'all-clients' && !log.clientName.toLowerCase().includes(filters.client.toLowerCase())) return false;
+      if (filters.teamMember && filters.teamMember !== 'all-team-members' && !log.teamMember.toLowerCase().includes(filters.teamMember.toLowerCase())) return false;
+      if (filters.status && filters.status !== 'all' && log.status !== filters.status) return false;
+      if (filters.dateFrom && log.date < filters.dateFrom) return false;
+      if (filters.dateTo && log.date > filters.dateTo) return false;
+      return true;
+    });
+  }, [timeLogsData, filters]);
+
+  // Group by client and job
+  const groupedLogs = useMemo(() => {
+    if (viewMode === 'flat') {
+      return { 'All Entries': { 'All Jobs': filteredTimeLogs } };
+    }
+    
+    if (viewMode === 'category') {
+      const grouped: Record<string, Record<string, TimeLog[]>> = {};
+      filteredTimeLogs.forEach(log => {
+        const categoryKey = log.category.charAt(0).toUpperCase() + log.category.slice(1);
+        if (!grouped[categoryKey]) {
+          grouped[categoryKey] = {};
+        }
+        if (!grouped[categoryKey][log.clientName]) {
+          grouped[categoryKey][log.clientName] = [];
+        }
+        grouped[categoryKey][log.clientName].push(log);
+      });
+      return grouped;
+    }
+    
+    if (viewMode === 'jobTypes') {
+      const grouped: Record<string, Record<string, TimeLog[]>> = {};
+      filteredTimeLogs.forEach(log => {
+        if (!grouped[log.jobType]) {
+          grouped[log.jobType] = {};
+        }
+        if (!grouped[log.jobType][log.clientName]) {
+          grouped[log.jobType][log.clientName] = [];
+        }
+        grouped[log.jobType][log.clientName].push(log);
+      });
+      return grouped;
+    }
+    
+    if (viewMode === 'jobNames') {
+      const grouped: Record<string, Record<string, TimeLog[]>> = {};
+      filteredTimeLogs.forEach(log => {
+        if (!grouped[log.jobName]) {
+          grouped[log.jobName] = {};
+        }
+        if (!grouped[log.jobName][log.clientName]) {
+          grouped[log.jobName][log.clientName] = [];
+        }
+        grouped[log.jobName][log.clientName].push(log);
+      });
+      return grouped;
+    }
+    
+    if (viewMode === 'teamMembers') {
+      const grouped: Record<string, Record<string, TimeLog[]>> = {};
+      filteredTimeLogs.forEach(log => {
+        if (!grouped[log.teamMember]) {
+          grouped[log.teamMember] = {};
+        }
+        if (!grouped[log.teamMember][log.clientName]) {
+          grouped[log.teamMember][log.clientName] = [];
+        }
+        grouped[log.teamMember][log.clientName].push(log);
+      });
+      return grouped;
+    }
+    
+    // Default: group by clients
+    const grouped: Record<string, Record<string, TimeLog[]>> = {};
+    filteredTimeLogs.forEach(log => {
+      if (!grouped[log.clientName]) {
+        grouped[log.clientName] = {};
+      }
+      if (!grouped[log.clientName][log.jobName]) {
+        grouped[log.clientName][log.jobName] = [];
+      }
+      grouped[log.clientName][log.jobName].push(log);
+    });
+    
+    return grouped;
+  }, [filteredTimeLogs, viewMode]);
+
+  // Calculate totals
+  const totalHours = filteredTimeLogs.reduce((sum, log) => sum + log.hours, 0);
+  const totalAmount = filteredTimeLogs.reduce((sum, log) => sum + log.amount, 0);
+  const uniqueClients = new Set(filteredTimeLogs.map(log => log.clientName)).size;
+  const uniqueTeamMembers = new Set(filteredTimeLogs.map(log => log.teamMember)).size;
+
+  const getStatusBadge = (status: TimeLog['status']) => {
+    switch (status) {
+      case 'not-invoiced':
+        return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 whitespace-nowrap">Not Invoiced</Badge>;
+      case 'invoiced':
+        return <Badge variant="secondary" className="bg-blue-100 text-blue-800">Invoiced</Badge>;
+      case 'paid':
+        return <Badge variant="secondary" className="bg-green-100 text-green-800">Paid</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  const getCategorySelect = (category: TimeLog['category'], logId: string) => {
+    const categories = ['client work', 'meeting', 'phone call', 'event', 'training', 'other'] as const;
+    return (
+      <Select value={category} onValueChange={(value) => console.log(`Change category for ${logId} to ${value}`)}>
+        <SelectTrigger className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {categories.map(cat => (
+            <SelectItem key={cat} value={cat}>
+              {cat.charAt(0).toUpperCase() + cat.slice(1)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    );
+  };
+
+  const toggleClientExpansion = (clientName: string) => {
+    const newExpanded = new Set(expandedClients);
+    if (newExpanded.has(clientName)) {
+      newExpanded.delete(clientName);
+    } else {
+      newExpanded.add(clientName);
+    }
+    setExpandedClients(newExpanded);
+  };
+
+  const toggleColumn = (column: keyof typeof visibleColumns) => {
+    setVisibleColumns(prev => ({ ...prev, [column]: !prev[column] }));
+  };
+
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    doc.setFontSize(20);
+    doc.text('Time Logs Report', 14, 22);
+    
+    // Build headers and data based on visible columns
+    const headers = [];
+    const dataMappers: ((log: TimeLog) => string)[] = [];
+    
+    if (viewMode === 'flat') {
+      headers.push('Client Ref.', 'Client Name', 'Job Name');
+      dataMappers.push(
+        (log) => log.clientRef,
+        (log) => log.clientName,
+        (log) => log.jobName
+      );
+    }
+    
+    if (visibleColumns.date) {
+      headers.push('Date');
+      dataMappers.push((log) => new Date(log.date).toLocaleDateString('en-GB'));
+    }
+    if (visibleColumns.teamMember) {
+      headers.push('Team Member');
+      dataMappers.push((log) => log.teamMember);
+    }
+    if (visibleColumns.jobType) {
+      headers.push('Job Type');
+      dataMappers.push((log) => log.jobType);
+    }
+    if (visibleColumns.category) {
+      headers.push('Category');
+      dataMappers.push((log) => log.category);
+    }
+    if (visibleColumns.description) {
+      headers.push('Description');
+      dataMappers.push((log) => log.description);
+    }
+    if (visibleColumns.hours) {
+      headers.push('Hours');
+      dataMappers.push((log) => log.hours.toFixed(1) + 'h');
+    }
+    if (visibleColumns.rate) {
+      headers.push('Rate');
+      dataMappers.push((log) => formatCurrency(log.rate));
+    }
+    if (visibleColumns.amount) {
+      headers.push('Amount');
+      dataMappers.push((log) => formatCurrency(log.amount));
+    }
+    if (visibleColumns.billable) {
+      headers.push('Billable');
+      dataMappers.push((log) => log.billable ? 'Yes' : 'No');
+    }
+    if (visibleColumns.status) {
+      headers.push('Status');
+      dataMappers.push((log) => log.status);
+    }
+    
+    const tableData = filteredTimeLogs.map(log => 
+      dataMappers.map(mapper => mapper(log))
+    );
+
+    autoTable(doc, {
+      head: [headers],
+      body: tableData,
+      startY: 30,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [41, 128, 185] },
+      alternateRowStyles: { fillColor: [245, 245, 245] }
+    });
+
+    doc.save('time-logs-report.pdf');
+  };
+
+  const exportToCSV = () => {
+    // Build headers and data based on visible columns
+    const headers = [];
+    const dataMappers: ((log: TimeLog) => string)[] = [];
+    
+    if (viewMode === 'flat') {
+      headers.push('Client Ref.', 'Client Name', 'Job Name');
+      dataMappers.push(
+        (log) => log.clientRef,
+        (log) => log.clientName,
+        (log) => log.jobName
+      );
+    }
+    
+    if (visibleColumns.date) {
+      headers.push('Date');
+      dataMappers.push((log) => log.date);
+    }
+    if (visibleColumns.teamMember) {
+      headers.push('Team Member');
+      dataMappers.push((log) => log.teamMember);
+    }
+    if (visibleColumns.jobType) {
+      headers.push('Job Type');
+      dataMappers.push((log) => log.jobType);
+    }
+    if (visibleColumns.category) {
+      headers.push('Category');
+      dataMappers.push((log) => log.category);
+    }
+    if (visibleColumns.description) {
+      headers.push('Description');
+      dataMappers.push((log) => `"${log.description}"`);
+    }
+    if (visibleColumns.hours) {
+      headers.push('Hours');
+      dataMappers.push((log) => log.hours.toString());
+    }
+    if (visibleColumns.rate) {
+      headers.push('Rate');
+      dataMappers.push((log) => formatCurrency(log.rate));
+    }
+    if (visibleColumns.amount) {
+      headers.push('Amount');
+      dataMappers.push((log) => formatCurrency(log.amount));
+    }
+    if (visibleColumns.billable) {
+      headers.push('Billable');
+      dataMappers.push((log) => log.billable ? 'Yes' : 'No');
+    }
+    if (visibleColumns.status) {
+      headers.push('Status');
+      dataMappers.push((log) => log.status);
+    }
+    
+    const csvContent = `${headers.join(',')}\n${filteredTimeLogs.map(log => 
+      dataMappers.map(mapper => mapper(log)).join(',')
+    ).join('\n')}`;
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'time-logs.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Dashboard */}
+      <DashboardGrid columns={4}>
+        <DashboardCard
+          title="Total Hours"
+          value={totalHours.toFixed(1)}
+        />
+        <DashboardCard
+          title="Total Amount"
+          value={formatCurrency(totalAmount)}
+        />
+        <DashboardCard
+          title="Unique Clients"
+          value={uniqueClients.toString()}
+        />
+        <DashboardCard
+          title="Team Members"
+          value={uniqueTeamMembers.toString()}
+        />
+      </DashboardGrid>
+
+          {/* Filters */}
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="client-filter">Client</Label>
+              <Select 
+                value={filters.client} 
+                onValueChange={(value) => setFilters(prev => ({ ...prev, client: value }))}
+              >
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="All clients" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all-clients">All clients</SelectItem>
+                  <SelectItem value="Water Savers Limited">Water Savers Limited</SelectItem>
+                  <SelectItem value="Green Gardens Limited">Green Gardens Limited</SelectItem>
+                  <SelectItem value="Brown Enterprises">Brown Enterprises</SelectItem>
+                  <SelectItem value="Tech Solutions Inc.">Tech Solutions Inc.</SelectItem>
+                  <SelectItem value="Smith & Associates">Smith & Associates</SelectItem>
+                  <SelectItem value="Marine Consulting Ltd.">Marine Consulting Ltd.</SelectItem>
+                  <SelectItem value="Digital Media Group">Digital Media Group</SelectItem>
+                  <SelectItem value="Construction Pros Ltd.">Construction Pros Ltd.</SelectItem>
+                  <SelectItem value="Financial Advisors Co.">Financial Advisors Co.</SelectItem>
+                  <SelectItem value="Healthcare Systems Ltd.">Healthcare Systems Ltd.</SelectItem>
+                  <SelectItem value="Energy Solutions Corp.">Energy Solutions Corp.</SelectItem>
+                  <SelectItem value="Transport & Logistics">Transport & Logistics</SelectItem>
+                  <SelectItem value="Hospitality Group plc">Hospitality Group plc</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="team-filter">Team Member</Label>
+              <Select 
+                value={filters.teamMember} 
+                onValueChange={(value) => setFilters(prev => ({ ...prev, teamMember: value }))}
+              >
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="All team members" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all-team-members">All team members</SelectItem>
+                  <SelectItem value="John Smith">John Smith</SelectItem>
+                  <SelectItem value="Sarah Johnson">Sarah Johnson</SelectItem>
+                  <SelectItem value="Mike Wilson">Mike Wilson</SelectItem>
+                  <SelectItem value="Emily Davis">Emily Davis</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="status-filter">Status</Label>
+              <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="All statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="not-invoiced">Not Invoiced</SelectItem>
+                  <SelectItem value="invoiced">Invoiced</SelectItem>
+                  <SelectItem value="paid">Paid</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="date-from">Date From</Label>
+              <Input
+                id="date-from"
+                type="date"
+                value={filters.dateFrom}
+                onChange={(e) => setFilters(prev => ({ ...prev, dateFrom: e.target.value }))}
+                className="w-40"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="date-to">Date To</Label>
+              <Input
+                id="date-to"
+                type="date"
+                value={filters.dateTo}
+                onChange={(e) => setFilters(prev => ({ ...prev, dateTo: e.target.value }))}
+                className="w-40"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => setFilters({ client: 'all-clients', teamMember: 'all-team-members', status: 'all', dateFrom: '', dateTo: '' })}
+              >
+                Clear
+              </Button>
+              <div className="ml-auto flex gap-2">
+                <Button 
+                  variant="outline"
+                  onClick={() => {
+                    const allExpanded = expandedClients.size === Object.keys(groupedLogs).length;
+                    if (allExpanded) {
+                      setExpandedClients(new Set());
+                    } else {
+                      setExpandedClients(new Set(Object.keys(groupedLogs)));
+                    }
+                  }}
+                >
+                  {expandedClients.size === Object.keys(groupedLogs).length ? 'Collapse All' : 'Expand All'}
+                </Button>
+
+                {/* Export Dropdown */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline">
+                      <Download className="h-4 w-4 mr-2" />
+                      Export
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={exportToCSV}>
+                      <FileText className="h-4 w-4 mr-2" />
+                      Export as CSV
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={exportToPDF}>
+                      <FileText className="h-4 w-4 mr-2" />
+                      Export as PDF
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+          </div>
+      
+          {/* View Switcher */}
+          <div className="flex gap-2 mt-4">
+            <Button 
+              variant={viewMode === 'flat' ? 'default' : 'outline'}
+              onClick={() => setViewMode('flat')}
+              size="sm"
+            >
+              Flat View
+            </Button>
+            <Button 
+              variant={viewMode === 'clients' ? 'default' : 'outline'}
+              onClick={() => setViewMode('clients')}
+              size="sm"
+            >
+              Group by Clients
+            </Button>
+            <Button 
+              variant={viewMode === 'teamMembers' ? 'default' : 'outline'}
+              onClick={() => setViewMode('teamMembers')}
+              size="sm"
+            >
+              Group by Team Member
+            </Button>
+            <Button 
+              variant={viewMode === 'jobTypes' ? 'default' : 'outline'}
+              onClick={() => setViewMode('jobTypes')}
+              size="sm"
+            >
+              Group by Job Types
+            </Button>
+            <Button 
+              variant={viewMode === 'jobNames' ? 'default' : 'outline'}
+              onClick={() => setViewMode('jobNames')}
+              size="sm"
+            >
+              Group by Job Name
+            </Button>
+            <Button 
+              variant={viewMode === 'category' ? 'default' : 'outline'}
+              onClick={() => setViewMode('category')}
+              size="sm"
+            >
+              Group by Category
+            </Button>
+          </div>
+
+      {/* Time Logs Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Time Logs ({filteredTimeLogs.length} entries)</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-b border-border bg-muted/50">
+                   {viewMode === 'flat' ? (
+                     <>
+                       <TableHead className="p-3 text-foreground h-12">Client Ref.</TableHead>
+                       <TableHead className="p-3 text-foreground h-12">Client Name</TableHead>
+                       <TableHead className="p-3 text-foreground h-12">Job Name</TableHead>
+                     </>
+                   ) : (
+                     <TableHead className="p-3 text-foreground h-12">
+                       {viewMode === 'clients' ? 'Client / Job' :
+                        viewMode === 'jobTypes' ? 'Job Type / Client' :
+                        viewMode === 'jobNames' ? 'Job Name / Client' :
+                        viewMode === 'category' ? 'Category / Client' :
+                        viewMode === 'teamMembers' ? 'Team Member / Client' :
+                        'Entry Details'}
+                     </TableHead>
+                   )}
+                   {visibleColumns.date && <TableHead className="p-3 text-foreground h-12">Date</TableHead>}
+                   {visibleColumns.teamMember && <TableHead className="p-3 text-foreground h-12">Team Member</TableHead>}
+                   {visibleColumns.jobType && <TableHead className="p-3 text-foreground h-12">Job Type</TableHead>}
+                   {visibleColumns.category && <TableHead className="p-3 text-foreground h-12">Category</TableHead>}
+                   {visibleColumns.description && <TableHead className="p-3 text-foreground h-12">Description</TableHead>}
+                   {visibleColumns.hours && <TableHead className="p-3 text-foreground h-12 text-right">Hours</TableHead>}
+                   {visibleColumns.rate && <TableHead className="p-3 text-foreground h-12 text-right">Rate</TableHead>}
+                   {visibleColumns.amount && <TableHead className="p-3 text-foreground h-12 text-right">Amount</TableHead>}
+                   {visibleColumns.billable && <TableHead className="p-3 text-foreground h-12 text-center">Billable</TableHead>}
+                   {visibleColumns.status && <TableHead className="p-3 text-foreground h-12 text-center">Status</TableHead>}
+                   <TableHead className="p-3 text-foreground h-12 text-center">
+                     <Popover>
+                       <PopoverTrigger asChild>
+                         <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                           <Settings className="h-4 w-4" />
+                         </Button>
+                       </PopoverTrigger>
+                       <PopoverContent className="w-64" align="end">
+                         <div className="space-y-3">
+                           <h4 className="font-medium text-sm">Show/Hide Columns</h4>
+                           <div className="space-y-2">
+                             {Object.entries(visibleColumns).map(([column, visible]) => (
+                               <div key={column} className="flex items-center space-x-2">
+                                 <Checkbox
+                                   id={column}
+                                   checked={visible}
+                                   onCheckedChange={() => toggleColumn(column as keyof typeof visibleColumns)}
+                                 />
+                                 <Label htmlFor={column} className="text-sm capitalize">
+                                   {column === 'teamMember' ? 'Team Member' : 
+                                    column === 'jobType' ? 'Job Type' : 
+                                    column}
+                                 </Label>
+                               </div>
+                             ))}
+                           </div>
+                         </div>
+                       </PopoverContent>
+                     </Popover>
+                   </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {Object.entries(groupedLogs).map(([groupName, subGroups]) => (
+                  <React.Fragment key={groupName}>
+                    {/* Group Header Row */}
+                    {viewMode !== 'flat' && (
+                      <TableRow 
+                        className="border-b border-border bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors h-12"
+                        onClick={() => toggleClientExpansion(groupName)}
+                      >
+                        <TableCell className="p-4 text-foreground text-sm">
+                          <div className="flex items-center gap-2">
+                            {expandedClients.has(groupName) ? (
+                              <ChevronDown className="h-4 w-4" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4" />
+                            )}
+                            {groupName}
+                          </div>
+                        </TableCell>
+                        {visibleColumns.date && <TableCell className="p-4"></TableCell>}
+                        {visibleColumns.teamMember && <TableCell className="p-4"></TableCell>}
+                        {visibleColumns.jobType && <TableCell className="p-4"></TableCell>}
+                        {visibleColumns.category && <TableCell className="p-4"></TableCell>}
+                        {visibleColumns.description && <TableCell className="p-4"></TableCell>}
+                        {visibleColumns.hours && (
+                          <TableCell className="p-4 text-right font-semibold">
+                            {Object.values(subGroups).flat().reduce((sum, log) => sum + log.hours, 0).toFixed(1)}h
+                          </TableCell>
+                        )}
+                        {visibleColumns.rate && <TableCell className="p-4"></TableCell>}
+                        {visibleColumns.amount && (
+                          <TableCell className="p-4 text-right font-semibold">
+                            {formatCurrency(Object.values(subGroups).flat().reduce((sum, log) => sum + log.amount, 0))}
+                          </TableCell>
+                        )}
+                        {visibleColumns.billable && <TableCell className="p-4"></TableCell>}
+                        {visibleColumns.status && <TableCell className="p-4"></TableCell>}
+                        <TableCell className="p-4"></TableCell>
+                      </TableRow>
+                    )}
+                    
+                    {/* Sub-group and Time Log Rows */}
+                    {(viewMode === 'flat' || expandedClients.has(groupName)) && Object.entries(subGroups).map(([subGroupName, logs]) => (
+                      <React.Fragment key={`${groupName}-${subGroupName}`}>
+                        {/* Sub-group Header Row */}
+                        {viewMode !== 'flat' && (
+                          <TableRow className="border-b border-border bg-muted/20 h-12">
+                            <TableCell className="p-4 pl-12 font-semibold text-foreground">
+                              📋 {subGroupName}
+                            </TableCell>
+                            {visibleColumns.date && <TableCell className="p-4"></TableCell>}
+                            {visibleColumns.teamMember && <TableCell className="p-4"></TableCell>}
+                            {visibleColumns.jobType && <TableCell className="p-4"></TableCell>}
+                            {visibleColumns.category && <TableCell className="p-4"></TableCell>}
+                            {visibleColumns.description && <TableCell className="p-4"></TableCell>}
+                            {visibleColumns.hours && (
+                              <TableCell className="p-4 text-right font-semibold">
+                                {logs.reduce((sum, log) => sum + log.hours, 0).toFixed(1)}h
+                              </TableCell>
+                            )}
+                            {visibleColumns.rate && <TableCell className="p-4"></TableCell>}
+                            {visibleColumns.amount && (
+                              <TableCell className="p-4 text-right font-semibold">
+                                {formatCurrency(logs.reduce((sum, log) => sum + log.amount, 0))}
+                              </TableCell>
+                            )}
+                            {visibleColumns.billable && <TableCell className="p-4"></TableCell>}
+                            {visibleColumns.status && <TableCell className="p-4"></TableCell>}
+                            <TableCell className="p-4"></TableCell>
+                          </TableRow>
+                        )}
+                        
+                         {/* Individual Time Log Rows */}
+                           {logs.map((log) => (
+                             <TableRow key={log.id} className="border-b border-border hover:bg-muted/30 transition-colors h-12">
+                               {viewMode === 'flat' ? (
+                                 <>
+                                   <TableCell className="p-4 text-muted-foreground">{log.clientRef}</TableCell>
+                                   <TableCell className="p-4 text-muted-foreground">{log.clientName}</TableCell>
+                                   <TableCell className="p-4 text-muted-foreground">{log.jobName}</TableCell>
+                                 </>
+                               ) : (
+                                 <TableCell className="p-4 text-muted-foreground pl-16">{log.description}</TableCell>
+                               )}
+                              {visibleColumns.date && (
+                                <TableCell className="p-4">
+                                  {new Date(log.date).toLocaleDateString('en-GB')}
+                                </TableCell>
+                              )}
+                               {visibleColumns.teamMember && (
+                                 <TableCell className="p-4">
+                                   <div className="flex items-center gap-2">
+                                     <Avatar className="h-8 w-8">
+                                       <AvatarImage 
+                                         src={getProfileImage(log.teamMember)} 
+                                         alt={log.teamMember}
+                                       />
+                                       <AvatarFallback className="text-xs">
+                                         {getUserInitials(log.teamMember)}
+                                       </AvatarFallback>
+                                     </Avatar>
+                                     
+                                   </div>
+                                 </TableCell>
+                               )}
+                              {visibleColumns.jobType && <TableCell className="p-4">{log.jobType}</TableCell>}
+                              {visibleColumns.category && (
+                                <TableCell className="p-4 w-48">
+                                  {getCategorySelect(log.category, log.id)}
+                                </TableCell>
+                              )}
+                              {visibleColumns.description && <TableCell className="p-4">{log.description}</TableCell>}
+                              {visibleColumns.hours && <TableCell className="p-4 text-right">{log.hours.toFixed(1)}h</TableCell>}
+                              {visibleColumns.rate && <TableCell className="p-4 text-right">{formatCurrency(log.rate)}</TableCell>}
+                              {visibleColumns.amount && <TableCell className="p-4 text-right">{formatCurrency(log.amount)}</TableCell>}
+                              {visibleColumns.billable && (
+                                <TableCell className="p-4 text-center">
+                                  <Badge variant={log.billable ? "default" : "secondary"}>
+                                    {log.billable ? "Yes" : "No"}
+                                  </Badge>
+                                </TableCell>
+                              )}
+                              {visibleColumns.status && (
+                                <TableCell className="p-4 text-center">
+                                  {getStatusBadge(log.status)}
+                                </TableCell>
+                              )}
+                              <TableCell className="p-4"></TableCell>
+                            </TableRow>
+                          ))}
+                      </React.Fragment>
+                    ))}
+                  </React.Fragment>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+export default AllTimeLogsTab;

@@ -13,6 +13,7 @@ import CustomTabs from "@/components/Tabs";
 type SortField = 'name' | 'department' | 'capacity' | 'logged' | 'variance' | 'submitted';
 type SortDirection = 'asc' | 'desc' | null;
 import { usePermissionTabs } from "@/hooks/usePermissionTabs";
+import AllTimeLogsTab from "@/components/AllTimeLogsTab";
 const generateRandomTime = () => {
   const hours = Math.floor(Math.random() * 10) + 30; // 30-39 hours
   const minutes = Math.floor(Math.random() * 60);
@@ -773,9 +774,7 @@ export function TimesheetDashboard() {
       <MyTimeSheet />}
 
     {/* Time Logs Tab Content */}
-    {activeTab === "timeLogs" && <div className="flex items-center justify-center h-64">
-      <p className="text-muted-foreground">Time Logs content coming soon...</p>
-    </div>}
+    {activeTab === "timeLogs" && <AllTimeLogsTab />}
   </div>;
 }
 

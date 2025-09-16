@@ -13,10 +13,10 @@ const tabs = [
     id: 'services',
     label: 'Services'
   },
-  {
-    id: 'jobTemplates',
-    label: 'Job Templates'
-  },
+  // {
+  //   id: 'jobTemplates',
+  //   label: 'Job Templates'
+  // },
   {
     id: 'jobBuilder',
     label: 'Job Builder'
@@ -69,7 +69,7 @@ const Jobs = () => {
           setActiveTab={setActiveTab}
         />
         {activeTab === 'services' && <ServicesTab />}
-        {activeTab === 'jobTemplates' && <JobTemplatesTab />}
+        {/* {activeTab === 'jobTemplates' && <JobTemplatesTab />} */}
         {activeTab === 'jobBuilder' && <JobBuilderTab />}
         {activeTab === 'jobList' && <JobsTab />}
       </div>
