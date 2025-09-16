@@ -12,6 +12,8 @@ export const teamApi = createApi({
             if (token) {
                 headers.set('authorization', `Bearer ${token}`);
             }
+            headers.set('ngrok-skip-browser-warning', "69420");
+
             return headers;
         },
     }),

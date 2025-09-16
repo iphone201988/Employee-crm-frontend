@@ -128,6 +128,8 @@ export const jobApi = createApi({
       if (token) {
         headers.set('authorization', `Bearer ${token}`);
       }
+          headers.set('ngrok-skip-browser-warning', "69420");
+
       return headers;
     },
   }),
