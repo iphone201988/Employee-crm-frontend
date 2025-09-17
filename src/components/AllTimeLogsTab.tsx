@@ -11,12 +11,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
-import { Clock, Users, ChevronDown, ChevronRight, Settings, Download, FileText } from 'lucide-react';
+
+import { Clock, Users, ChevronDown, ChevronRight, Settings, Download, FileText, Edit2 } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { formatCurrency } from '@/lib/currency';
 import { getProfileImage, getUserInitials } from '@/utils/profiles';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+
 
 interface TimeLog {
   id: string;
@@ -35,8 +37,10 @@ interface TimeLog {
   status: 'not-invoiced' | 'invoiced' | 'paid';
 }
 
+
 const AllTimeLogsTab = () => {
-  
+
+
   const [filters, setFilters] = useState({
     client: 'all-clients',
     teamMember: 'all-team-members',
@@ -46,7 +50,8 @@ const AllTimeLogsTab = () => {
   });
   const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<'clients' | 'jobTypes' | 'jobNames' | 'category' | 'teamMembers' | 'flat'>('flat');
-  
+
+
   // Column visibility state
   const [visibleColumns, setVisibleColumns] = useState({
     date: true,
@@ -60,6 +65,7 @@ const AllTimeLogsTab = () => {
     billable: true,
     status: true
   });
+
 
   // Sample time logs data
   const timeLogsData: TimeLog[] = [
@@ -85,6 +91,7 @@ const AllTimeLogsTab = () => {
     { id: '20', date: '2024-02-04', teamMember: 'Sarah Johnson', clientName: 'Tech Solutions Inc.', clientRef: 'TEC-22', jobName: 'VAT Return', jobType: 'VAT Return', category: 'client work', description: 'Quarterly VAT return preparation', hours: 3.0, rate: 100, amount: 300, billable: true, status: 'not-invoiced' }
   ];
 
+
   // Filter the time logs
   const filteredTimeLogs = useMemo(() => {
     return timeLogsData.filter(log => {
@@ -97,12 +104,14 @@ const AllTimeLogsTab = () => {
     });
   }, [timeLogsData, filters]);
 
+
   // Group by client and job
   const groupedLogs = useMemo(() => {
     if (viewMode === 'flat') {
       return { 'All Entries': { 'All Jobs': filteredTimeLogs } };
     }
-    
+
+
     if (viewMode === 'category') {
       const grouped: Record<string, Record<string, TimeLog[]>> = {};
       filteredTimeLogs.forEach(log => {
@@ -117,7 +126,8 @@ const AllTimeLogsTab = () => {
       });
       return grouped;
     }
-    
+
+
     if (viewMode === 'jobTypes') {
       const grouped: Record<string, Record<string, TimeLog[]>> = {};
       filteredTimeLogs.forEach(log => {
@@ -131,7 +141,8 @@ const AllTimeLogsTab = () => {
       });
       return grouped;
     }
-    
+
+
     if (viewMode === 'jobNames') {
       const grouped: Record<string, Record<string, TimeLog[]>> = {};
       filteredTimeLogs.forEach(log => {
@@ -145,7 +156,8 @@ const AllTimeLogsTab = () => {
       });
       return grouped;
     }
-    
+
+
     if (viewMode === 'teamMembers') {
       const grouped: Record<string, Record<string, TimeLog[]>> = {};
       filteredTimeLogs.forEach(log => {
@@ -159,7 +171,8 @@ const AllTimeLogsTab = () => {
       });
       return grouped;
     }
-    
+
+
     // Default: group by clients
     const grouped: Record<string, Record<string, TimeLog[]>> = {};
     filteredTimeLogs.forEach(log => {
@@ -171,15 +184,18 @@ const AllTimeLogsTab = () => {
       }
       grouped[log.clientName][log.jobName].push(log);
     });
-    
+
+
     return grouped;
   }, [filteredTimeLogs, viewMode]);
+
 
   // Calculate totals
   const totalHours = filteredTimeLogs.reduce((sum, log) => sum + log.hours, 0);
   const totalAmount = filteredTimeLogs.reduce((sum, log) => sum + log.amount, 0);
   const uniqueClients = new Set(filteredTimeLogs.map(log => log.clientName)).size;
   const uniqueTeamMembers = new Set(filteredTimeLogs.map(log => log.teamMember)).size;
+
 
   const getStatusBadge = (status: TimeLog['status']) => {
     switch (status) {
@@ -193,6 +209,7 @@ const AllTimeLogsTab = () => {
         return <Badge variant="outline">{status}</Badge>;
     }
   };
+
 
   const getCategorySelect = (category: TimeLog['category'], logId: string) => {
     const categories = ['client work', 'meeting', 'phone call', 'event', 'training', 'other'] as const;
@@ -212,6 +229,7 @@ const AllTimeLogsTab = () => {
     );
   };
 
+
   const toggleClientExpansion = (clientName: string) => {
     const newExpanded = new Set(expandedClients);
     if (newExpanded.has(clientName)) {
@@ -222,19 +240,23 @@ const AllTimeLogsTab = () => {
     setExpandedClients(newExpanded);
   };
 
+
   const toggleColumn = (column: keyof typeof visibleColumns) => {
     setVisibleColumns(prev => ({ ...prev, [column]: !prev[column] }));
   };
+
 
   const exportToPDF = () => {
     const doc = new jsPDF();
     doc.setFontSize(20);
     doc.text('Time Logs Report', 14, 22);
-    
+
+
     // Build headers and data based on visible columns
     const headers = [];
     const dataMappers: ((log: TimeLog) => string)[] = [];
-    
+
+
     if (viewMode === 'flat') {
       headers.push('Client Ref.', 'Client Name', 'Job Name');
       dataMappers.push(
@@ -243,7 +265,8 @@ const AllTimeLogsTab = () => {
         (log) => log.jobName
       );
     }
-    
+
+
     if (visibleColumns.date) {
       headers.push('Date');
       dataMappers.push((log) => new Date(log.date).toLocaleDateString('en-GB'));
@@ -284,10 +307,12 @@ const AllTimeLogsTab = () => {
       headers.push('Status');
       dataMappers.push((log) => log.status);
     }
-    
-    const tableData = filteredTimeLogs.map(log => 
+
+
+    const tableData = filteredTimeLogs.map(log =>
       dataMappers.map(mapper => mapper(log))
     );
+
 
     autoTable(doc, {
       head: [headers],
@@ -298,14 +323,17 @@ const AllTimeLogsTab = () => {
       alternateRowStyles: { fillColor: [245, 245, 245] }
     });
 
+
     doc.save('time-logs-report.pdf');
   };
+
 
   const exportToCSV = () => {
     // Build headers and data based on visible columns
     const headers = [];
     const dataMappers: ((log: TimeLog) => string)[] = [];
-    
+
+
     if (viewMode === 'flat') {
       headers.push('Client Ref.', 'Client Name', 'Job Name');
       dataMappers.push(
@@ -314,7 +342,8 @@ const AllTimeLogsTab = () => {
         (log) => log.jobName
       );
     }
-    
+
+
     if (visibleColumns.date) {
       headers.push('Date');
       dataMappers.push((log) => log.date);
@@ -355,11 +384,13 @@ const AllTimeLogsTab = () => {
       headers.push('Status');
       dataMappers.push((log) => log.status);
     }
-    
-    const csvContent = `${headers.join(',')}\n${filteredTimeLogs.map(log => 
+
+
+    const csvContent = `${headers.join(',')}\n${filteredTimeLogs.map(log =>
       dataMappers.map(mapper => mapper(log)).join(',')
     ).join('\n')}`;
-    
+
+
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -368,6 +399,7 @@ const AllTimeLogsTab = () => {
     a.click();
     window.URL.revokeObjectURL(url);
   };
+
 
   return (
     <div className="space-y-6">
@@ -391,177 +423,181 @@ const AllTimeLogsTab = () => {
         />
       </DashboardGrid>
 
-          {/* Filters */}
-          <div className="flex flex-wrap items-end gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="client-filter">Client</Label>
-              <Select 
-                value={filters.client} 
-                onValueChange={(value) => setFilters(prev => ({ ...prev, client: value }))}
-              >
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="All clients" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all-clients">All clients</SelectItem>
-                  <SelectItem value="Water Savers Limited">Water Savers Limited</SelectItem>
-                  <SelectItem value="Green Gardens Limited">Green Gardens Limited</SelectItem>
-                  <SelectItem value="Brown Enterprises">Brown Enterprises</SelectItem>
-                  <SelectItem value="Tech Solutions Inc.">Tech Solutions Inc.</SelectItem>
-                  <SelectItem value="Smith & Associates">Smith & Associates</SelectItem>
-                  <SelectItem value="Marine Consulting Ltd.">Marine Consulting Ltd.</SelectItem>
-                  <SelectItem value="Digital Media Group">Digital Media Group</SelectItem>
-                  <SelectItem value="Construction Pros Ltd.">Construction Pros Ltd.</SelectItem>
-                  <SelectItem value="Financial Advisors Co.">Financial Advisors Co.</SelectItem>
-                  <SelectItem value="Healthcare Systems Ltd.">Healthcare Systems Ltd.</SelectItem>
-                  <SelectItem value="Energy Solutions Corp.">Energy Solutions Corp.</SelectItem>
-                  <SelectItem value="Transport & Logistics">Transport & Logistics</SelectItem>
-                  <SelectItem value="Hospitality Group plc">Hospitality Group plc</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="team-filter">Team Member</Label>
-              <Select 
-                value={filters.teamMember} 
-                onValueChange={(value) => setFilters(prev => ({ ...prev, teamMember: value }))}
-              >
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="All team members" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all-team-members">All team members</SelectItem>
-                  <SelectItem value="John Smith">John Smith</SelectItem>
-                  <SelectItem value="Sarah Johnson">Sarah Johnson</SelectItem>
-                  <SelectItem value="Mike Wilson">Mike Wilson</SelectItem>
-                  <SelectItem value="Emily Davis">Emily Davis</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="status-filter">Status</Label>
-              <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="All statuses" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All statuses</SelectItem>
-                  <SelectItem value="not-invoiced">Not Invoiced</SelectItem>
-                  <SelectItem value="invoiced">Invoiced</SelectItem>
-                  <SelectItem value="paid">Paid</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="date-from">Date From</Label>
-              <Input
-                id="date-from"
-                type="date"
-                value={filters.dateFrom}
-                onChange={(e) => setFilters(prev => ({ ...prev, dateFrom: e.target.value }))}
-                className="w-40"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="date-to">Date To</Label>
-              <Input
-                id="date-to"
-                type="date"
-                value={filters.dateTo}
-                onChange={(e) => setFilters(prev => ({ ...prev, dateTo: e.target.value }))}
-                className="w-40"
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                onClick={() => setFilters({ client: 'all-clients', teamMember: 'all-team-members', status: 'all', dateFrom: '', dateTo: '' })}
-              >
-                Clear
-              </Button>
-              <div className="ml-auto flex gap-2">
-                <Button 
-                  variant="outline"
-                  onClick={() => {
-                    const allExpanded = expandedClients.size === Object.keys(groupedLogs).length;
-                    if (allExpanded) {
-                      setExpandedClients(new Set());
-                    } else {
-                      setExpandedClients(new Set(Object.keys(groupedLogs)));
-                    }
-                  }}
-                >
-                  {expandedClients.size === Object.keys(groupedLogs).length ? 'Collapse All' : 'Expand All'}
-                </Button>
 
-                {/* Export Dropdown */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline">
-                      <Download className="h-4 w-4 mr-2" />
-                      Export
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={exportToCSV}>
-                      <FileText className="h-4 w-4 mr-2" />
-                      Export as CSV
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={exportToPDF}>
-                      <FileText className="h-4 w-4 mr-2" />
-                      Export as PDF
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
+      {/* Filters */}
+      <div className="flex flex-wrap items-end gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="client-filter">Client</Label>
+          <Select
+            value={filters.client}
+            onValueChange={(value) => setFilters(prev => ({ ...prev, client: value }))}
+          >
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="All clients" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all-clients">All clients</SelectItem>
+              <SelectItem value="Water Savers Limited">Water Savers Limited</SelectItem>
+              <SelectItem value="Green Gardens Limited">Green Gardens Limited</SelectItem>
+              <SelectItem value="Brown Enterprises">Brown Enterprises</SelectItem>
+              <SelectItem value="Tech Solutions Inc.">Tech Solutions Inc.</SelectItem>
+              <SelectItem value="Smith & Associates">Smith & Associates</SelectItem>
+              <SelectItem value="Marine Consulting Ltd.">Marine Consulting Ltd.</SelectItem>
+              <SelectItem value="Digital Media Group">Digital Media Group</SelectItem>
+              <SelectItem value="Construction Pros Ltd.">Construction Pros Ltd.</SelectItem>
+              <SelectItem value="Financial Advisors Co.">Financial Advisors Co.</SelectItem>
+              <SelectItem value="Healthcare Systems Ltd.">Healthcare Systems Ltd.</SelectItem>
+              <SelectItem value="Energy Solutions Corp.">Energy Solutions Corp.</SelectItem>
+              <SelectItem value="Transport & Logistics">Transport & Logistics</SelectItem>
+              <SelectItem value="Hospitality Group plc">Hospitality Group plc</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="team-filter">Team Member</Label>
+          <Select
+            value={filters.teamMember}
+            onValueChange={(value) => setFilters(prev => ({ ...prev, teamMember: value }))}
+          >
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="All team members" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all-team-members">All team members</SelectItem>
+              <SelectItem value="John Smith">John Smith</SelectItem>
+              <SelectItem value="Sarah Johnson">Sarah Johnson</SelectItem>
+              <SelectItem value="Mike Wilson">Mike Wilson</SelectItem>
+              <SelectItem value="Emily Davis">Emily Davis</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="status-filter">Status</Label>
+          <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="All statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All statuses</SelectItem>
+              <SelectItem value="not-invoiced">Not Invoiced</SelectItem>
+              <SelectItem value="invoiced">Invoiced</SelectItem>
+              <SelectItem value="paid">Paid</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="date-from">Date From</Label>
+          <Input
+            id="date-from"
+            type="date"
+            value={filters.dateFrom}
+            onChange={(e) => setFilters(prev => ({ ...prev, dateFrom: e.target.value }))}
+            className="w-40"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="date-to">Date To</Label>
+          <Input
+            id="date-to"
+            type="date"
+            value={filters.dateTo}
+            onChange={(e) => setFilters(prev => ({ ...prev, dateTo: e.target.value }))}
+            className="w-40"
+          />
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setFilters({ client: 'all-clients', teamMember: 'all-team-members', status: 'all', dateFrom: '', dateTo: '' })}
+          >
+            Clear
+          </Button>
+          <div className="ml-auto flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                const allExpanded = expandedClients.size === Object.keys(groupedLogs).length;
+                if (allExpanded) {
+                  setExpandedClients(new Set());
+                } else {
+                  setExpandedClients(new Set(Object.keys(groupedLogs)));
+                }
+              }}
+            >
+              {expandedClients.size === Object.keys(groupedLogs).length ? 'Collapse All' : 'Expand All'}
+            </Button>
+
+
+            {/* Export Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  <Download className="h-4 w-4 mr-2" />
+                  Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={exportToCSV}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Export as CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={exportToPDF}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Export as PDF
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-      
-          {/* View Switcher */}
-          <div className="flex gap-2 mt-4">
-            <Button 
-              variant={viewMode === 'flat' ? 'default' : 'outline'}
-              onClick={() => setViewMode('flat')}
-              size="sm"
-            >
-              Flat View
-            </Button>
-            <Button 
-              variant={viewMode === 'clients' ? 'default' : 'outline'}
-              onClick={() => setViewMode('clients')}
-              size="sm"
-            >
-              Group by Clients
-            </Button>
-            <Button 
-              variant={viewMode === 'teamMembers' ? 'default' : 'outline'}
-              onClick={() => setViewMode('teamMembers')}
-              size="sm"
-            >
-              Group by Team Member
-            </Button>
-            <Button 
-              variant={viewMode === 'jobTypes' ? 'default' : 'outline'}
-              onClick={() => setViewMode('jobTypes')}
-              size="sm"
-            >
-              Group by Job Types
-            </Button>
-            <Button 
-              variant={viewMode === 'jobNames' ? 'default' : 'outline'}
-              onClick={() => setViewMode('jobNames')}
-              size="sm"
-            >
-              Group by Job Name
-            </Button>
-            <Button 
-              variant={viewMode === 'category' ? 'default' : 'outline'}
-              onClick={() => setViewMode('category')}
-              size="sm"
-            >
-              Group by Category
-            </Button>
-          </div>
+        </div>
+      </div>
+
+
+      {/* View Switcher */}
+      <div className="flex gap-2 mt-4">
+        <Button
+          variant={viewMode === 'flat' ? 'default' : 'outline'}
+          onClick={() => setViewMode('flat')}
+          size="sm"
+        >
+          Flat View
+        </Button>
+        <Button
+          variant={viewMode === 'clients' ? 'default' : 'outline'}
+          onClick={() => setViewMode('clients')}
+          size="sm"
+        >
+          Group by Clients
+        </Button>
+        <Button
+          variant={viewMode === 'teamMembers' ? 'default' : 'outline'}
+          onClick={() => setViewMode('teamMembers')}
+          size="sm"
+        >
+          Group by Team Member
+        </Button>
+        <Button
+          variant={viewMode === 'jobTypes' ? 'default' : 'outline'}
+          onClick={() => setViewMode('jobTypes')}
+          size="sm"
+        >
+          Group by Job Types
+        </Button>
+        <Button
+          variant={viewMode === 'jobNames' ? 'default' : 'outline'}
+          onClick={() => setViewMode('jobNames')}
+          size="sm"
+        >
+          Group by Job Name
+        </Button>
+        <Button
+          variant={viewMode === 'category' ? 'default' : 'outline'}
+          onClick={() => setViewMode('category')}
+          size="sm"
+        >
+          Group by Category
+        </Button>
+      </div>
+
 
       {/* Time Logs Table */}
       <Card>
@@ -573,62 +609,65 @@ const AllTimeLogsTab = () => {
             <Table>
               <TableHeader>
                 <TableRow className="border-b border-border bg-muted/50">
-                   {viewMode === 'flat' ? (
-                     <>
-                       <TableHead className="p-3 text-foreground h-12">Client Ref.</TableHead>
-                       <TableHead className="p-3 text-foreground h-12">Client Name</TableHead>
-                       <TableHead className="p-3 text-foreground h-12">Job Name</TableHead>
-                     </>
-                   ) : (
-                     <TableHead className="p-3 text-foreground h-12">
-                       {viewMode === 'clients' ? 'Client / Job' :
+                  {viewMode === 'flat' ? (
+                    <>
+                      <TableHead className="p-3 text-foreground h-12">Client Ref.</TableHead>
+                      <TableHead className="p-3 text-foreground h-12">Client Name</TableHead>
+                      <TableHead className="p-3 text-foreground h-12">Job Name</TableHead>
+                    </>
+                  ) : (
+                    <TableHead className="p-3 text-foreground h-12">
+                      {viewMode === 'clients' ? 'Client / Job' :
                         viewMode === 'jobTypes' ? 'Job Type / Client' :
-                        viewMode === 'jobNames' ? 'Job Name / Client' :
-                        viewMode === 'category' ? 'Category / Client' :
-                        viewMode === 'teamMembers' ? 'Team Member / Client' :
-                        'Entry Details'}
-                     </TableHead>
-                   )}
-                   {visibleColumns.date && <TableHead className="p-3 text-foreground h-12">Date</TableHead>}
-                   {visibleColumns.teamMember && <TableHead className="p-3 text-foreground h-12">Team Member</TableHead>}
-                   {visibleColumns.jobType && <TableHead className="p-3 text-foreground h-12">Job Type</TableHead>}
-                   {visibleColumns.category && <TableHead className="p-3 text-foreground h-12">Category</TableHead>}
-                   {visibleColumns.description && <TableHead className="p-3 text-foreground h-12">Description</TableHead>}
-                   {visibleColumns.hours && <TableHead className="p-3 text-foreground h-12 text-right">Hours</TableHead>}
-                   {visibleColumns.rate && <TableHead className="p-3 text-foreground h-12 text-right">Rate</TableHead>}
-                   {visibleColumns.amount && <TableHead className="p-3 text-foreground h-12 text-right">Amount</TableHead>}
-                   {visibleColumns.billable && <TableHead className="p-3 text-foreground h-12 text-center">Billable</TableHead>}
-                   {visibleColumns.status && <TableHead className="p-3 text-foreground h-12 text-center">Status</TableHead>}
-                   <TableHead className="p-3 text-foreground h-12 text-center">
-                     <Popover>
-                       <PopoverTrigger asChild>
-                         <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                           <Settings className="h-4 w-4" />
-                         </Button>
-                       </PopoverTrigger>
-                       <PopoverContent className="w-64" align="end">
-                         <div className="space-y-3">
-                           <h4 className="font-medium text-sm">Show/Hide Columns</h4>
-                           <div className="space-y-2">
-                             {Object.entries(visibleColumns).map(([column, visible]) => (
-                               <div key={column} className="flex items-center space-x-2">
-                                 <Checkbox
-                                   id={column}
-                                   checked={visible}
-                                   onCheckedChange={() => toggleColumn(column as keyof typeof visibleColumns)}
-                                 />
-                                 <Label htmlFor={column} className="text-sm capitalize">
-                                   {column === 'teamMember' ? 'Team Member' : 
-                                    column === 'jobType' ? 'Job Type' : 
-                                    column}
-                                 </Label>
-                               </div>
-                             ))}
-                           </div>
-                         </div>
-                       </PopoverContent>
-                     </Popover>
-                   </TableHead>
+                          viewMode === 'jobNames' ? 'Job Name / Client' :
+                            viewMode === 'category' ? 'Category / Client' :
+                              viewMode === 'teamMembers' ? 'Team Member / Client' :
+                                'Entry Details'}
+                    </TableHead>
+                  )}
+                  {visibleColumns.date && <TableHead className="p-3 text-foreground h-12">Date</TableHead>}
+                  {visibleColumns.teamMember && <TableHead className="p-3 text-foreground h-12">Team Member</TableHead>}
+                  {visibleColumns.jobType && <TableHead className="p-3 text-foreground h-12">Job Type</TableHead>}
+                  {visibleColumns.category && <TableHead className="p-3 text-foreground h-12">Category</TableHead>}
+                  {visibleColumns.description && <TableHead className="p-3 text-foreground h-12">Description</TableHead>}
+                  {visibleColumns.hours && <TableHead className="p-3 text-foreground h-12 text-right">Hours</TableHead>}
+                  {visibleColumns.rate && <TableHead className="p-3 text-foreground h-12 text-right">Rate</TableHead>}
+                  {visibleColumns.amount && <TableHead className="p-3 text-foreground h-12 text-right">Amount</TableHead>}
+                  {visibleColumns.billable && <TableHead className="p-3 text-foreground h-12 text-center">Billable</TableHead>}
+                  {visibleColumns.status && <TableHead className="p-3 text-foreground h-12 text-center">Status</TableHead>}
+
+
+                  <TableHead className="p-3 text-foreground h-12 text-center">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                          <Settings className="h-4 w-4" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-64" align="end">
+                        <div className="space-y-3">
+                          <h4 className="font-medium text-sm">Show/Hide Columns</h4>
+                          <div className="space-y-2">
+                            {Object.entries(visibleColumns).map(([column, visible]) => (
+                              <div key={column} className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={column}
+                                  checked={visible}
+                                  onCheckedChange={() => toggleColumn(column as keyof typeof visibleColumns)}
+                                />
+                                <Label htmlFor={column} className="text-sm capitalize">
+                                  {column === 'teamMember' ? 'Team Member' :
+                                    column === 'jobType' ? 'Job Type' :
+                                      column}
+                                </Label>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </TableHead>
+                  <TableHead className="p-3 text-foreground h-12 text-center">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -636,7 +675,7 @@ const AllTimeLogsTab = () => {
                   <React.Fragment key={groupName}>
                     {/* Group Header Row */}
                     {viewMode !== 'flat' && (
-                      <TableRow 
+                      <TableRow
                         className="border-b border-border bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors h-12"
                         onClick={() => toggleClientExpansion(groupName)}
                       >
@@ -669,9 +708,11 @@ const AllTimeLogsTab = () => {
                         {visibleColumns.billable && <TableCell className="p-4"></TableCell>}
                         {visibleColumns.status && <TableCell className="p-4"></TableCell>}
                         <TableCell className="p-4"></TableCell>
+                        <TableCell className="p-4"></TableCell>
                       </TableRow>
                     )}
-                    
+
+
                     {/* Sub-group and Time Log Rows */}
                     {(viewMode === 'flat' || expandedClients.has(groupName)) && Object.entries(subGroups).map(([subGroupName, logs]) => (
                       <React.Fragment key={`${groupName}-${subGroupName}`}>
@@ -700,67 +741,73 @@ const AllTimeLogsTab = () => {
                             {visibleColumns.billable && <TableCell className="p-4"></TableCell>}
                             {visibleColumns.status && <TableCell className="p-4"></TableCell>}
                             <TableCell className="p-4"></TableCell>
+                            <TableCell className="p-4"></TableCell>
                           </TableRow>
                         )}
-                        
-                         {/* Individual Time Log Rows */}
-                           {logs.map((log) => (
-                             <TableRow key={log.id} className="border-b border-border hover:bg-muted/30 transition-colors h-12">
-                               {viewMode === 'flat' ? (
-                                 <>
-                                   <TableCell className="p-4 text-muted-foreground">{log.clientRef}</TableCell>
-                                   <TableCell className="p-4 text-muted-foreground">{log.clientName}</TableCell>
-                                   <TableCell className="p-4 text-muted-foreground">{log.jobName}</TableCell>
-                                 </>
-                               ) : (
-                                 <TableCell className="p-4 text-muted-foreground pl-16">{log.description}</TableCell>
-                               )}
-                              {visibleColumns.date && (
-                                <TableCell className="p-4">
-                                  {new Date(log.date).toLocaleDateString('en-GB')}
-                                </TableCell>
-                              )}
-                               {visibleColumns.teamMember && (
-                                 <TableCell className="p-4">
-                                   <div className="flex items-center gap-2">
-                                     <Avatar className="h-8 w-8">
-                                       <AvatarImage 
-                                         src={getProfileImage(log.teamMember)} 
-                                         alt={log.teamMember}
-                                       />
-                                       <AvatarFallback className="text-xs">
-                                         {getUserInitials(log.teamMember)}
-                                       </AvatarFallback>
-                                     </Avatar>
-                                     
-                                   </div>
-                                 </TableCell>
-                               )}
-                              {visibleColumns.jobType && <TableCell className="p-4">{log.jobType}</TableCell>}
-                              {visibleColumns.category && (
-                                <TableCell className="p-4 w-48">
-                                  {getCategorySelect(log.category, log.id)}
-                                </TableCell>
-                              )}
-                              {visibleColumns.description && <TableCell className="p-4">{log.description}</TableCell>}
-                              {visibleColumns.hours && <TableCell className="p-4 text-right">{log.hours.toFixed(1)}h</TableCell>}
-                              {visibleColumns.rate && <TableCell className="p-4 text-right">{formatCurrency(log.rate)}</TableCell>}
-                              {visibleColumns.amount && <TableCell className="p-4 text-right">{formatCurrency(log.amount)}</TableCell>}
-                              {visibleColumns.billable && (
-                                <TableCell className="p-4 text-center">
-                                  <Badge variant={log.billable ? "default" : "secondary"}>
-                                    {log.billable ? "Yes" : "No"}
-                                  </Badge>
-                                </TableCell>
-                              )}
-                              {visibleColumns.status && (
-                                <TableCell className="p-4 text-center">
-                                  {getStatusBadge(log.status)}
-                                </TableCell>
-                              )}
-                              <TableCell className="p-4"></TableCell>
-                            </TableRow>
-                          ))}
+
+
+                        {/* Individual Time Log Rows */}
+                        {logs.map((log) => (
+                          <TableRow key={log.id} className="border-b border-border hover:bg-muted/30 transition-colors h-12">
+                            {viewMode === 'flat' ? (
+                              <>
+                                <TableCell className="p-4 text-muted-foreground">{log.clientRef}</TableCell>
+                                <TableCell className="p-4 text-muted-foreground">{log.clientName}</TableCell>
+                                <TableCell className="p-4 text-muted-foreground">{log.jobName}</TableCell>
+                              </>
+                            ) : (
+                              <TableCell className="p-4 text-muted-foreground pl-16">{log.description}</TableCell>
+                            )}
+                            {visibleColumns.date && (
+                              <TableCell className="p-4">
+                                {new Date(log.date).toLocaleDateString('en-GB')}
+                              </TableCell>
+                            )}
+                            {visibleColumns.teamMember && (
+                              <TableCell className="p-4">
+                                <div className="flex items-center gap-2">
+                                  <Avatar className="h-8 w-8">
+                                    <AvatarImage
+                                      src={getProfileImage(log.teamMember)}
+                                      alt={log.teamMember}
+                                    />
+                                    <AvatarFallback className="text-xs">
+                                      {getUserInitials(log.teamMember)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                </div>
+                              </TableCell>
+                            )}
+                            {visibleColumns.jobType && <TableCell className="p-4">{log.jobType}</TableCell>}
+                            {visibleColumns.category && (
+                              <TableCell className="p-4 w-48">
+                                {getCategorySelect(log.category, log.id)}
+                              </TableCell>
+                            )}
+                            {visibleColumns.description && <TableCell className="p-4">{log.description}</TableCell>}
+                            {visibleColumns.hours && <TableCell className="p-4 text-right">{log.hours.toFixed(1)}h</TableCell>}
+                            {visibleColumns.rate && <TableCell className="p-4 text-right">{formatCurrency(log.rate)}</TableCell>}
+                            {visibleColumns.amount && <TableCell className="p-4 text-right">{formatCurrency(log.amount)}</TableCell>}
+                            {visibleColumns.billable && (
+                              <TableCell className="p-4 text-center">
+                                <Badge variant={log.billable ? "default" : "secondary"}>
+                                  {log.billable ? "Yes" : "No"}
+                                </Badge>
+                              </TableCell>
+                            )}
+                            {visibleColumns.status && (
+                              <TableCell className="p-4 text-center">
+                                {getStatusBadge(log.status)}
+                              </TableCell>
+                            )}
+                            <TableCell className="p-4"></TableCell>
+                            <TableCell className="p-4 text-center">
+                                <Button variant="ghost" size="icon">
+                                    <Edit2 className="w-4 h-4" />
+                                </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
                       </React.Fragment>
                     ))}
                   </React.Fragment>
@@ -773,5 +820,6 @@ const AllTimeLogsTab = () => {
     </div>
   );
 };
+
 
 export default AllTimeLogsTab;

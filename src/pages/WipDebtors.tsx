@@ -10,6 +10,7 @@ import WriteOffMergedTab from "@/components/WriteOffMergedTab";
 import InvoiceLogTab from "@/components/InvoiceLogTab";
 import CustomTabs from "@/components/Tabs";
 
+
 const tabs = [{
   id: "WIP",
   label: "WIP"
@@ -25,7 +26,7 @@ const tabs = [{
   label: "Aged Debtors"
 },
 {
-  id: "Write-off",
+  id: "writeOff",
   label: "Write-off"
 }
 ];
@@ -528,7 +529,7 @@ export function WipDebtors() {
         activeTab == "agedDebtors" && <AgedDebtorsTab />
       }
       {
-        activeTab == "Write-off" && <WriteOffMergedTab />
+        activeTab == "writeOff" && <WriteOffMergedTab />
       }
 
 

@@ -10,6 +10,7 @@ import { Plus, Minus } from "lucide-react";
 import { TEAM_MEMBER_NAMES } from "@/constants/teamConstants";
 import { getProfileImage, getUserInitials } from "@/utils/profiles";
 
+
 const JobBuilderTab = () => {
   const [activeTab, setActiveTab] = useState("loaded");
   const [editingJobId, setEditingJobId] = useState<number | null>(null);
@@ -58,6 +59,7 @@ const JobBuilderTab = () => {
     }
   ]);
 
+
   const getFilteredData = () => {
     return jobData.map(client => ({
       ...client,
@@ -65,6 +67,7 @@ const JobBuilderTab = () => {
       jobCount: client.jobs.filter(job => job.status === activeTab).length
     })).filter(client => client.jobs.length > 0);
   };
+
 
   const addJob = (clientIndex: number) => {
     const newJobData = [...jobData];
@@ -82,12 +85,14 @@ const JobBuilderTab = () => {
     setJobData(newJobData);
   };
 
+
   const removeJob = (clientIndex: number, jobId: number) => {
     const newJobData = [...jobData];
     newJobData[clientIndex].jobs = newJobData[clientIndex].jobs.filter(job => job.id !== jobId);
     newJobData[clientIndex].jobCount = newJobData[clientIndex].jobs.length;
     setJobData(newJobData);
   };
+
 
   const moveJobToNextStage = (clientIndex: number, jobId: number) => {
     const newJobData = [...jobData];
@@ -99,6 +104,7 @@ const JobBuilderTab = () => {
     setJobData(newJobData);
   };
 
+
   const getTabCounts = () => {
     const counts = { loaded: 0, "for-review": 0, built: 0 };
     jobData.forEach(client => {
@@ -108,6 +114,7 @@ const JobBuilderTab = () => {
     });
     return counts;
   };
+
 
   const getButtonText = () => {
     switch (activeTab) {
@@ -122,6 +129,7 @@ const JobBuilderTab = () => {
     }
   };
 
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "loaded":
@@ -135,6 +143,7 @@ const JobBuilderTab = () => {
     }
   };
 
+
   return (
     <div className="space-y-6">
       <Card>
@@ -147,19 +156,19 @@ const JobBuilderTab = () => {
             </TabsList>
             
             <TabsContent value={activeTab} className="space-y-4 pt-6">
-              <Table className="table-fixed">
+              <Table className="table-fixed w-full">
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-40">Client Name</TableHead>
-                    <TableHead className="text-center w-20">Job Count</TableHead>
-                    <TableHead className="w-28">Job Type</TableHead>
-                    <TableHead className="w-44">Job Manager</TableHead>
-                    <TableHead className="w-24">Job Fee</TableHead>
-                    <TableHead className="w-28">Recurring</TableHead>
-                    <TableHead className="w-36">Recurring Logic</TableHead>
-                    <TableHead className="w-28">Kick-off Date</TableHead>
-                    <TableHead className="w-24">Apply Template</TableHead>
-                    <TableHead className="text-right w-32">Actions</TableHead>
+                    <TableHead className="w-[15%]">Client Name</TableHead>
+                    <TableHead className="w-[5%] text-center">Job Count</TableHead>
+                    <TableHead className="w-[10%]">Job Type</TableHead>
+                    <TableHead className="w-[15%]">Job Manager</TableHead>
+                    <TableHead className="w-[10%]">Job Fee</TableHead>
+                    <TableHead className="w-[10%]">Recurring</TableHead>
+                    <TableHead className="w-[10%]">Recurring Logic</TableHead>
+                    <TableHead className="w-[10%]">Kick-off Date</TableHead>
+                    <TableHead className="w-[10%]">Apply Template</TableHead>
+                    <TableHead className="w-[15%] text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -175,12 +184,12 @@ const JobBuilderTab = () => {
                           className={isRowDisabled ? "opacity-50" : ""}
                         >
                           {jobIndex === 0 && (
-                            <TableCell rowSpan={client.jobCount} className="font-medium border-r">
+                            <TableCell rowSpan={client.jobCount} className="font-medium border-r align-top pt-4">
                               {client.clientName}
                             </TableCell>
                           )}
                           {jobIndex === 0 && (
-                            <TableCell rowSpan={client.jobCount} className="text-center border-r">
+                            <TableCell rowSpan={client.jobCount} className="text-center border-r align-top pt-4">
                               {client.jobCount}
                             </TableCell>
                           )}
@@ -188,14 +197,14 @@ const JobBuilderTab = () => {
                            <TableCell>
                              {activeTab === "loaded" ? (
                                <Select defaultValue={job.manager} disabled={isRowDisabled}>
-                                 <SelectTrigger className="w-52 h-9">
+                                 <SelectTrigger className="w-full h-9">
                                    <SelectValue>
                                      <div className="flex items-center gap-2">
                                        <Avatar className="h-6 w-6">
                                          <AvatarImage src={getProfileImage(job.manager)} alt={job.manager} />
                                          <AvatarFallback className="text-xs">{getUserInitials(job.manager)}</AvatarFallback>
                                        </Avatar>
-                                       <span className="text-sm">{job.manager}</span>
+                                       <span className="text-sm truncate">{job.manager}</span>
                                      </div>
                                    </SelectValue>
                                  </SelectTrigger>
@@ -219,7 +228,7 @@ const JobBuilderTab = () => {
                                    <AvatarImage src={getProfileImage(job.manager)} alt={job.manager} />
                                    <AvatarFallback className="text-xs">{getUserInitials(job.manager)}</AvatarFallback>
                                  </Avatar>
-                                 <span className="text-sm">{job.manager}</span>
+                                 <span className="text-sm truncate">{job.manager}</span>
                                </div>
                              )}
                            </TableCell>
@@ -227,7 +236,7 @@ const JobBuilderTab = () => {
                               <input 
                                 type="number" 
                                 placeholder="€0.00"
-                                className="w-24 h-9 px-2 border border-input rounded-md text-sm disabled:opacity-50"
+                                className="w-full h-9 px-2 border border-input rounded-md text-sm disabled:opacity-50"
                                 disabled={isRowDisabled}
                                 defaultValue=""
                                 step="0.01"
@@ -246,7 +255,7 @@ const JobBuilderTab = () => {
                             </TableCell>
                           <TableCell>
                           <Select defaultValue={job.recurring} disabled={isRowDisabled}>
-                            <SelectTrigger className="w-32 h-9">
+                            <SelectTrigger className="w-full h-9">
                               <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -260,7 +269,7 @@ const JobBuilderTab = () => {
                           </TableCell>
                           <TableCell>
                           <Select defaultValue={job.recurringLogic} disabled={isRowDisabled}>
-                            <SelectTrigger className="w-40 h-9">
+                            <SelectTrigger className="w-full h-9">
                               <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -279,14 +288,14 @@ const JobBuilderTab = () => {
                            <TableCell>
                            <input 
                              type="date" 
-                             className="w-28 h-9 px-2 border border-input rounded-md text-sm disabled:opacity-50"
+                             className="w-full h-9 px-2 border border-input rounded-md text-sm disabled:opacity-50"
                              disabled={isRowDisabled}
                              defaultValue="2024-01-01"
                            />
                            </TableCell>
                           <TableCell>
                           <Select defaultValue={job.template} disabled={isRowDisabled}>
-                            <SelectTrigger className="w-24 h-9">
+                            <SelectTrigger className="w-full h-9">
                               <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -321,7 +330,7 @@ const JobBuilderTab = () => {
                               </Button>
                               <Button
                                 size="sm" 
-                                className={activeTab === "built" ? "bg-blue-600 hover:bg-blue-700 text-white" : "bg-green-600 hover:bg-green-700 text-white"}
+                                className={`h-8 px-2 ${activeTab === "built" ? "bg-blue-600 hover:bg-blue-700 text-white" : "bg-green-600 hover:bg-green-700 text-white"}`}
                                 onClick={() => {
                                   if (activeTab === "built") {
                                     if (isEditing) {
@@ -351,5 +360,6 @@ const JobBuilderTab = () => {
     </div>
   );
 };
+
 
 export default JobBuilderTab;

@@ -1,3 +1,5 @@
+// components/component/Input.tsx
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -6,13 +8,15 @@ import { Checkbox } from "@/components/ui/checkbox";
 interface IInput {
     label: string;
     id: string;
-    type?: 'text' | 'email' | 'tel' | 'date' | 'textarea' | 'checkbox';
+    type?: 'text' | 'email' | 'tel' | 'date' | 'textarea' | 'checkbox' | 'password' | 'number';
     value?: string | boolean;
     onChange?: (value: string | boolean) => void;
     placeholder?: string;
     required?: boolean;
     className?: string;
     error?: string;
+    autoComplete?: string; // Added for completeness
+    onFocus?: () => void;   // <<< --- ADD THIS LINE ---
 }
 
 const InputComponent = ({
@@ -24,7 +28,9 @@ const InputComponent = ({
     placeholder,
     required = false,
     className = "",
-    error
+    error,
+    autoComplete,
+    onFocus, // <<< --- ADD THIS LINE ---
 }: IInput) => {
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         if (type === 'checkbox') {
@@ -47,6 +53,7 @@ const InputComponent = ({
                     placeholder={placeholder}
                     required={required}
                     className={`mt-1 ${error ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                    autoComplete={autoComplete}
                 />
                 {error && (
                     <p className="mt-1 text-sm text-red-600">{error}</p>
@@ -89,6 +96,8 @@ const InputComponent = ({
                 placeholder={placeholder}
                 required={required}
                 className={`mt-1 ${error ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                autoComplete={autoComplete}
+                onFocus={onFocus} // <<< --- ADD THIS LINE ---
             />
             {error && (
                 <p className="mt-1 text-sm text-red-600">{error}</p>

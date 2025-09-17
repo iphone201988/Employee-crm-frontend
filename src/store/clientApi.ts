@@ -10,7 +10,7 @@ export const clientApi = createApi({
             if (token) {
                 headers.set('authorization', `Bearer ${token}`);
             }
-          headers.set('ngrok-skip-browser-warning', "69420");
+            headers.set('ngrok-skip-browser-warning', "69420");
 
             return headers;
         },
@@ -60,7 +60,7 @@ export const clientApi = createApi({
                     : [{ type: 'ClientServices', id: 'LIST' }];
             },
         }),
-         updateClientServices: builder.mutation<any, UpdateClientServicesRequest>({
+        updateClientServices: builder.mutation<any, UpdateClientServicesRequest>({
             query: (body) => ({
                 url: '/update-client-services',
                 method: 'PUT',
@@ -69,17 +69,21 @@ export const clientApi = createApi({
             // Invalidate the list of client services to trigger a refetch
             invalidatesTags: [{ type: 'ClientServices', id: 'LIST' }],
         }),
-         updateClient: builder.mutation<any, any>({
+        updateClient: builder.mutation<any, any>({
             query: ({ clientId, ...body }) => ({
                 url: `/update/${clientId}`,
                 method: 'PUT',
                 body,
             }),
             // Invalidate the specific client and the list to trigger a refetch
-            invalidatesTags: (result, error, { clientId }) => [
-                { type: 'Client', id: 'LIST' },
-                { type: 'Client', id: clientId },
-            ],
+            invalidatesTags: (result, error, { clientId }) => ["Client"],
+        }),
+        getClient: builder.query<GetClientResponse, string>({
+            query: (clientId) => ({
+                url: `/${clientId}`,
+                method: 'GET',
+            }),
+            providesTags: (result, error, clientId) => [{ type: 'Client', id: clientId }],
         }),
     }),
 });
@@ -90,6 +94,7 @@ export const {
     useGetClientsQuery,
     useGetClientServicesQuery,
     useUpdateClientServicesMutation,
-    useUpdateClientMutation
+    useUpdateClientMutation,
+    useGetClientQuery
 } = clientApi;
 

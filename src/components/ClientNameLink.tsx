@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import ClientDetailsDialog from './ClientDetailsDialog';
-
+import {useGetClientQuery} from "@/store/clientApi";
 interface ClientNameLinkProps {
   name?: string;
   clientName?: string;
   className?: string;
+  ciientId?: string
 }
 
-const ClientNameLink = ({ name, clientName, className = "" }: ClientNameLinkProps) => {
+const ClientNameLink = ({ name, clientName, className = "", ciientId }: ClientNameLinkProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-
+  const { data: client } = useGetClientQuery(ciientId || "");
   const displayName = name || clientName;
 
   if (!displayName) {
@@ -245,7 +246,7 @@ const ClientNameLink = ({ name, clientName, className = "" }: ClientNameLinkProp
       <ClientDetailsDialog
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}
-        clientData={clientData}
+        clientData={client?.data}
       />
     </>
   );

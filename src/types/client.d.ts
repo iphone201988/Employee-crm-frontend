@@ -163,3 +163,36 @@ interface ServiceBreakdown {
 interface UpdateClientServicesRequest {
     clientServices: ClientServiceUpdate[];
 }
+
+ interface IClient {
+    _id: string;
+    clientRef: string;
+    name: string;
+    businessTypeId: string;
+    taxNumber: string;
+    croNumber: string;
+    address: string;
+    contactName: string;
+    email: string;
+    emailNote: string;
+    phone: string;
+    phoneNote: string;
+    onboardedDate: string;
+    amlCompliant: boolean;
+    audit: boolean;
+    status: string;
+    services: string[];
+    createdAt: string;
+    updatedAt: string;
+    __v: number;
+    businessTypeInfo: {
+        _id: string;
+        name: string;
+        __v: number;
+    }[];
+}
+interface GetClientResponse {
+    success: boolean;
+    message: string;
+    data: IClient;
+}

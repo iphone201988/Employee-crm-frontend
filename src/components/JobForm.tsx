@@ -1,12 +1,17 @@
+// components/JobForm.tsx
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useGetDropdownOptionsQuery } from '@/store/teamApi';
 import { useCreateJobMutation, useUpdateJobMutation } from '@/store/jobApi';
 import { toast } from 'sonner';
+// import { JobFormData, validateJobForm } from '@/utils/jobValidation';
+import { JobFormData, validateJobForm } from '@/utils/validation/jobValidations';
+import InputComponent from './client/component/Input';
+import { Loader2 } from 'lucide-react';
 
 // --- Type Definitions ---
 type JobStatus = 'queued' | 'inProgress' | 'withClient' | 'forApproval' | 'completed' | 'cancelled';
@@ -15,25 +20,6 @@ type Priority = 'low' | 'medium' | 'high' | 'urgent';
 interface DropdownOption {
     _id: string;
     name: string;
-}
-
-interface Job {
-    id: string;
-    jobName: string;
-    clientName: string;
-    clientId: string;
-    jobType: string;
-    jobTypeId: string;
-    startDate: string;
-    endDate: string;
-    estimatedCost: number;
-    actualCost: number;
-    status: JobStatus;
-    priority: Priority;
-    jobManager: string;
-    jobManagerId: string;
-    team: string[];
-    description: string;
 }
 
 interface JobFormProps {
@@ -47,15 +33,15 @@ export const JobForm = ({ job, onSubmit, onCancel }: JobFormProps) => {
     // --- State ---
     const { data: categoriesData, isLoading: isLoadingDropdowns } = useGetDropdownOptionsQuery("all");
     const [createJob, { isLoading: isCreatingJob }] = useCreateJobMutation();
-    const [updateJob, { isLoading: isUpdating }] = useUpdateJobMutation(job?.id);
+    const [updateJob, { isLoading: isUpdatingJob }] = useUpdateJobMutation();
 
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<JobFormData & { teamMembers: string[], status: JobStatus, priority: Priority, description: string }>({
         name: job?.jobName || '',
         clientId: job?.clientId || '',
         clientName: job?.clientName || '',
         jobTypeId: job?.jobTypeId || '',
-        startDate: job?.startDate || '',
-        endDate: job?.endDate || '',
+        startDate: job?.startDate ? new Date(job.startDate).toISOString().split('T')[0] : '',
+        endDate: job?.endDate ? new Date(job.endDate).toISOString().split('T')[0] : '',
         jobCost: job?.estimatedCost,
         status: job?.status || 'queued',
         priority: job?.priority || 'medium',
@@ -64,6 +50,8 @@ export const JobForm = ({ job, onSubmit, onCancel }: JobFormProps) => {
         description: job?.description || ''
     });
 
+    const [errors, setErrors] = useState<Partial<Record<keyof JobFormData, string>>>({});
+    const [submitError, setSubmitError] = useState<string>('');
     const [showClientSuggestions, setShowClientSuggestions] = useState(false);
     const clientInputContainerRef = useRef<HTMLDivElement>(null);
 
@@ -82,43 +70,20 @@ export const JobForm = ({ job, onSubmit, onCancel }: JobFormProps) => {
         return clients.filter(client => client.name.toLowerCase().includes(formData.clientName!.toLowerCase()));
     }, [formData.clientName, clients]);
 
-    // --- Validation Function ---
-    const validateForm = () => {
-        const fields: { key: keyof typeof formData, name: string }[] = [
-            { key: 'name', name: 'Job Name' },
-            { key: 'clientName', name: 'Client Name' },
-            { key: 'jobTypeId', name: 'Job Type' },
-            { key: 'jobManagerId', name: 'Job Manager' },
-            { key: 'startDate', name: 'Start Date' },
-            { key: 'endDate', name: 'End Date' },
-        ];
-
-        for (const field of fields) {
-            if (!formData[field.key]) {
-                toast.error(`${field.name} is required.`);
-                return false;
-            }
-        }
-
-        if (formData.jobCost === undefined || formData.jobCost < 0) {
-            toast.error('Estimated Cost is required and must be a positive number.');
-            return false;
-        }
-
-        // Special validation to ensure the clientName entered matches a client from the list
-        const isValidClient = clients.some(client => client.name.toLowerCase() === formData.clientName.toLowerCase());
-        if (!isValidClient) {
-            toast.error("Please select a valid client from the suggestions list.");
-            return false;
-        }
-
-        return true;
-    };
-
     // --- Handlers ---
-    const handleClientNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setFormData({ ...formData, clientName: e.target.value, clientId: '' });
+    const handleInputChange = (field: keyof typeof formData) => (value: any) => {
+        setFormData(prev => ({ ...prev, [field]: value }));
+        if (errors[field as keyof typeof errors]) {
+            setErrors(prev => ({ ...prev, [field]: undefined }));
+        }
+    };
+    
+    const handleClientNameChange = (value: string) => {
+        setFormData({ ...formData, clientName: value, clientId: '' });
         setShowClientSuggestions(true);
+        if (errors.clientName) {
+            setErrors(prev => ({ ...prev, clientName: undefined }));
+        }
     };
 
     const handleSuggestionClick = (client: DropdownOption) => {
@@ -128,13 +93,16 @@ export const JobForm = ({ job, onSubmit, onCancel }: JobFormProps) => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setSubmitError('');
+        setErrors({});
 
-        // 1. Run validation before proceeding
-        if (!validateForm()) {
+        const validationResult = validateJobForm(formData, clients);
+        if (!validationResult.isValid) {
+            setErrors(validationResult.errors);
             return;
         }
 
-        const payload: any = {
+        const payload = {
             name: formData.name,
             description: formData.description,
             clientId: formData.clientId,
@@ -152,19 +120,16 @@ export const JobForm = ({ job, onSubmit, onCancel }: JobFormProps) => {
             if (job) {
                 await updateJob({ jobId: job.id, jobData: payload }).unwrap();
                 toast.success("Job updated successfully!");
-                onSubmit(payload);
-                onCancel();
             } else {
                 await createJob(payload).unwrap();
                 toast.success("Job created successfully!");
-                onSubmit(payload);
-                onCancel();
             }
-
-        } catch (error) {
-            console.error("Failed to create job:", error);
-            const errorMessage = (error as any)?.data?.message || "An unknown error occurred.";
-            toast.error(`Failed to create job: ${errorMessage}`);
+            onSubmit(payload);
+            onCancel();
+        } catch (error: any) {
+            const errorMessage = error?.data?.message || "An unknown error occurred.";
+            setSubmitError(errorMessage);
+            toast.error(`Failed: ${errorMessage}`);
         }
     };
 
@@ -179,22 +144,15 @@ export const JobForm = ({ job, onSubmit, onCancel }: JobFormProps) => {
         return () => { document.removeEventListener("mousedown", handleClickOutside); };
     }, []);
 
-    const isLoading = isLoadingDropdowns || isCreatingJob;
+    const isLoading = isLoadingDropdowns || isCreatingJob || isUpdatingJob;
 
     return (
-        // Add noValidate to disable default browser validation popups
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-            <div className="grid grid-cols-2 gap-4">
-                {/* Job Name */}
-                <div>
-                    <Label htmlFor="jobName">Job Name</Label>
-                    <Input id="jobName" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <InputComponent label="Job Name" id="jobName" value={formData.name} onChange={handleInputChange('name')} error={errors.name} />
 
-                {/* Client Name with Suggestions */}
                 <div className="relative" ref={clientInputContainerRef}>
-                    <Label htmlFor="clientName">Client Name</Label>
-                    <Input id="clientName" value={formData.clientName} onChange={handleClientNameChange} onFocus={() => setShowClientSuggestions(true)} autoComplete="off" />
+                    <InputComponent label="Client Name" id="clientName" value={formData.clientName} onChange={handleClientNameChange} onFocus={() => setShowClientSuggestions(true)} autoComplete="off" error={errors.clientName} />
                     {showClientSuggestions && filteredClients.length > 0 && (
                         <ul className="absolute z-10 w-full bg-background border border-border rounded-md mt-1 max-h-40 overflow-y-auto shadow-lg">
                             {filteredClients.map(client => (
@@ -204,34 +162,32 @@ export const JobForm = ({ job, onSubmit, onCancel }: JobFormProps) => {
                     )}
                 </div>
 
-                {/* Job Type */}
                 <div>
                     <Label htmlFor="jobType">Job Type</Label>
-                    <Select value={formData.jobTypeId} onValueChange={value => setFormData({ ...formData, jobTypeId: value })}>
+                    <Select value={formData.jobTypeId} onValueChange={handleInputChange('jobTypeId')}>
                         <SelectTrigger><SelectValue placeholder="Select job type" /></SelectTrigger>
                         <SelectContent>{jobTypes.map(type => <SelectItem key={type._id} value={type._id}>{type.name}</SelectItem>)}</SelectContent>
                     </Select>
+                    {errors.jobTypeId && <p className="text-sm text-red-600 mt-1">{errors.jobTypeId}</p>}
                 </div>
 
-                {/* Job Manager */}
                 <div>
                     <Label htmlFor="jobManager">Job Manager</Label>
-                    <Select value={formData.jobManagerId} onValueChange={value => setFormData({ ...formData, jobManagerId: value })}>
+                    <Select value={formData.jobManagerId} onValueChange={handleInputChange('jobManagerId')}>
                         <SelectTrigger><SelectValue placeholder="Select job manager" /></SelectTrigger>
                         <SelectContent>{teamMembers.map(member => <SelectItem key={member._id} value={member._id}>{member.name}</SelectItem>)}</SelectContent>
                     </Select>
+                    {errors.jobManagerId && <p className="text-sm text-red-600 mt-1">{errors.jobManagerId}</p>}
                 </div>
 
-                {/* Dates & Cost */}
-                <div><Label htmlFor="startDate">Start Date</Label><Input id="startDate" type="date" value={formData.startDate} onChange={e => setFormData({ ...formData, startDate: e.target.value })} /></div>
-                <div><Label htmlFor="endDate">End Date</Label><Input id="endDate" type="date" value={formData.endDate} onChange={e => setFormData({ ...formData, endDate: e.target.value })} /></div>
-                <div><Label htmlFor="estimatedCost">Estimated Cost</Label><Input id="estimatedCost" type="number" value={formData.jobCost} onChange={e => setFormData({ ...formData, jobCost: parseFloat(e.target.value) || undefined })} min={0} /></div>
+                <InputComponent label="Start Date" id="startDate" type="date" value={formData.startDate} onChange={handleInputChange('startDate')} error={errors.startDate} />
+                <InputComponent label="End Date" id="endDate" type="date" value={formData.endDate} onChange={handleInputChange('endDate')} error={errors.endDate} />
+                <InputComponent label="Estimated Cost" id="estimatedCost" type="number" value={String(formData.jobCost ?? '')} onChange={(val) => handleInputChange('jobCost')(parseFloat(val as string) || undefined)} error={errors.jobCost} />
 
-                {/* Status & Priority */}
                 <div>
                     <Label htmlFor="status">Status</Label>
-                    <Select value={formData.status} onValueChange={(value: JobStatus) => setFormData({ ...formData, status: value })}>
-                        <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
+                    <Select value={formData.status} onValueChange={handleInputChange('status')}>
+                        <SelectTrigger><SelectValue/></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="queued">Queued</SelectItem>
                             <SelectItem value="inProgress">In Progress</SelectItem>
@@ -242,10 +198,11 @@ export const JobForm = ({ job, onSubmit, onCancel }: JobFormProps) => {
                         </SelectContent>
                     </Select>
                 </div>
+
                 <div>
                     <Label htmlFor="priority">Priority</Label>
-                    <Select value={formData.priority} onValueChange={(value: Priority) => setFormData({ ...formData, priority: value })}>
-                        <SelectTrigger><SelectValue placeholder="Select priority" /></SelectTrigger>
+                    <Select value={formData.priority} onValueChange={handleInputChange('priority')}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="low">Low</SelectItem>
                             <SelectItem value="medium">Medium</SelectItem>
@@ -255,12 +212,11 @@ export const JobForm = ({ job, onSubmit, onCancel }: JobFormProps) => {
                     </Select>
                 </div>
 
-                {/* Team Members */}
                 <div>
                     <Label htmlFor="team">Team Members</Label>
                     <Select onValueChange={value => {
                         if (value && !formData.teamMembers.includes(value)) {
-                            setFormData({ ...formData, teamMembers: [...formData.teamMembers, value] });
+                            handleInputChange('teamMembers')([...formData.teamMembers, value]);
                         }
                     }}>
                         <SelectTrigger><SelectValue placeholder="Add team member" /></SelectTrigger>
@@ -269,22 +225,23 @@ export const JobForm = ({ job, onSubmit, onCancel }: JobFormProps) => {
                     <div className="flex flex-wrap gap-1 mt-2">
                         {formData.teamMembers.map((memberId) => {
                             const memberName = teamMembers.find(tm => tm._id === memberId)?.name || memberId;
-                            return <Badge key={memberId} variant="secondary" className="text-xs">{memberName}<button type="button" onClick={() => setFormData({ ...formData, teamMembers: formData.teamMembers.filter(id => id !== memberId) })} className="ml-1 font-bold">×</button></Badge>;
+                            return <Badge key={memberId} variant="secondary" className="text-xs">{memberName}<button type="button" onClick={() => handleInputChange('teamMembers')(formData.teamMembers.filter(id => id !== memberId))} className="ml-1 font-bold">×</button></Badge>;
                         })}
                     </div>
                 </div>
             </div>
 
-            {/* Description */}
-            <div>
-                <Label htmlFor="description">Description</Label>
-                <Input id="description" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} placeholder="Job description..." />
-            </div>
+            <InputComponent label="Description" id="description" type="textarea" value={formData.description} onChange={handleInputChange('description')} placeholder="Job description..." />
 
-            {/* Action Buttons */}
-            <div className="flex justify-end gap-2">
+            {submitError && (
+                <div className="text-sm text-red-600 bg-red-50 p-3 rounded-md border border-red-200">{submitError}</div>
+            )}
+
+            <div className="flex justify-end gap-2 pt-4 border-t">
                 <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>Cancel</Button>
-                <Button type="submit" disabled={isLoading}>{isCreatingJob ? 'Adding Job...' : (job ? 'Update Job' : 'Add Job')}</Button>
+                <Button type="submit" disabled={isLoading}>
+                    {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing...</> : (job ? 'Update Job' : 'Add Job')}
+                </Button>
             </div>
         </form>
     );

@@ -68,10 +68,13 @@ const Jobs = () => {
           activeTab={activeTab}
           setActiveTab={setActiveTab}
         />
+        <div className='mt-5'>
+
         {activeTab === 'services' && <ServicesTab />}
         {/* {activeTab === 'jobTemplates' && <JobTemplatesTab />} */}
         {activeTab === 'jobBuilder' && <JobBuilderTab />}
         {activeTab === 'jobList' && <JobsTab />}
+        </div>
       </div>
     </div>
   );

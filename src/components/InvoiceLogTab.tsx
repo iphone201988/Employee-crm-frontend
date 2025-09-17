@@ -421,7 +421,7 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
             <CardTitle className="text-lg">Total Paid</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{formatCurrency(totalPaid)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(totalPaid)}</div>
           </CardContent>
         </Card>
         <Card>
@@ -429,7 +429,7 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
             <CardTitle className="text-lg">Total Partial</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{formatCurrency(totalPartial)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(totalPartial)}</div>
           </CardContent>
         </Card>
         <Card>
@@ -437,7 +437,7 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
             <CardTitle className="text-lg">Outstanding</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{formatCurrency(totalOutstanding)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(totalOutstanding)}</div>
           </CardContent>
         </Card>
       </div>

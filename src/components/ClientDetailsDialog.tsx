@@ -14,12 +14,18 @@ import { useUpdateClientMutation } from "@/store/clientApi";
 import { useGetDropdownOptionsQuery } from "@/store/teamApi";
 import { toast } from 'sonner';
 
-// Define the shape of the client data based on your API and UI
+// --- Interface Definitions for Type Safety ---
+
+interface BusinessType {
+  _id: string;
+  name: string;
+}
+
 interface ClientData {
-  _id?: string; // Assuming the client has a unique ID from the database
+  _id: string;
   clientRef: string;
   name: string;
-  businessTypeId?: string;
+  businessTypeId?: BusinessType | string | null; // Can be object, string, or null
   taxNumber?: string;
   croNumber?: string;
   address?: string;
@@ -29,13 +35,6 @@ interface ClientData {
   onboardedDate?: string;
   amlCompliant?: boolean;
   audit?: boolean;
-  // Deprecated fields from your old props, can be removed if not needed
-  customerNumber?: string;
-  clientType?: any;
-  contactPerson?: string;
-  takeOnDate?: string;
-  clientTags?: string[];
-  taxes?: string[];
 }
 
 interface ClientDetailsDialogProps {
@@ -44,36 +43,39 @@ interface ClientDetailsDialogProps {
   clientData: ClientData;
 }
 
+
 const ClientDetailsDialog = ({
   open,
   onOpenChange,
   clientData
-}: any) => {
+}: ClientDetailsDialogProps) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [editableData, setEditableData] = useState<any>(clientData);
+  const [editableData, setEditableData] = useState<ClientData>(clientData);
 
-  // RTK Query Hooks
   const [updateClient, { isLoading: isUpdating }] = useUpdateClientMutation();
   const { data: categoriesData } = useGetDropdownOptionsQuery("bussiness");
-  const businessTypes = categoriesData?.data?.bussiness || [];
- console.log("businessTypes=====================clientDataclientDataclientDataclientDataclientDataclientData", clientData);
-  // Reset editable data when the dialog opens with new client data or closes
+  const businessTypes: BusinessType[] = categoriesData?.data?.bussiness || [];
+console.log("=======================clientDataclientDataclientDataclientDataclientData", clientData);
   useEffect(() => {
     if (open) {
       setEditableData(clientData);
     } else {
-      setIsEditing(false); // Reset edit mode on close
+      setIsEditing(false); 
     }
   }, [clientData, open]);
 
   const handleSave = async () => {
     try {
-      // Ensure businessTypeId is set, default if needed or handle validation
+      const businessTypeIdString = 
+        editableData.businessTypeId && typeof editableData.businessTypeId === 'object'
+          ? editableData.businessTypeId._id
+          : editableData.businessTypeId || '';
+
       const payload = {
         clientId: editableData._id,
         clientRef: editableData.clientRef,
         name: editableData.name,
-        businessTypeId: editableData.businessTypeId || '', // Or handle if it's required
+        businessTypeId: businessTypeIdString,
         taxNumber: editableData.taxNumber,
         croNumber: editableData.croNumber,
         address: editableData.address,
@@ -88,7 +90,7 @@ const ClientDetailsDialog = ({
       await updateClient(payload).unwrap();
       toast.success("Client details updated successfully!");
       setIsEditing(false);
-      onOpenChange(false); // Optionally close the dialog on save
+      onOpenChange(false);
     } catch (error) {
       toast.error("Failed to update client details. Please try again.");
       console.error("Update failed:", error);
@@ -96,7 +98,7 @@ const ClientDetailsDialog = ({
   };
 
   const handleCancel = () => {
-    setEditableData(clientData); // Revert changes
+    setEditableData(clientData); 
     setIsEditing(false);
   };
 
@@ -105,53 +107,27 @@ const ClientDetailsDialog = ({
     setEditableData(prev => ({ ...prev, [id]: value }));
   };
 
+  // Note state and handlers (unchanged)
   const [notes, setNotes] = useState([{
-    id: '1',
-    text: 'Initial client onboarding completed. All documents received and verified.',
-    timestamp: '2024-01-15T10:30:00Z',
-    user: 'John Smith'
+    id: '1', text: 'Initial client onboarding completed.', timestamp: '2024-01-15T10:30:00Z', user: 'John Smith'
   }]);
   const [newNote, setNewNote] = useState('');
-
-  const handleAddNote = () => {
-    if (newNote.trim()) {
-      const newNoteObj = {
-        id: Date.now().toString(),
-        text: newNote.trim(),
-        timestamp: new Date().toISOString(),
-        user: 'Current User'
-      };
-      setNotes(prev => [newNoteObj, ...prev]);
-      setNewNote('');
-    }
-  };
-
-  const formatTimestamp = (timestamp: string) => {
-    const date = new Date(timestamp);
-    return date.toLocaleDateString() + ' at ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
+  const handleAddNote = () => { if (newNote.trim()) { setNotes(prev => [{ id: Date.now().toString(), text: newNote.trim(), timestamp: new Date().toISOString(), user: 'Current User' }, ...prev]); setNewNote(''); } };
+  const formatTimestamp = (timestamp: string) => { const date = new Date(timestamp); return date.toLocaleDateString() + ' at ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); };
 
   return <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
       <DialogHeader>
         <div className="flex items-center justify-between">
-          <DialogTitle className="text-xl font-bold">{editableData.name}</DialogTitle>
+          <DialogTitle className="text-xl font-bold">{editableData?.name}</DialogTitle>
           <div className="flex gap-2">
             {isEditing ? (
               <>
-                <Button size="sm" variant="outline" onClick={handleCancel} disabled={isUpdating}>
-                  <X className="h-4 w-4 mr-1" />
-                  Cancel
-                </Button>
-                <Button size="sm" onClick={handleSave} disabled={isUpdating}>
-                  {isUpdating ? 'Saving...' : <><Save className="h-4 w-4 mr-1" /> Save</>}
-                </Button>
+                <Button size="sm" variant="outline" onClick={handleCancel} disabled={isUpdating}><X className="h-4 w-4 mr-1" />Cancel</Button>
+                <Button size="sm" onClick={handleSave} disabled={isUpdating}>{isUpdating ? 'Saving...' : <><Save className="h-4 w-4 mr-1" /> Save</>}</Button>
               </>
             ) : (
-              <Button size="sm" variant="outline" onClick={() => setIsEditing(true)}>
-                <Edit className="h-4 w-4 mr-1" />
-                Edit
-              </Button>
+              <Button size="sm" variant="outline" onClick={() => setIsEditing(true)}><Edit className="h-4 w-4 mr-1" />Edit</Button>
             )}
           </div>
         </div>
@@ -160,11 +136,11 @@ const ClientDetailsDialog = ({
       <Tabs defaultValue="details" className="w-full">
         <TabsList className="grid w-full grid-cols-8">
           <TabsTrigger value="details">Client Details</TabsTrigger>
-          <TabsTrigger value="time-logs">Time Logs (3)</TabsTrigger>
-          <TabsTrigger value="jobs">Jobs (2)</TabsTrigger>
+          <TabsTrigger value="time-logs">Time Logs</TabsTrigger>
+          <TabsTrigger value="jobs">Jobs</TabsTrigger>
           <TabsTrigger value="expenses">Expenses</TabsTrigger>
           <TabsTrigger value="wip">WIP</TabsTrigger>
-          <TabsTrigger value="write-off-log">Write off Log (1)</TabsTrigger>
+          <TabsTrigger value="write-off-log">Write off Log</TabsTrigger>
           <TabsTrigger value="notes">Notes ({notes.length})</TabsTrigger>
           <TabsTrigger value="debtors-log">Debtors Log</TabsTrigger>
         </TabsList>
@@ -175,11 +151,11 @@ const ClientDetailsDialog = ({
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="clientRef">Client Ref</Label>
-                  {isEditing ? <Input id="clientRef" value={editableData.clientRef} onChange={handleInputChange} /> : <div className="p-2 bg-muted rounded">{editableData.clientRef}</div>}
+                  {isEditing ? <Input id="clientRef" value={editableData?.clientRef || ''} onChange={handleInputChange} /> : <div className="p-2 bg-muted rounded">{editableData?.clientRef || 'N/A'}</div>}
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="name">Client Name</Label>
-                  {isEditing ? <Input id="name" value={editableData.name} onChange={handleInputChange} /> : <div className="p-2 bg-muted rounded">{editableData.name}</div>}
+                  {isEditing ? <Input id="name" value={editableData?.name || ''} onChange={handleInputChange} /> : <div className="p-2 bg-muted rounded">{editableData?.name || 'N/A'}</div>}
                 </div>
               </div>
 
@@ -187,51 +163,62 @@ const ClientDetailsDialog = ({
                 <div className="grid gap-2">
                   <Label htmlFor="businessTypeId">Business Type</Label>
                   {isEditing ? (
-                    <Select value={editableData?.clientType.name || ''} onValueChange={value => setEditableData(prev => ({ ...prev, businessTypeId: value }))}>
+                    <Select
+                      // Safely get the ID, whether it's an object or a string
+                      value={(editableData?.businessTypeId && typeof editableData?.businessTypeId === 'object' ? editableData?.businessTypeId?._id : "") || ''}
+                      onValueChange={value => setEditableData(prev => ({ ...prev, businessTypeId: value }))}
+                    >
                       <SelectTrigger><SelectValue placeholder="Select business type" /></SelectTrigger>
-                      <SelectContent>{businessTypes.map((type: any) => <SelectItem key={type._id} value={type._id}>{type.name}</SelectItem>)}</SelectContent>
+                      <SelectContent>
+                        {businessTypes.map((type) => <SelectItem key={type._id} value={type._id}>{type.name}</SelectItem>)}
+                      </SelectContent>
                     </Select>
                   ) : (
-                    <div className="p-2 bg-muted rounded">{businessTypes.find((bt: any) => bt._id === editableData.businessTypeId)?.name || 'Not specified'}</div>
+                    <div className="p-2 bg-muted rounded">
+                      {/* Safely display the name */}
+                      {(editableData?.businessTypeId && typeof editableData?.businessTypeId === 'object'
+                        ? editableData?.businessTypeId.name
+                        : businessTypes.find(bt => bt._id === editableData?.businessTypeId)?.name) || 'Not specified'}
+                    </div>
                   )}
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="taxNumber">Tax Number</Label>
-                  {isEditing ? <Input id="taxNumber" value={editableData.taxNumber || ''} onChange={handleInputChange} /> : <div className="p-2 bg-muted rounded">{editableData.taxNumber || 'Not specified'}</div>}
+                  {isEditing ? <Input id="taxNumber" value={editableData?.taxNumber || ''} onChange={handleInputChange} /> : <div className="p-2 bg-muted rounded">{editableData?.taxNumber || 'Not specified'}</div>}
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="croNumber">CRO Number</Label>
-                  {isEditing ? <Input id="croNumber" value={Number(editableData.croNumber) || ''} onChange={handleInputChange} /> : <div className="p-2 bg-muted rounded">{editableData.croNumber || 'Not specified'}</div>}
+                  {isEditing ? <Input id="croNumber" value={editableData?.croNumber || ''} onChange={handleInputChange} /> : <div className="p-2 bg-muted rounded">{editableData?.croNumber || 'Not specified'}</div>}
                 </div>
-                {/* <div className="grid gap-2">
+                <div className="grid gap-2">
                   <Label htmlFor="onboardedDate">Onboarded Date</Label>
-                  {isEditing ? <Input id="onboardedDate" type="date" value={editableData.onboardedDate?.split('T')[0] || ''} onChange={handleInputChange} /> : <div className="p-2 bg-muted rounded">{editableData.onboardedDate ? new Date(editableData.onboardedDate).toLocaleDateString() : 'Not specified'}</div>}
-                </div> */}
+                  {isEditing ? <Input id="onboardedDate" type="date" value={editableData?.onboardedDate?.split('T')[0] || ''} onChange={handleInputChange} /> : <div className="p-2 bg-muted rounded">{editableData?.onboardedDate ? new Date(editableData.onboardedDate).toLocaleDateString() : 'Not specified'}</div>}
+                </div>
               </div>
 
               <div className="grid gap-2">
                 <Label htmlFor="address">Address</Label>
-                {isEditing ? <Textarea id="address" value={editableData.address || ''} onChange={handleInputChange} /> : <div className="p-2 bg-muted rounded">{editableData.address || 'Not specified'}</div>}
+                {isEditing ? <Textarea id="address" value={editableData?.address || ''} onChange={handleInputChange} /> : <div className="p-2 bg-muted rounded">{editableData?.address || 'Not specified'}</div>}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="contactName">Contact Person</Label>
-                  {isEditing ? <Input id="contactName" value={editableData.contactName || ''} onChange={handleInputChange} /> : <div className="p-2 bg-muted rounded">{editableData.contactName || 'Not specified'}</div>}
+                  {isEditing ? <Input id="contactName" value={editableData?.contactName || ''} onChange={handleInputChange} /> : <div className="p-2 bg-muted rounded">{editableData?.contactName || 'Not specified'}</div>}
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="email">Email</Label>
-                  {isEditing ? <Input id="email" type="email" value={editableData.email || ''} onChange={handleInputChange} /> : <div className="p-2 bg-muted rounded">{editableData.email || 'Not specified'}</div>}
+                  {isEditing ? <Input id="email" type="email" value={editableData?.email || ''} onChange={handleInputChange} /> : <div className="p-2 bg-muted rounded">{editableData?.email || 'Not specified'}</div>}
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="phone">Phone</Label>
-                  {isEditing ? <Input id="phone" value={editableData.phone || ''} onChange={handleInputChange} /> : <div className="p-2 bg-muted rounded">{editableData.phone || 'Not specified'}</div>}
+                  {isEditing ? <Input id="phone" value={editableData?.phone || ''} onChange={handleInputChange} /> : <div className="p-2 bg-muted rounded">{editableData?.phone || 'Not specified'}</div>}
                 </div>
               </div>
 
@@ -353,7 +340,7 @@ const ClientDetailsDialog = ({
                     <tr className="border-b">
                       <td className="p-2">15/01/2024</td>
                       <td className="p-2">John Smith</td>
-                      <td className="p-2">{clientData.name}</td>
+                      <td className="p-2">{clientData?.name}</td>
                       <td className="p-2">Tax Advisory</td>
                       <td className="p-2">Tax Return</td>
                       <td className="p-2"><Badge variant="outline" className="text-xs">Client Work</Badge></td>
@@ -367,7 +354,7 @@ const ClientDetailsDialog = ({
                     <tr className="border-b">
                       <td className="p-2">16/01/2024</td>
                       <td className="p-2">Sarah Johnson</td>
-                      <td className="p-2">{clientData.name}</td>
+                      <td className="p-2">{clientData?.name}</td>
                       <td className="p-2">Compliance Review</td>
                       <td className="p-2">Compliance</td>
                       <td className="p-2"><Badge variant="outline" className="text-xs">Client Work</Badge></td>
@@ -381,7 +368,7 @@ const ClientDetailsDialog = ({
                     <tr className="border-b">
                       <td className="p-2">18/01/2024</td>
                       <td className="p-2">Mike Wilson</td>
-                      <td className="p-2">{clientData.name}</td>
+                      <td className="p-2">{clientData?.name}</td>
                       <td className="p-2">Financial Planning</td>
                       <td className="p-2">Advisory</td>
                       <td className="p-2"><Badge variant="outline" className="text-xs">Meeting</Badge></td>

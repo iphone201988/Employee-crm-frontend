@@ -329,7 +329,7 @@ const ClientsTab = () => {
       ? allClients.filter(client => client.balance > 0)
       : allClients;
   }, [hideZeroBalances]);
-
+console.log('==================dfgdfgdfgkjdfgjkdgjkdfhgjkdhgjkdfghjkdfgfilteredClientsfilteredClientsfilteredClients',filteredClients)
   // Sort clients
   const sortedClients = useMemo(() => {
     return [...filteredClients].sort((a, b) => {
@@ -557,7 +557,9 @@ const ClientsTab = () => {
                       <span
                         className="cursor-pointer text-blue-600 hover:text-blue-800 hover:underline"
                         onClick={() => {
+                          console.log('Client clicked:', client); 
                           setSelectedClientForDetails(client);
+                          setSelectedClientId(client.id);
                           setShowClientDetailsDialog(true);
                         }}
                       >
@@ -565,6 +567,7 @@ const ClientsTab = () => {
                       </span>
                     </td>
                     <td className="p-4 text-center border-r">
+                
                       <Button
                         variant="outline"
                         size="sm"
@@ -764,6 +767,7 @@ const ClientsTab = () => {
           open={showClientDetailsDialog}
           onOpenChange={setShowClientDetailsDialog}
           clientData={selectedClientForDetails}
+          clientId={selectedClientId}
         />
       )}
 

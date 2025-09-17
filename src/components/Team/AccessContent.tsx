@@ -274,11 +274,11 @@ const AccessContent: React.FC<AccessContentProps> = ({ onUnsavedChangesChange })
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[300px] p-4 font-medium text-base text-left border-r">
+                  <TableHead className="sticky left-0 bg-white z-10 border-r w-[250px] cursor-pointer hover:bg-muted/50">
                     Team Member
                   </TableHead>
                   {Object.entries(systemFeatures).map(([category, { features }]) => (
-                    <TableHead key={category} className="p-4 font-medium text-base text-left border-r">
+                    <TableHead key={category} className="sticky left-0 bg-white z-10 border-r w-[250px] cursor-pointer hover:bg-muted/50">
                       <div className="space-y-2">
                         <div className="font-semibold">{category}</div>
                         {/* <div className="space-y-1">

@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowUpDown, Search, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowUpDown, Search, FileText, ChevronLeft, ChevronRight, Eye, Edit2, Trash2 } from 'lucide-react';
 import { DashboardCard, DashboardGrid } from "@/components/ui/dashboard-card";
 import { Switch } from "@/components/ui/switch";
 import ClientsTab from '@/components/ClientsTab';
@@ -16,6 +16,7 @@ import CustomTabs from '@/components/Tabs';
 import AddClient from '@/components/client/AddClient';
 import { useGetClientsQuery } from '@/store/clientApi';
 import { usePermissionTabs } from '@/hooks/usePermissionTabs';
+import EditClientModal from '@/components/client/component/EditClientModal';
 
 const tabs = [
   {
@@ -44,6 +45,7 @@ const ClientInformationTab = () => {
   const [clientInfoSearch, setClientInfoSearch] = useState('');
   const [clientTypeFilter, setClientTypeFilter] = useState('all');
   const [showClientDetailsDialog, setShowClientDetailsDialog] = useState(false);
+  const [showClientServiceLogDialog, setShowClientServiceLogDialog] = useState(false);
   const [selectedClientForDetails, setSelectedClientForDetails] = useState<ClientInfo | null>(null);
   const isTabVisible = (tabId: string) => visibleTabs.some(tab => tab.id === tabId)
   useEffect(() => {
@@ -81,7 +83,7 @@ const ClientInformationTab = () => {
     // Apply sorting
     if (!clientInfoSortConfig.key) return filtered;
 
-    return [...filtered].sort((a:any, b:any) => {
+    return [...filtered].sort((a: any, b: any) => {
       let aValue: any;
       let bValue: any;
 
@@ -171,20 +173,15 @@ const ClientInformationTab = () => {
             value={isLoading ? '...' : filteredAndSortedClientInfo.length}
           />
 
-          <DashboardCard
-            title="Limited Companies"
-            value={isLoading ? '...' : filteredAndSortedClientInfo.filter(client => client.businessTypeId?.name === 'Limited Company').length}
-          />
-
-          <DashboardCard
-            title="Sole Traders"
-            value={isLoading ? '...' : filteredAndSortedClientInfo.filter(client => client.businessTypeId?.name === 'Sole Trader').length}
-          />
-
-          <DashboardCard
-            title="Partnerships"
-            value={isLoading ? '...' : filteredAndSortedClientInfo.filter(client => client.businessTypeId?.name === 'Partnership').length}
-          />
+          {Array.isArray(clientsData?.data?.breakdown) && clientsData.data.breakdown.length > 0 && (
+            clientsData.data.breakdown.map((item: any) => (
+              <DashboardCard
+                key={item.name}
+                title={item.name}
+                value={isLoading ? '...' : item.count}
+              />
+            ))
+          )}
         </DashboardGrid>
 
         {/* Search and Filters Row */}
@@ -362,6 +359,7 @@ const ClientInformationTab = () => {
                       <ArrowUpDown className="ml-1 h-4 w-4" />
                     </Button>
                   </TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -387,7 +385,7 @@ const ClientInformationTab = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredAndSortedClientInfo.map((client:any, index) => (
+                  filteredAndSortedClientInfo.map((client: any, index) => (
                     <TableRow key={client._id} className="h-12">
                       <TableCell className="p-4 text-sm w-20 border-r text-left">{client.clientRef}</TableCell>
                       <TableCell className="font-medium text-left p-4 text-sm w-32 border-r">
@@ -418,6 +416,22 @@ const ClientInformationTab = () => {
                         return `${month}/${day}/${year}`;
                       })()}</TableCell>
                       <TableCell className="p-4 text-sm w-24 border-r text-left">{client.amlCompliant ? 'Yes' : ''}</TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex gap-1 justify-center">
+                          {/* <Button variant="ghost" size="icon" onClick={() => openViewDialog(job)}>
+                            <Eye className="w-4 h-4" />
+                          </Button> */}
+                          <Button variant="ghost" size="icon" onClick={() => {
+                            setSelectedClientForDetails(client);
+                            setShowClientServiceLogDialog(true);
+                          }} >
+                            <Edit2 className="w-4 h-4" />
+                          </Button>
+                          {/* <Button variant="ghost" size="icon" onClick={() => deleteJobById(job)} className="text-red-500 hover:text-red-700">
+                            <Trash2 className="w-4 h-4" />
+                          </Button> */}
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -517,19 +531,14 @@ const ClientInformationTab = () => {
         <ClientDetailsDialog
           open={showClientDetailsDialog}
           onOpenChange={setShowClientDetailsDialog}
-          clientData={{
-            clientRef: selectedClientForDetails.clientRef,
-            name: selectedClientForDetails.name,
-            customerNumber: selectedClientForDetails.taxNumber,
-            clientType: selectedClientForDetails.businessTypeId?.name || 'N/A',
-            address: selectedClientForDetails.address,
-            contactPerson: selectedClientForDetails.contactName,
-            email: selectedClientForDetails.email,
-            phone: selectedClientForDetails.phone,
-            takeOnDate: selectedClientForDetails.onboardedDate,
-            clientTags: [], // Not available in API response
-            taxes: [] // Not available in API response
-          }}
+          clientData={selectedClientForDetails}
+        />
+      )}
+      {selectedClientForDetails && showClientServiceLogDialog && (
+        <EditClientModal
+          open={showClientServiceLogDialog}
+          onOpenChange={setShowClientServiceLogDialog}
+          clientData={selectedClientForDetails}
         />
       )}
       <AddClient dialogOpen={addClient} setDialogOpen={setAddClient} />
