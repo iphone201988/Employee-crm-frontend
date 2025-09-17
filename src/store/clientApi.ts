@@ -69,6 +69,18 @@ export const clientApi = createApi({
             // Invalidate the list of client services to trigger a refetch
             invalidatesTags: [{ type: 'ClientServices', id: 'LIST' }],
         }),
+         updateClient: builder.mutation<any, any>({
+            query: ({ clientId, ...body }) => ({
+                url: `/update/${clientId}`,
+                method: 'PUT',
+                body,
+            }),
+            // Invalidate the specific client and the list to trigger a refetch
+            invalidatesTags: (result, error, { clientId }) => [
+                { type: 'Client', id: 'LIST' },
+                { type: 'Client', id: clientId },
+            ],
+        }),
     }),
 });
 
@@ -77,6 +89,7 @@ export const {
     useAddClientMutation,
     useGetClientsQuery,
     useGetClientServicesQuery,
-    useUpdateClientServicesMutation
+    useUpdateClientServicesMutation,
+    useUpdateClientMutation
 } = clientApi;
 
