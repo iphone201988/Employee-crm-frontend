@@ -206,7 +206,7 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
   const getClientRef = (clientName: string) => {
     const refMap: { [key: string]: string } = {
       'Water Savers Limited': 'WS001',
-      'Green Gardens Limited': 'GG002', 
+      'Green Gardens Limited': 'GG002',
       'Smith & Associates': 'SA003',
       'Brown Enterprises': 'BE004',
       'Tech Solutions Ltd': 'TS005',
@@ -220,10 +220,10 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
   // Filter and sort entries based on time period and filters
   const filteredEntries = useMemo(() => {
     const now = new Date();
-    
+
     let filtered = displayEntries.filter(entry => {
       const entryDate = new Date(entry.invoiceDate);
-      
+
       // Time filter
       let timeFilterPassed = false;
       if (timeFilter === 'daily') {
@@ -238,19 +238,19 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
         timeFilterPassed = entryDate >= startOfWeek && entryDate <= endOfWeek;
       } else if (timeFilter === 'monthly') {
         const targetMonth = new Date(now.getFullYear(), now.getMonth() + currentPeriod, 1);
-        timeFilterPassed = entryDate.getFullYear() === targetMonth.getFullYear() && 
-               entryDate.getMonth() === targetMonth.getMonth();
+        timeFilterPassed = entryDate.getFullYear() === targetMonth.getFullYear() &&
+          entryDate.getMonth() === targetMonth.getMonth();
       } else { // yearly
         const targetYear = now.getFullYear() + currentPeriod;
         timeFilterPassed = entryDate.getFullYear() === targetYear;
       }
-      
+
       // Client filter
       const clientFilterPassed = clientFilter === 'all-clients' || entry.clientName.toLowerCase().includes(clientFilter.toLowerCase());
-      
+
       // Status filter
       const statusFilterPassed = statusFilter === 'all-statuses' || entry.status === statusFilter;
-      
+
       return timeFilterPassed && clientFilterPassed && statusFilterPassed;
     });
 
@@ -259,12 +259,12 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
       filtered.sort((a, b) => {
         let aVal = a[sortConfig.key];
         let bVal = b[sortConfig.key];
-        
+
         if (sortConfig.key === 'invoiceDate') {
           aVal = new Date(aVal as string).getTime();
           bVal = new Date(bVal as string).getTime();
         }
-        
+
         if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
         if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
         return 0;
@@ -284,7 +284,7 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
 
   const getCurrentPeriodInfo = () => {
     const now = new Date();
-    
+
     if (timeFilter === 'daily') {
       const targetDate = new Date(now);
       targetDate.setDate(now.getDate() + currentPeriod);
@@ -360,7 +360,7 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
   const handleSort = (key: keyof InvoiceEntry) => {
     setSortConfig(current => {
       if (current?.key === key) {
-        return current.direction === 'asc' 
+        return current.direction === 'asc'
           ? { key, direction: 'desc' }
           : null;
       }
@@ -408,39 +408,40 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
     <div className="space-y-6">
       {/* Dashboard Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Total Invoiced</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalInvoiced)}</div>
+        <Card className="h-full">
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold !text-[#381980]">
+              {formatCurrency(totalInvoiced)}
+            </div>
+            <p className="text-sm text-muted-foreground">Total Invoiced</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Total Paid</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalPaid)}</div>
+        <Card className="h-full">
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold !text-[#381980]">
+              {formatCurrency(totalPaid)}
+            </div>
+            <p className="text-sm text-muted-foreground">Total Paid</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Total Partial</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalPartial)}</div>
+        <Card className="h-full">
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold !text-[#381980]">
+              {formatCurrency(totalPartial)}
+            </div>
+            <p className="text-sm text-muted-foreground">Total Partial</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Outstanding</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalOutstanding)}</div>
+        <Card className="h-full">
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold !text-[#381980]">
+              {formatCurrency(totalOutstanding)}
+            </div>
+            <p className="text-sm text-muted-foreground">Outstanding</p>
           </CardContent>
         </Card>
       </div>
+
 
       {/* Time Filter Buttons */}
       <div className="flex items-center justify-center">
@@ -482,8 +483,8 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
 
       {/* Date Range Navigation */}
       <div className="flex items-center justify-center gap-2">
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           size="sm"
           onClick={() => handlePeriodChange('prev')}
           className="h-8 w-8 p-0"
@@ -493,8 +494,8 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
         <span className="text-sm font-medium whitespace-nowrap">
           {getCurrentPeriodInfo()}
         </span>
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           size="sm"
           onClick={() => handlePeriodChange('next')}
           className="h-8 w-8 p-0"
@@ -539,7 +540,7 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
               </Select>
             </div>
           </div>
-          
+
           {filteredEntries.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-gray-500">No invoices found for the selected period.</p>
@@ -552,74 +553,74 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                     <TableHead className="border-r p-3 font-medium text-foreground h-12">
-                       <Button 
-                         variant="ghost" 
-                         onClick={() => handleSort('invoiceNumber')}
-                         className="flex items-center gap-2 p-0 h-auto font-medium hover:bg-transparent"
-                       >
-                         Invoice No. {getSortIcon('invoiceNumber')}
-                       </Button>
-                     </TableHead>
-                     <TableHead className="border-r p-3 font-medium text-foreground h-12">
-                       <Button 
-                         variant="ghost" 
-                         onClick={() => handleSort('invoiceDate')}
-                         className="flex items-center gap-2 p-0 h-auto font-medium hover:bg-transparent"
-                       >
-                         Invoice Date {getSortIcon('invoiceDate')}
-                       </Button>
-                     </TableHead>
-                     <TableHead className="border-r p-3 font-medium text-foreground h-12">Client Ref.</TableHead>
-                     <TableHead className="border-r p-3 font-medium text-foreground h-12">
-                       <Button 
-                         variant="ghost" 
-                         onClick={() => handleSort('clientName')}
-                         className="flex items-center gap-2 p-0 h-auto font-medium hover:bg-transparent"
-                       >
-                         Client Name {getSortIcon('clientName')}
-                       </Button>
-                     </TableHead>
-                     <TableHead className="border-r p-3 font-medium text-foreground h-12">
-                        <Button 
-                          variant="ghost" 
-                          onClick={() => handleSort('invoiceTotal')}
-                          className="flex items-center gap-2 p-0 h-auto font-medium hover:bg-transparent"
-                        >
-                          Net {getSortIcon('invoiceTotal')}
-                        </Button>
-                      </TableHead>
-                      <TableHead className="border-r p-3 font-medium text-foreground h-12">VAT</TableHead>
-                      <TableHead className="border-r p-3 font-medium text-foreground h-12">
-                        <Button 
-                          variant="ghost" 
-                          onClick={() => handleSort('invoiceTotal')}
-                          className="flex items-center gap-2 p-0 h-auto font-medium hover:bg-transparent"
-                        >
-                          Gross {getSortIcon('invoiceTotal')}
-                        </Button>
-                      </TableHead>
-                      <TableHead className="border-r p-3 font-medium text-foreground h-12">
-                        <Button 
-                          variant="ghost" 
-                          onClick={() => handleSort('balance')}
-                          className="flex items-center gap-2 p-0 h-auto font-medium hover:bg-transparent"
-                        >
-                          Balance {getSortIcon('balance')}
-                        </Button>
-                      </TableHead>
-                       <TableHead className="border-r p-3 font-medium text-foreground h-12">Invoice Age</TableHead>
-                       <TableHead className="border-r p-3 font-medium text-foreground h-12">Time Logs</TableHead>
-                       <TableHead className="border-r p-3 font-medium text-foreground h-12">Actions</TableHead>
-                       <TableHead className="p-3 font-medium text-foreground h-12">
-                         <Button 
-                           variant="ghost" 
-                           onClick={() => handleSort('status')}
-                           className="flex items-center gap-2 p-0 h-auto font-medium hover:bg-transparent"
-                         >
-                           Status {getSortIcon('status')}
-                         </Button>
-                       </TableHead>
+                    <TableHead className="border-r p-3 font-medium text-foreground h-12">
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleSort('invoiceNumber')}
+                        className="flex items-center gap-2 p-0 h-auto font-medium hover:bg-transparent"
+                      >
+                        Invoice No. {getSortIcon('invoiceNumber')}
+                      </Button>
+                    </TableHead>
+                    <TableHead className="border-r p-3 font-medium text-foreground h-12">
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleSort('invoiceDate')}
+                        className="flex items-center gap-2 p-0 h-auto font-medium hover:bg-transparent"
+                      >
+                        Invoice Date {getSortIcon('invoiceDate')}
+                      </Button>
+                    </TableHead>
+                    <TableHead className="border-r p-3 font-medium text-foreground h-12">Client Ref.</TableHead>
+                    <TableHead className="border-r p-3 font-medium text-foreground h-12">
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleSort('clientName')}
+                        className="flex items-center gap-2 p-0 h-auto font-medium hover:bg-transparent"
+                      >
+                        Client Name {getSortIcon('clientName')}
+                      </Button>
+                    </TableHead>
+                    <TableHead className="border-r p-3 font-medium text-foreground h-12">
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleSort('invoiceTotal')}
+                        className="flex items-center gap-2 p-0 h-auto font-medium hover:bg-transparent"
+                      >
+                        Net {getSortIcon('invoiceTotal')}
+                      </Button>
+                    </TableHead>
+                    <TableHead className="border-r p-3 font-medium text-foreground h-12">VAT</TableHead>
+                    <TableHead className="border-r p-3 font-medium text-foreground h-12">
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleSort('invoiceTotal')}
+                        className="flex items-center gap-2 p-0 h-auto font-medium hover:bg-transparent"
+                      >
+                        Gross {getSortIcon('invoiceTotal')}
+                      </Button>
+                    </TableHead>
+                    <TableHead className="border-r p-3 font-medium text-foreground h-12">
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleSort('balance')}
+                        className="flex items-center gap-2 p-0 h-auto font-medium hover:bg-transparent"
+                      >
+                        Balance {getSortIcon('balance')}
+                      </Button>
+                    </TableHead>
+                    <TableHead className="border-r p-3 font-medium text-foreground h-12">Invoice Age</TableHead>
+                    <TableHead className="border-r p-3 font-medium text-foreground h-12">Time Logs</TableHead>
+                    <TableHead className="border-r p-3 font-medium text-foreground h-12">Actions</TableHead>
+                    <TableHead className="p-3 font-medium text-foreground h-12">
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleSort('status')}
+                        className="flex items-center gap-2 p-0 h-auto font-medium hover:bg-transparent"
+                      >
+                        Status {getSortIcon('status')}
+                      </Button>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -629,50 +630,50 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
                       <TableCell className="border-r">{formatDate(entry.invoiceDate)}</TableCell>
                       <TableCell className="border-r">{getClientRef(entry.clientName)}</TableCell>
                       <TableCell className="border-r">{entry.clientName}</TableCell>
-                        <TableCell className="border-r">{formatCurrency(entry.invoiceTotal / 1.23)}</TableCell>
-                        <TableCell className="border-r">{formatCurrency(entry.invoiceTotal - (entry.invoiceTotal / 1.23))}</TableCell>
-                        <TableCell className="border-r">{formatCurrency(entry.invoiceTotal)}</TableCell>
+                      <TableCell className="border-r">{formatCurrency(entry.invoiceTotal / 1.23)}</TableCell>
+                      <TableCell className="border-r">{formatCurrency(entry.invoiceTotal - (entry.invoiceTotal / 1.23))}</TableCell>
+                      <TableCell className="border-r">{formatCurrency(entry.invoiceTotal)}</TableCell>
                       <TableCell className="border-r">
                         <span className={`font-medium ${entry.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
                           {formatCurrency(entry.balance)}
                         </span>
                       </TableCell>
-                       <TableCell className="border-r text-sm text-muted-foreground">
-                         {getInvoiceAge(entry.invoiceDate)}
-                       </TableCell>
-                       <TableCell className="border-r text-center">
-                         <Button
-                           variant="ghost"
-                           size="sm"
-                           onClick={() => handleTimeLogsClick(entry)}
-                           className="text-blue-600 hover:text-blue-800 font-medium"
-                         >
-                           {entry.timeLogCount || 0}
-                         </Button>
-                       </TableCell>
-                        <TableCell className="border-r">
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleViewInvoice(entry)}
-                              className="text-xs"
-                            >
-                              View Invoice
-                            </Button>
-                             <Button
-                               variant="outline"
-                               size="sm"
-                               onClick={() => handlePaymentLog(entry)}
-                               className="text-xs"
-                             >
-                               Invoice Log
-                             </Button>
-                          </div>
-                        </TableCell>
-                        <TableCell className="p-4 text-left">
-                          {getStatusBadge(entry.status)}
-                        </TableCell>
+                      <TableCell className="border-r text-sm text-muted-foreground">
+                        {getInvoiceAge(entry.invoiceDate)}
+                      </TableCell>
+                      <TableCell className="border-r text-center">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleTimeLogsClick(entry)}
+                          className="text-blue-600 hover:text-blue-800 font-medium"
+                        >
+                          {entry.timeLogCount || 0}
+                        </Button>
+                      </TableCell>
+                      <TableCell className="border-r">
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleViewInvoice(entry)}
+                            className="text-xs"
+                          >
+                            View Invoice
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handlePaymentLog(entry)}
+                            className="text-xs"
+                          >
+                            Invoice Log
+                          </Button>
+                        </div>
+                      </TableCell>
+                      <TableCell className="p-4 text-left">
+                        {getStatusBadge(entry.status)}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -691,8 +692,8 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
             </DialogHeader>
             <div className="space-y-4">
               <div className="border rounded-lg overflow-hidden">
-                <img 
-                  src="/lovable-uploads/4406f6f5-c6e3-4aa7-8455-a31e63b73c4c.png" 
+                <img
+                  src="/lovable-uploads/4406f6f5-c6e3-4aa7-8455-a31e63b73c4c.png"
                   alt={`Invoice ${selectedInvoice.invoiceNumber}`}
                   className="w-full h-auto"
                 />
@@ -713,7 +714,7 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
       )}
 
       {/* Payment Log Dialog */}
-         <Dialog open={isStatusTimelineOpen} onOpenChange={setIsStatusTimelineOpen}>
+      <Dialog open={isStatusTimelineOpen} onOpenChange={setIsStatusTimelineOpen}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>Invoice Log</DialogTitle>
@@ -736,7 +737,7 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
                 <div className="relative">
                   {/* Timeline Line */}
                   <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-border"></div>
-                  
+
                   <div className="space-y-4">
                     {(selectedInvoiceForTimeline.paymentHistory || []).map((event, index) => (
                       <div key={index} className="flex items-start gap-3">
@@ -753,33 +754,33 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
                           <div className="bg-card border rounded-lg p-3">
                             <div className="flex justify-between items-start mb-1">
                               <div className="font-medium">
-                                {event.type === 'issued' 
+                                {event.type === 'issued'
                                   ? 'Invoice Generated'
                                   : event.type === 'payment'
-                                  ? 'Part Payment Received'
-                                  : 'Payment Completed'
+                                    ? 'Part Payment Received'
+                                    : 'Payment Completed'
                                 }
                               </div>
                               <div className="text-sm text-muted-foreground">
                                 {formatDate(event.date)}
                               </div>
                             </div>
-                             <div className="flex justify-between items-center">
-                               <div className="text-lg font-semibold text-primary">
-                                 {formatCurrency(event.amount)}
-                               </div>
-                               <Button 
-                                 variant="outline" 
-                                 size="sm"
-                                 className="h-6 text-xs"
-                                 onClick={() => {/* Handle edit */}}
-                               >
-                                 Edit
-                               </Button>
-                             </div>
-                           </div>
-                         </div>
-                       </div>
+                            <div className="flex justify-between items-center">
+                              <div className="text-lg font-semibold text-primary">
+                                {formatCurrency(event.amount)}
+                              </div>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-6 text-xs"
+                                onClick={() => {/* Handle edit */ }}
+                              >
+                                Edit
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -789,7 +790,7 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
                 <div className="space-y-3">
                   <Label className="text-base font-semibold">Log Payment</Label>
                   <div className="flex flex-col gap-2">
-                    <Button 
+                    <Button
                       onClick={() => {
                         setPaymentAmount(selectedInvoiceForTimeline.balance.toString());
                         setSelectedInvoiceForPayment(selectedInvoiceForTimeline);
@@ -800,7 +801,7 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
                     >
                       Log Full Payment
                     </Button>
-                    <Button 
+                    <Button
                       variant="outline"
                       onClick={() => {
                         setPaymentAmount('');
@@ -828,8 +829,8 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
                         <SelectItem value="paid">Paid</SelectItem>
                       </SelectContent>
                     </Select>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       className="w-full"
                       disabled={selectedInvoiceForTimeline.status === 'paid'}
                     >
@@ -840,7 +841,7 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
               </div>
 
               <div className="flex justify-end pt-4">
-                <Button 
+                <Button
                   onClick={() => setIsStatusTimelineOpen(false)}
                 >
                   Save & Close
@@ -865,7 +866,7 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
                   {formatCurrency(selectedInvoiceForPayment.balance)}
                 </div>
               </div>
-               <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Payment Amount</Label>
                   <Input
@@ -884,7 +885,7 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
                 </div>
               </div>
               <div className="flex justify-end">
-                <Button 
+                <Button
                   onClick={processPartPayment}
                   disabled={!paymentAmount || parseFloat(paymentAmount) <= 0 || parseFloat(paymentAmount) > selectedInvoiceForPayment.balance}
                 >
@@ -918,7 +919,7 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
                   <div className="font-medium">{selectedInvoiceForTimeLogs.timeLogCount || 0}</div>
                 </div>
               </div>
-              
+
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>

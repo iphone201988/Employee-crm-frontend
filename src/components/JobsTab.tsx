@@ -18,6 +18,7 @@ import { JobForm } from './JobForm';
 import { useGetJobsQuery, useUpdateJobMutation, useCreateJobMutation, useDeleteJobMutation } from '@/store/jobApi';
 import { useDebounce } from 'use-debounce';
 import { toast } from 'sonner';
+import { format } from 'path';
 
 
 // --- Type Definitions ---
@@ -302,7 +303,7 @@ const JobsTab = () => {
                     <div key={item.type} className="group flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
                         <div className="flex items-center gap-3">
                             <span className="w-3 h-3 rounded-full" style={{ backgroundColor: color }}></span>
-                            <span className="text-sm font-medium">{item.type}</span>
+                            <span className="text-sm font-medium">{formatTitle(item.type)}</span>
                         </div>
                         <div className="flex items-center gap-3">
                             <Progress value={percentage} className="w-64 h-2" style={{ '--progress-color': color } as React.CSSProperties} />
@@ -325,6 +326,13 @@ const JobsTab = () => {
             console.error(`Failed to delete job: ${job?._id}`, err);
             toast.error('Failed to delete job. Please try again.');
         }
+    }
+    function formatTitle(key: string): string {
+        return key
+            // Add space before capital letters (camelCase → camel Case)
+            .replace(/([a-z])([A-Z])/g, "$1 $2")
+            // Capitalize first letter of each word
+            .replace(/\b\w/g, (char) => char.toUpperCase());
     }
     // --- Main Render ---
     return (
@@ -456,7 +464,7 @@ const JobsTab = () => {
                                                                     variant="outline"
                                                                     className={statusColors[s as JobStatus]}
                                                                 >
-                                                                    {s}: {c}
+                                                                    {formatTitle(s)}: {c}
                                                                 </Badge>
                                                             )
                                                         ))}
@@ -565,7 +573,7 @@ const JobsTab = () => {
                                         <TableCell>{job.jobTypeId.name}</TableCell>
                                         <TableCell>
                                             <Badge variant="outline" className={statusColors[job.status]}>
-                                                {job.status}
+                                                {formatTitle(job.status)}
                                             </Badge>
                                         </TableCell>
                                         <TableCell>{job.jobManagerId.name}</TableCell>

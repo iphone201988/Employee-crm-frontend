@@ -404,24 +404,41 @@ const AllTimeLogsTab = () => {
   return (
     <div className="space-y-6">
       {/* Dashboard */}
-      <DashboardGrid columns={4}>
-        <DashboardCard
-          title="Total Hours"
-          value={totalHours.toFixed(1)}
-        />
-        <DashboardCard
-          title="Total Amount"
-          value={formatCurrency(totalAmount)}
-        />
-        <DashboardCard
-          title="Unique Clients"
-          value={uniqueClients.toString()}
-        />
-        <DashboardCard
-          title="Team Members"
-          value={uniqueTeamMembers.toString()}
-        />
-      </DashboardGrid>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="h-full">
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold !text-[#381980]">
+              {totalHours.toFixed(1)}
+            </div>
+            <p className="text-sm text-muted-foreground">Total Hours</p>
+          </CardContent>
+        </Card>
+        <Card className="h-full">
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold !text-[#381980]">
+              {formatCurrency(totalAmount)}
+            </div>
+            <p className="text-sm text-muted-foreground">Total Amount</p>
+          </CardContent>
+        </Card>
+        <Card className="h-full">
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold !text-[#381980]">
+              {uniqueClients.toString()}
+            </div>
+            <p className="text-sm text-muted-foreground">Unique Clients</p>
+          </CardContent>
+        </Card>
+        <Card className="h-full">
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold !text-[#381980]">
+              {uniqueTeamMembers.toString()}
+            </div>
+            <p className="text-sm text-muted-foreground">Team Members</p>
+          </CardContent>
+        </Card>
+      </div>
+
 
 
       {/* Filters */}
@@ -802,9 +819,9 @@ const AllTimeLogsTab = () => {
                             )}
                             <TableCell className="p-4"></TableCell>
                             <TableCell className="p-4 text-center">
-                                <Button variant="ghost" size="icon">
-                                    <Edit2 className="w-4 h-4" />
-                                </Button>
+                              <Button variant="ghost" size="icon">
+                                <Edit2 className="w-4 h-4" />
+                              </Button>
                             </TableCell>
                           </TableRow>
                         ))}

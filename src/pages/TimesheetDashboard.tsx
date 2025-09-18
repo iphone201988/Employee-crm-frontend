@@ -14,6 +14,7 @@ type SortField = 'name' | 'department' | 'capacity' | 'logged' | 'variance' | 's
 type SortDirection = 'asc' | 'desc' | null;
 import { usePermissionTabs } from "@/hooks/usePermissionTabs";
 import AllTimeLogsTab from "@/components/AllTimeLogsTab";
+import { Card, CardContent } from "@/components/ui/card";
 const generateRandomTime = () => {
   const hours = Math.floor(Math.random() * 10) + 30; // 30-39 hours
   const minutes = Math.floor(Math.random() * 60);
@@ -541,28 +542,43 @@ export function TimesheetDashboard() {
     </div>}
 
     {/* Status Summary Cards - Only show in allTimesheets tab */}
-    {activeTab === "allTimesheets" && <DashboardGrid columns={4} className="mb-3">
-      <DashboardCard
-        title="Total Team"
-        value={statusCounts.total}
-        valueColor="text-[#381980]"
-      />
-      <DashboardCard
-        title="For Review"
-        value={statusCounts.forReview}
-        valueColor="text-[#381980]"
-      />
-      <DashboardCard
-        title="Rejected"
-        value={statusCounts.rejected}
-        valueColor="text-[#381980]"
-      />
-      <DashboardCard
-        title="Approved"
-        value={statusCounts.approved}
-        valueColor="text-[#381980]"
-      />
-    </DashboardGrid>}
+    {activeTab === "allTimesheets" && (
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-3">
+        <Card className="h-full">
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold !text-[#381980]">
+              {statusCounts.total}
+            </div>
+            <p className="text-sm text-muted-foreground">Total Team</p>
+          </CardContent>
+        </Card>
+        <Card className="h-full">
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold !text-[#381980]">
+              {statusCounts.forReview}
+            </div>
+            <p className="text-sm text-muted-foreground">For Review</p>
+          </CardContent>
+        </Card>
+        <Card className="h-full">
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold !text-[#381980]">
+              {statusCounts.rejected}
+            </div>
+            <p className="text-sm text-muted-foreground">Rejected</p>
+          </CardContent>
+        </Card>
+        <Card className="h-full">
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold !text-[#381980]">
+              {statusCounts.approved}
+            </div>
+            <p className="text-sm text-muted-foreground">Approved</p>
+          </CardContent>
+        </Card>
+      </div>
+    )}
+
 
     {/* Filter Badges - Only show in allTimesheets tab */}
     {activeTab === "allTimesheets" && <div className="flex flex-col sm:flex-row gap-2 mb-3">

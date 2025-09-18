@@ -101,24 +101,40 @@ const AgedWIPTab = () => {
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <DashboardGrid columns={4}>
-        <DashboardCard
-          title="Total WIP Balance"
-          value={formatCurrency(totals.wipBalance)}
-        />
-        <DashboardCard
-          title="Current (0-30 days)"
-          value={formatCurrency(totals.days30)}
-        />
-        <DashboardCard
-          title="31-60 Days"
-          value={formatCurrency(totals.days60)}
-        />
-        <DashboardCard
-          title="60+ Days"
-          value={formatCurrency(totals.days90 + totals.days120 + totals.days150 + totals.days180Plus)}
-        />
-      </DashboardGrid>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="h-full">
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold !text-[#381980]">
+              {formatCurrency(totals.wipBalance)}
+            </div>
+            <p className="text-sm text-muted-foreground">Total WIP Balance</p>
+          </CardContent>
+        </Card>
+        <Card className="h-full">
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold !text-[#381980]">
+              {formatCurrency(totals.days30)}
+            </div>
+            <p className="text-sm text-muted-foreground">Current (0-30 days)</p>
+          </CardContent>
+        </Card>
+        <Card className="h-full">
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold !text-[#381980]">
+              {formatCurrency(totals.days60)}
+            </div>
+            <p className="text-sm text-muted-foreground">31-60 Days</p>
+          </CardContent>
+        </Card>
+        <Card className="h-full">
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold !text-[#381980]">
+              {formatCurrency(totals.days90 + totals.days120 + totals.days150 + totals.days180Plus)}
+            </div>
+            <p className="text-sm text-muted-foreground">60+ Days</p>
+          </CardContent>
+        </Card>
+      </div>
 
       <Card>
         <CardHeader>
@@ -144,7 +160,7 @@ const AgedWIPTab = () => {
                   <TableRow key={entry.clientRef} className="hover:bg-muted/50">
                     <TableCell className="font-medium">{entry.clientRef}</TableCell>
                     <TableCell>
-                      <ClientNameLink 
+                      <ClientNameLink
                         clientName={entry.clientName}
                       />
                     </TableCell>

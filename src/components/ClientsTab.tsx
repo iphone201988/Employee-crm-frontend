@@ -5,7 +5,7 @@ import { DashboardCard, DashboardGrid } from "@/components/ui/dashboard-card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {  ChevronUp, ChevronDown } from 'lucide-react';
+import { ChevronUp, ChevronDown } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency';
 import ActiveExpensesDialog from './ActiveExpensesDialog';
 import WIPBalanceDialog from './WIPBalanceDialog';
@@ -329,7 +329,7 @@ const ClientsTab = () => {
       ? allClients.filter(client => client.balance > 0)
       : allClients;
   }, [hideZeroBalances]);
-console.log('==================dfgdfgdfgkjdfgjkdgjkdfhgjkdhgjkdfghjkdfgfilteredClientsfilteredClientsfilteredClients',filteredClients)
+  console.log('==================dfgdfgdfgkjdfgjkdgjkdfhgjkdhgjkdfghjkdfgfilteredClientsfilteredClientsfilteredClients', filteredClients)
   // Sort clients
   const sortedClients = useMemo(() => {
     return [...filteredClients].sort((a, b) => {
@@ -425,27 +425,40 @@ console.log('==================dfgdfgdfgkjdfgjkdgjkdfhgjkdhgjkdfghjkdfgfilteredC
   return (
     <div className="space-y-6">
       {/* Dashboard Cards */}
-      <DashboardGrid columns={4}>
-        <DashboardCard
-          title="Total Clients"
-          value={allClients.length}
-        />
-
-        <DashboardCard
-          title="Total Outstanding"
-          value={formatCurrency(totalBalance)}
-        />
-
-        <DashboardCard
-          title="Total WIP Amount"
-          value={formatCurrency(totalWipAmount)}
-        />
-
-        <DashboardCard
-          title="Average Balance"
-          value={formatCurrency(totalBalance / allClients.length)}
-        />
-      </DashboardGrid>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="h-full">
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold !text-[#381980]">
+              {allClients.length}
+            </div>
+            <p className="text-sm text-muted-foreground">Total Clients</p>
+          </CardContent>
+        </Card>
+        <Card className="h-full">
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold !text-[#381980]">
+              {formatCurrency(totalBalance)}
+            </div>
+            <p className="text-sm text-muted-foreground">Total Outstanding</p>
+          </CardContent>
+        </Card>
+        <Card className="h-full">
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold !text-[#381980]">
+              {formatCurrency(totalWipAmount)}
+            </div>
+            <p className="text-sm text-muted-foreground">Total WIP Amount</p>
+          </CardContent>
+        </Card>
+        <Card className="h-full">
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold !text-[#381980]">
+              {formatCurrency(totalBalance / allClients.length)}
+            </div>
+            <p className="text-sm text-muted-foreground">Average Balance</p>
+          </CardContent>
+        </Card>
+      </div>
 
 
       {/* Clients Table */}
@@ -557,7 +570,7 @@ console.log('==================dfgdfgdfgkjdfgjkdgjkdfhgjkdhgjkdfghjkdfgfilteredC
                       <span
                         className="cursor-pointer text-blue-600 hover:text-blue-800 hover:underline"
                         onClick={() => {
-                          console.log('Client clicked:', client); 
+                          console.log('Client clicked:', client);
                           setSelectedClientForDetails(client);
                           setSelectedClientId(client.id);
                           setShowClientDetailsDialog(true);
@@ -567,7 +580,7 @@ console.log('==================dfgdfgdfgkjdfgjkdgjkdfhgjkdhgjkdfghjkdfgfilteredC
                       </span>
                     </td>
                     <td className="p-4 text-center border-r">
-                
+
                       <Button
                         variant="outline"
                         size="sm"

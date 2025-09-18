@@ -125,15 +125,20 @@ const ServicesTab = () => {
 
     return (
         <div className="space-y-8">
-            <DashboardGrid columns={4}>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 {topServices.map(service => (
-                    <DashboardCard
-                        key={service.serviceId}
-                        title={service.serviceName}
-                        value={service.count}
-                    />
+                    <Card key={service.serviceId} className="h-full">
+                        <CardContent className="p-4">
+                            <div className="text-2xl font-bold !text-[#381980]">
+                                {service.count}
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                                {service.serviceName}
+                            </p>
+                        </CardContent>
+                    </Card>
                 ))}
-            </DashboardGrid>
+            </div>
 
 
             <div className="flex items-center justify-between gap-4 bg-white p-4 rounded-lg shadow-sm">

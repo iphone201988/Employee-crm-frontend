@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
 import { DashboardCard, DashboardGrid } from "@/components/ui/dashboard-card";
+import { Card, CardContent } from "../ui/card";
 
 const generateRandomTime = () => {
     const hours = Math.floor(Math.random() * 10) + 30; // 30-39 hours
@@ -371,7 +372,7 @@ export const MyTimeSheet = () => {
             </div>
 
             {/* Summary Cards */}
-            <DashboardGrid columns={4}>
+            {/* <DashboardGrid columns={4}>
                 <DashboardCard
                     title="Billable"
                     value={
@@ -420,7 +421,63 @@ export const MyTimeSheet = () => {
                     }
                     valueColor="text-[#381980]"
                 />
-            </DashboardGrid>
+            </DashboardGrid> */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <Card className="h-full">
+                    <CardContent className="p-4">
+                        <div className="flex items-baseline gap-2">
+                            <div className="text-2xl font-bold !text-[#381980]">
+                                {formatHours(totals.billable.total)}
+                            </div>
+                            <div className="text-xs sm:text-sm text-muted-foreground">
+                                ({totals.logged.total > 0 ? (totals.billable.total / totals.logged.total * 100).toFixed(1) : 0}%)
+                            </div>
+                        </div>
+                        <p className="text-sm text-muted-foreground">Billable</p>
+                    </CardContent>
+                </Card>
+                <Card className="h-full">
+                    <CardContent className="p-4">
+                        <div className="flex items-baseline gap-2">
+                            <div className="text-2xl font-bold !text-[#381980]">
+                                {formatHours(totals.nonBillable.total)}
+                            </div>
+                            <div className="text-xs sm:text-sm text-muted-foreground">
+                                ({totals.logged.total > 0 ? (totals.nonBillable.total / totals.logged.total * 100).toFixed(1) : 0}%)
+                            </div>
+                        </div>
+                        <p className="text-sm text-muted-foreground">Non-Billable</p>
+                    </CardContent>
+                </Card>
+                <Card className="h-full">
+                    <CardContent className="p-4">
+                        <div className="flex items-baseline gap-2">
+                            <div className="text-2xl font-bold !text-[#381980]">
+                                {formatHours(totals.logged.total)}
+                            </div>
+                            <div className="text-xs sm:text-sm text-muted-foreground">
+                                ({(totals.logged.total / 40 * 100).toFixed(1)}%)
+                            </div>
+                        </div>
+                        <p className="text-sm text-muted-foreground">Total Logged</p>
+                    </CardContent>
+                </Card>
+                <Card className="h-full">
+                    <CardContent className="p-4">
+                        <div className="flex items-baseline gap-2">
+                            <div className="text-2xl font-bold !text-[#381980]">
+                                {formatHours(40 - totals.logged.total)}
+                            </div>
+                            <div className="text-xs sm:text-sm text-muted-foreground">
+                                ({((40 - totals.logged.total) / 40 * 100).toFixed(1)}%)
+                            </div>
+                        </div>
+                        <p className="text-sm text-muted-foreground">Variance</p>
+                    </CardContent>
+                </Card>
+            </div>
+
+
 
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">

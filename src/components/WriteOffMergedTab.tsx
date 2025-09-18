@@ -100,7 +100,7 @@ const WriteOffMergedTab = () => {
 
     // Apply search filter
     if (searchTerm) {
-      data = data.filter(item => 
+      data = data.filter(item =>
         item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (item.ref && item.ref.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (item.clientName && item.clientName.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -113,19 +113,19 @@ const WriteOffMergedTab = () => {
       data = [...data].sort((a, b) => {
         const aValue = a[sortConfig.key as keyof WriteOffMergedData];
         const bValue = b[sortConfig.key as keyof WriteOffMergedData];
-        
+
         if (typeof aValue === 'string' && typeof bValue === 'string') {
-          return sortConfig.direction === 'asc' 
+          return sortConfig.direction === 'asc'
             ? aValue.localeCompare(bValue)
             : bValue.localeCompare(aValue);
         }
-        
+
         if (typeof aValue === 'number' && typeof bValue === 'number') {
-          return sortConfig.direction === 'asc' 
+          return sortConfig.direction === 'asc'
             ? aValue - bValue
             : bValue - aValue;
         }
-        
+
         return 0;
       });
     }
@@ -174,7 +174,7 @@ const WriteOffMergedTab = () => {
 
   if (showLogView) {
     const logData = generateLogData();
-    
+
     console.log("enter herte ")
     return (
       <div className="space-y-6">
@@ -212,9 +212,9 @@ const WriteOffMergedTab = () => {
                   {logData.map((entry) => (
                     <TableRow key={entry.id}>
                       <TableCell className="text-left">{new Date(entry.date).toLocaleDateString('en-GB')}</TableCell>
-                       <TableCell className="text-left font-medium">
-                         <ClientNameLink clientName={entry.client} />
-                       </TableCell>
+                      <TableCell className="text-left font-medium">
+                        <ClientNameLink clientName={entry.client} />
+                      </TableCell>
                       <TableCell className="text-left">{entry.job}</TableCell>
                       <TableCell className="text-left font-medium text-red-600">{formatCurrency(entry.amount)}</TableCell>
                       <TableCell className="text-left">{entry.by}</TableCell>
@@ -243,24 +243,41 @@ const WriteOffMergedTab = () => {
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <DashboardGrid columns={4}>
-        <DashboardCard
-          title="Total Write-offs"
-          value={formatCurrency(totalWriteOffs)}
-        />
-        <DashboardCard
-          title="Total Occasions"
-          value={totalOccasions}
-        />
-        <DashboardCard
-          title="Jobs with Write-offs"
-          value={totalJobs}
-        />
-        <DashboardCard
-          title="Avg % Write-off"
-          value={`${avgPercentage.toFixed(1)}%`}
-        />
-      </DashboardGrid>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="h-full">
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold !text-[#381980]">
+              {formatCurrency(totalWriteOffs)}
+            </div>
+            <p className="text-sm text-muted-foreground">Total Write-offs</p>
+          </CardContent>
+        </Card>
+        <Card className="h-full">
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold !text-[#381980]">
+              {totalOccasions}
+            </div>
+            <p className="text-sm text-muted-foreground">Total Occasions</p>
+          </CardContent>
+        </Card>
+        <Card className="h-full">
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold !text-[#381980]">
+              {totalJobs}
+            </div>
+            <p className="text-sm text-muted-foreground">Jobs with Write-offs</p>
+          </CardContent>
+        </Card>
+        <Card className="h-full">
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold !text-[#381980]">
+              {`${avgPercentage.toFixed(1)}%`}
+            </div>
+            <p className="text-sm text-muted-foreground">Avg % Write-off</p>
+          </CardContent>
+        </Card>
+      </div>
+
 
       {/* Filter Tabs */}
       <div className="flex items-center justify-between bg-white p-4 rounded-lg">
@@ -298,7 +315,7 @@ const WriteOffMergedTab = () => {
             Team
           </Button>
         </div>
-        
+
         {/* Log Button */}
         <Button
           onClick={() => setShowLogView(true)}
@@ -349,9 +366,9 @@ const WriteOffMergedTab = () => {
                       onClick={() => handleSort('name')}
                       className="h-8 px-1 font-medium justify-start"
                     >
-                      {activeFilter === 'clients' ? 'Client Name' : 
-                       activeFilter === 'jobs' ? 'Job Name' : 
-                       activeFilter === 'job-type' ? 'Service Type' : 'Team Member'}
+                      {activeFilter === 'clients' ? 'Client Name' :
+                        activeFilter === 'jobs' ? 'Job Name' :
+                          activeFilter === 'job-type' ? 'Service Type' : 'Team Member'}
                       <ArrowUpDown className="ml-1 h-4 w-4" />
                     </Button>
                   </TableHead>
@@ -387,10 +404,10 @@ const WriteOffMergedTab = () => {
                       size="sm"
                       onClick={() => handleSort('writeOffOccasions')}
                       className="h-8 px-1 font-medium justify-start"
-                     >
-                       Occasions
-                       <ArrowUpDown className="ml-1 h-4 w-4" />
-                     </Button>
+                    >
+                      Occasions
+                      <ArrowUpDown className="ml-1 h-4 w-4" />
+                    </Button>
                   </TableHead>
                   <TableHead className="text-left">
                     <Button
@@ -409,10 +426,10 @@ const WriteOffMergedTab = () => {
                       size="sm"
                       onClick={() => handleSort('noJobsWithWriteOff')}
                       className="h-8 px-1 font-medium justify-start"
-                     >
-                       Jobs With Write Off
-                       <ArrowUpDown className="ml-1 h-4 w-4" />
-                     </Button>
+                    >
+                      Jobs With Write Off
+                      <ArrowUpDown className="ml-1 h-4 w-4" />
+                    </Button>
                   </TableHead>
                   <TableHead className="text-left">
                     <Button
@@ -455,23 +472,23 @@ const WriteOffMergedTab = () => {
                     {activeFilter === 'clients' && (
                       <TableCell className="p-3 text-sm text-left">{item.ref}</TableCell>
                     )}
-                     <TableCell className="p-3 text-sm font-medium text-left">
-                       {activeFilter === 'clients' ? (
-                         <ClientNameLink clientName={item.name} />
-                       ) : (
-                         item.name
-                       )}
-                     </TableCell>
-                     {activeFilter === 'jobs' && (
-                       <>
-                         <TableCell className="p-3 text-sm text-left">{item.clientRef}</TableCell>
-                         <TableCell className="p-3 text-sm text-left">
-                           <ClientNameLink clientName={item.clientName || ''} />
-                         </TableCell>
-                       </>
-                     )}
+                    <TableCell className="p-3 text-sm font-medium text-left">
+                      {activeFilter === 'clients' ? (
+                        <ClientNameLink clientName={item.name} />
+                      ) : (
+                        item.name
+                      )}
+                    </TableCell>
+                    {activeFilter === 'jobs' && (
+                      <>
+                        <TableCell className="p-3 text-sm text-left">{item.clientRef}</TableCell>
+                        <TableCell className="p-3 text-sm text-left">
+                          <ClientNameLink clientName={item.clientName || ''} />
+                        </TableCell>
+                      </>
+                    )}
                     <TableCell className="p-3 text-left">
-                      <span 
+                      <span
                         className="inline-flex items-center justify-center h-8 w-8 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-colors bg-gradient-to-br from-primary/20 to-primary/30 text-primary border border-primary/20"
                         onClick={() => handleOccasionsClick(item)}
                       >
@@ -482,7 +499,7 @@ const WriteOffMergedTab = () => {
                       {formatCurrency(item.totalWriteOffValue)}
                     </TableCell>
                     <TableCell className="p-3 text-left text-sm">
-                      <span 
+                      <span
                         className="cursor-pointer hover:underline text-blue-600"
                         onClick={() => handleJobsClick(item)}
                       >
@@ -539,7 +556,7 @@ const WriteOffMergedTab = () => {
                 <strong>Number of Write Off Occasions:</strong> {selectedOccasions?.occasions}
               </p>
             </div>
-            
+
             <div className="space-y-4">
               <h4 className="font-medium">Write Off Details:</h4>
               <div className="overflow-x-auto">
@@ -584,7 +601,7 @@ const WriteOffMergedTab = () => {
             <p className="text-sm font-medium">
               <strong>Number of Jobs with Write Off:</strong> {selectedJobs?.jobs.length}
             </p>
-            
+
             <div className="space-y-2">
               <h4 className="font-medium">Jobs:</h4>
               <div className="max-h-60 overflow-y-auto">

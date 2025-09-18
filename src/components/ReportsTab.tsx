@@ -218,163 +218,191 @@ const ReportsTab = () => {
   const totalRevenue = reportData.reduce((sum, item) => sum + item.billable * item.rate, 0);
   return <div className="space-y-6">
 
-      {/* Summary Cards */}
-      <DashboardGrid columns={4}>
-        <DashboardCard title="Team Members" value={reportData.length} />
-        <DashboardCard title="Total Capacity" value={formatHours(totalCapacity)} />
-        <DashboardCard title="Total Logged" value={formatHours(totalLogged)} />
-        <DashboardCard title="Total Revenue" value={formatCurrency(totalRevenue)} />
-      </DashboardGrid>
-
-      {/* Time Filter Buttons - Moved above date navigation */}
-      <div className="flex items-center justify-center">
-        <div className="flex items-center gap-1 bg-muted rounded-md p-1">
-          <Button variant={timeFilter === 'daily' ? 'default' : 'ghost'} size="sm" onClick={() => handleTimeFilterChange('daily')} className="h-8 px-3">
-            Daily
-          </Button>
-          <Button variant={timeFilter === 'weekly' ? 'default' : 'ghost'} size="sm" onClick={() => handleTimeFilterChange('weekly')} className="h-8 px-3">
-            Weekly
-          </Button>
-          <Button variant={timeFilter === 'monthly' ? 'default' : 'ghost'} size="sm" onClick={() => handleTimeFilterChange('monthly')} className="h-8 px-3">
-            Monthly
-          </Button>
-          <Button variant={timeFilter === 'yearly' ? 'default' : 'ghost'} size="sm" onClick={() => handleTimeFilterChange('yearly')} className="h-8 px-3">
-            Yearly
-          </Button>
-        </div>
-      </div>
-
-      {/* Date Range Navigation */}
-      <div className="flex items-center justify-center gap-2">
-        <Button variant="outline" size="sm" onClick={() => handlePeriodChange('prev')} className="h-8 w-8 p-0">
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <span className="text-sm font-medium whitespace-nowrap">
-          {periodInfo.label}
-        </span>
-        <Button variant="outline" size="sm" onClick={() => handlePeriodChange('next')} className="h-8 w-8 p-0">
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-      </div>
-
-      {/* Reports Table */}
-      <Card>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
-               <TableHeader>
-                 <TableRow>
-                   <TableHead className="w-10"></TableHead>
-                   <TableHead>
-                     <Button variant="ghost" size="sm" onClick={() => handleSort('name')} className="h-6 px-1 font-medium text-xs">
-                       Team Member
-                       <ArrowUpDown className="ml-1 h-3 w-3" />
-                     </Button>
-                   </TableHead>
-                   <TableHead className="text-center border-l">
-                     <Button variant="ghost" size="sm" onClick={() => handleSort('capacity')} className="h-6 px-1 font-medium text-xs">
-                       Capacity
-                       <ArrowUpDown className="ml-1 h-3 w-3" />
-                     </Button>
-                   </TableHead>
-                   <TableHead className="text-center border-l">
-                     <Button variant="ghost" size="sm" onClick={() => handleSort('logged')} className="h-6 px-1 font-medium text-xs">
-                       Logged
-                       <ArrowUpDown className="ml-1 h-3 w-3" />
-                     </Button>
-                   </TableHead>
-                   <TableHead className="text-center border-l">
-                     <Button variant="ghost" size="sm" onClick={() => handleSort('billable')} className="h-6 px-1 font-medium text-xs">
-                       Billable
-                       <ArrowUpDown className="ml-1 h-3 w-3" />
-                     </Button>
-                   </TableHead>
-                   <TableHead className="text-center border-l">
-                     <Button variant="ghost" size="sm" onClick={() => handleSort('nonBillable')} className="h-6 px-1 font-medium text-xs">
-                       Non-Billable
-                       <ArrowUpDown className="ml-1 h-3 w-3" />
-                     </Button>
-                   </TableHead>
-                   <TableHead className="text-center border-l">
-                     <Button variant="ghost" size="sm" onClick={() => handleSort('wroteOff')} className="h-6 px-1 font-medium text-xs">
-                       Write Off
-                       <ArrowUpDown className="ml-1 h-3 w-3" />
-                     </Button>
-                   </TableHead>
-                   <TableHead className="text-center border-l">
-                     <Button variant="ghost" size="sm" onClick={() => handleSort('resourceCost')} className="h-6 px-1 font-medium text-xs">
-                       Resource Cost
-                       <ArrowUpDown className="ml-1 h-3 w-3" />
-                     </Button>
-                   </TableHead>
-                   <TableHead className="text-center border-l">
-                     <Button variant="ghost" size="sm" onClick={() => handleSort('profit')} className="h-6 px-1 font-medium text-xs">
-                       Profit
-                       <ArrowUpDown className="ml-1 h-3 w-3" />
-                     </Button>
-                   </TableHead>
-                 </TableRow>
-               </TableHeader>
-               <TableBody>
-                 {getSortedData().map((member, index) => <TableRow key={index} className="h-8">
-                     <TableCell className="p-1 mx-0 my-0 py-[15px] px-[18px]">
-                       <Avatar className="h-6 w-6">
-                         <AvatarImage src={getProfileImage(member.name)} />
-                         <AvatarFallback className="text-xs">{getUserInitials(member.name)}</AvatarFallback>
-                       </Avatar>
-                     </TableCell>
-                     <TableCell className="font-medium p-1 text-xs">{member.name}</TableCell>
-                     <TableCell className="text-center border-l p-1">
-                       <div className="text-xs font-medium">{formatHours(member.capacity)}</div>
-                     </TableCell>
-                      <TableCell className="text-center border-l p-1">
-                        <div className="flex flex-col items-center space-y-1">
-                          <div className="text-xs font-medium">{formatHours(member.logged)} ({getLoggedPercentage(member.logged, member.capacity).toFixed(1)}%)</div>
-                           <div className="w-14">
-                             <Progress value={getLoggedPercentage(member.logged, member.capacity)} className="h-1" />
-                           </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center border-l p-1">
-                        <div className="flex flex-col items-center space-y-1">
-                          <div className="text-xs font-medium">{formatHours(member.billable)} ({getBillablePercentage(member.billable, member.logged).toFixed(1)}%) - {formatCurrency(member.billable * member.rate)}</div>
-                           <div className="w-14">
-                             <Progress value={getBillablePercentage(member.billable, member.logged)} className="h-1" />
-                           </div>
-                         </div>
-                       </TableCell>
-                       <TableCell className="text-center border-l p-1">
-                         <div className="flex flex-col items-center space-y-1">
-                           <div className="text-xs font-medium">{formatHours(member.nonBillable)} ({getNonBillablePercentage(member.nonBillable, member.logged).toFixed(1)}%)</div>
-                           <div className="w-14">
-                             <Progress value={getNonBillablePercentage(member.nonBillable, member.logged)} className="h-1" />
-                           </div>
-                         </div>
-                       </TableCell>
-                       <TableCell className="text-center border-l p-1">
-                         <div className="flex flex-col items-center space-y-1">
-                           <div className="text-xs font-medium">{formatHours(member.wroteOff)} ({getWroteOffPercentage(member.wroteOff, member.logged).toFixed(1)}%) - {formatCurrency(member.wroteOff * member.rate)}</div>
-                           <div className="w-14">
-                            <Progress value={getWroteOffPercentage(member.wroteOff, member.logged)} className="h-1" />
-                          </div>
-                        </div>
-                      </TableCell>
-                     <TableCell className="text-center border-l p-1">
-                       <div className="text-xs font-medium text-red-600">
-                         {formatCurrency(member.resourceCost)}
-                       </div>
-                     </TableCell>
-                     <TableCell className="text-center border-l p-1">
-                       <div className={`text-xs font-medium ${member.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                         {formatCurrency(member.profit)}
-                       </div>
-                     </TableCell>
-                   </TableRow>)}
-               </TableBody>
-            </Table>
+    {/* Summary Cards */}
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <Card className="h-full">
+        <CardContent className="p-4">
+          <div className="text-2xl font-bold !text-[#381980]">
+            {reportData.length}
           </div>
+          <p className="text-sm text-muted-foreground">Team Members</p>
         </CardContent>
       </Card>
-    </div>;
+      <Card className="h-full">
+        <CardContent className="p-4">
+          <div className="text-2xl font-bold !text-[#381980]">
+            {formatHours(totalCapacity)}
+          </div>
+          <p className="text-sm text-muted-foreground">Total Capacity</p>
+        </CardContent>
+      </Card>
+      <Card className="h-full">
+        <CardContent className="p-4">
+          <div className="text-2xl font-bold !text-[#381980]">
+            {formatHours(totalLogged)}
+          </div>
+          <p className="text-sm text-muted-foreground">Total Logged</p>
+        </CardContent>
+      </Card>
+      <Card className="h-full">
+        <CardContent className="p-4">
+          <div className="text-2xl font-bold !text-[#381980]">
+            {formatCurrency(totalRevenue)}
+          </div>
+          <p className="text-sm text-muted-foreground">Total Revenue</p>
+        </CardContent>
+      </Card>
+    </div>
+
+    {/* Time Filter Buttons - Moved above date navigation */}
+    <div className="flex items-center justify-center">
+      <div className="flex items-center gap-1 bg-muted rounded-md p-1">
+        <Button variant={timeFilter === 'daily' ? 'default' : 'ghost'} size="sm" onClick={() => handleTimeFilterChange('daily')} className="h-8 px-3">
+          Daily
+        </Button>
+        <Button variant={timeFilter === 'weekly' ? 'default' : 'ghost'} size="sm" onClick={() => handleTimeFilterChange('weekly')} className="h-8 px-3">
+          Weekly
+        </Button>
+        <Button variant={timeFilter === 'monthly' ? 'default' : 'ghost'} size="sm" onClick={() => handleTimeFilterChange('monthly')} className="h-8 px-3">
+          Monthly
+        </Button>
+        <Button variant={timeFilter === 'yearly' ? 'default' : 'ghost'} size="sm" onClick={() => handleTimeFilterChange('yearly')} className="h-8 px-3">
+          Yearly
+        </Button>
+      </div>
+    </div>
+
+    {/* Date Range Navigation */}
+    <div className="flex items-center justify-center gap-2">
+      <Button variant="outline" size="sm" onClick={() => handlePeriodChange('prev')} className="h-8 w-8 p-0">
+        <ChevronLeft className="h-4 w-4" />
+      </Button>
+      <span className="text-sm font-medium whitespace-nowrap">
+        {periodInfo.label}
+      </span>
+      <Button variant="outline" size="sm" onClick={() => handlePeriodChange('next')} className="h-8 w-8 p-0">
+        <ChevronRight className="h-4 w-4" />
+      </Button>
+    </div>
+
+    {/* Reports Table */}
+    <Card>
+      <CardContent className="p-0">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-10"></TableHead>
+                <TableHead>
+                  <Button variant="ghost" size="sm" onClick={() => handleSort('name')} className="h-6 px-1 font-medium text-xs">
+                    Team Member
+                    <ArrowUpDown className="ml-1 h-3 w-3" />
+                  </Button>
+                </TableHead>
+                <TableHead className="text-center border-l">
+                  <Button variant="ghost" size="sm" onClick={() => handleSort('capacity')} className="h-6 px-1 font-medium text-xs">
+                    Capacity
+                    <ArrowUpDown className="ml-1 h-3 w-3" />
+                  </Button>
+                </TableHead>
+                <TableHead className="text-center border-l">
+                  <Button variant="ghost" size="sm" onClick={() => handleSort('logged')} className="h-6 px-1 font-medium text-xs">
+                    Logged
+                    <ArrowUpDown className="ml-1 h-3 w-3" />
+                  </Button>
+                </TableHead>
+                <TableHead className="text-center border-l">
+                  <Button variant="ghost" size="sm" onClick={() => handleSort('billable')} className="h-6 px-1 font-medium text-xs">
+                    Billable
+                    <ArrowUpDown className="ml-1 h-3 w-3" />
+                  </Button>
+                </TableHead>
+                <TableHead className="text-center border-l">
+                  <Button variant="ghost" size="sm" onClick={() => handleSort('nonBillable')} className="h-6 px-1 font-medium text-xs">
+                    Non-Billable
+                    <ArrowUpDown className="ml-1 h-3 w-3" />
+                  </Button>
+                </TableHead>
+                <TableHead className="text-center border-l">
+                  <Button variant="ghost" size="sm" onClick={() => handleSort('wroteOff')} className="h-6 px-1 font-medium text-xs">
+                    Write Off
+                    <ArrowUpDown className="ml-1 h-3 w-3" />
+                  </Button>
+                </TableHead>
+                <TableHead className="text-center border-l">
+                  <Button variant="ghost" size="sm" onClick={() => handleSort('resourceCost')} className="h-6 px-1 font-medium text-xs">
+                    Resource Cost
+                    <ArrowUpDown className="ml-1 h-3 w-3" />
+                  </Button>
+                </TableHead>
+                <TableHead className="text-center border-l">
+                  <Button variant="ghost" size="sm" onClick={() => handleSort('profit')} className="h-6 px-1 font-medium text-xs">
+                    Profit
+                    <ArrowUpDown className="ml-1 h-3 w-3" />
+                  </Button>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {getSortedData().map((member, index) => <TableRow key={index} className="h-8">
+                <TableCell className="p-1 mx-0 my-0 py-[15px] px-[18px]">
+                  <Avatar className="h-6 w-6">
+                    <AvatarImage src={getProfileImage(member.name)} />
+                    <AvatarFallback className="text-xs">{getUserInitials(member.name)}</AvatarFallback>
+                  </Avatar>
+                </TableCell>
+                <TableCell className="font-medium p-1 text-xs">{member.name}</TableCell>
+                <TableCell className="text-center border-l p-1">
+                  <div className="text-xs font-medium">{formatHours(member.capacity)}</div>
+                </TableCell>
+                <TableCell className="text-center border-l p-1">
+                  <div className="flex flex-col items-center space-y-1">
+                    <div className="text-xs font-medium">{formatHours(member.logged)} ({getLoggedPercentage(member.logged, member.capacity).toFixed(1)}%)</div>
+                    <div className="w-14">
+                      <Progress value={getLoggedPercentage(member.logged, member.capacity)} className="h-1" />
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell className="text-center border-l p-1">
+                  <div className="flex flex-col items-center space-y-1">
+                    <div className="text-xs font-medium">{formatHours(member.billable)} ({getBillablePercentage(member.billable, member.logged).toFixed(1)}%) - {formatCurrency(member.billable * member.rate)}</div>
+                    <div className="w-14">
+                      <Progress value={getBillablePercentage(member.billable, member.logged)} className="h-1" />
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell className="text-center border-l p-1">
+                  <div className="flex flex-col items-center space-y-1">
+                    <div className="text-xs font-medium">{formatHours(member.nonBillable)} ({getNonBillablePercentage(member.nonBillable, member.logged).toFixed(1)}%)</div>
+                    <div className="w-14">
+                      <Progress value={getNonBillablePercentage(member.nonBillable, member.logged)} className="h-1" />
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell className="text-center border-l p-1">
+                  <div className="flex flex-col items-center space-y-1">
+                    <div className="text-xs font-medium">{formatHours(member.wroteOff)} ({getWroteOffPercentage(member.wroteOff, member.logged).toFixed(1)}%) - {formatCurrency(member.wroteOff * member.rate)}</div>
+                    <div className="w-14">
+                      <Progress value={getWroteOffPercentage(member.wroteOff, member.logged)} className="h-1" />
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell className="text-center border-l p-1">
+                  <div className="text-xs font-medium text-red-600">
+                    {formatCurrency(member.resourceCost)}
+                  </div>
+                </TableCell>
+                <TableCell className="text-center border-l p-1">
+                  <div className={`text-xs font-medium ${member.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {formatCurrency(member.profit)}
+                  </div>
+                </TableCell>
+              </TableRow>)}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
+  </div>;
 };
 export default ReportsTab;

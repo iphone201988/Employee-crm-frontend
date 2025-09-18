@@ -157,8 +157,6 @@ const ClientInformationTab = () => {
     }));
   };
 
-
-
   return (
     <div className="space-y-6">
       <CustomTabs
@@ -167,22 +165,34 @@ const ClientInformationTab = () => {
         setActiveTab={setActiveTab}
       />
       {activeTab === "clientList" && isTabVisible("clientList") && (<>
-        <DashboardGrid columns={4}>
-          <DashboardCard
-            title="Total Clients"
-            value={isLoading ? '...' : filteredAndSortedClientInfo.length}
-          />
-
-          {Array.isArray(clientsData?.data?.breakdown) && clientsData.data.breakdown.length > 0 && (
-            clientsData.data.breakdown.map((item: any) => (
-              <DashboardCard
-                key={item.name}
-                title={item.name}
-                value={isLoading ? '...' : item.count}
-              />
-            ))
-          )}
-        </DashboardGrid>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {Array.isArray(clientsData?.data?.breakdown) &&
+            clientsData.data.breakdown.length > 0 &&
+            clientsData.data.breakdown
+              .filter((item: any) =>
+                ["totalClients", "soletrader", "partnership", "limitedcompany"].includes(
+                  item.name
+                )
+              )
+              .map((item: any) => (
+                <Card key={item.name} className="h-full">
+                  <CardContent className="p-4">
+                    <div className="text-2xl font-bold !text-[#381980]">
+                      {isLoading ? "..." : item.count}
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {item.name === "totalClients"
+                        ? "Total Clients"
+                        : item.name === "soletrader"
+                          ? "Sole Traders"
+                          : item.name === "partnership"
+                            ? "Partnerships"
+                            : "Limited Companies"}
+                    </p>
+                  </CardContent>
+                </Card>
+              ))}
+        </div>
 
         {/* Search and Filters Row */}
         <div className="flex items-center gap-4 bg-white p-4 rounded-lg">

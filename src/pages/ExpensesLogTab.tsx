@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CreditCard, Search, Filter, Eye, Edit, Download, Upload, Paperclip, ExternalLink } from "lucide-react";
+import { CreditCard, Search, Filter, Eye, Edit, Download, Upload, Paperclip, ExternalLink, Plus } from "lucide-react";
 import sampleReceipt from "@/assets/sample-receipt.png";
 import CustomTabs from '@/components/Tabs';
 import { usePermissionTabs } from '@/hooks/usePermissionTabs';
@@ -648,30 +648,32 @@ const ExpensesLogTab = () => {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
       />
-      
+
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-foreground">€{totalExpenses.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <div className="text-2xl font-bold !text-[#381980]">
+              €{totalExpenses.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
             <p className="text-sm text-muted-foreground">Total Expenses</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <div className="text-2xl font-bold">€{totalPaid.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <div className="text-2xl font-bold !text-[#381980]">€{totalPaid.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
             <p className="text-sm text-muted-foreground">{activeTab === 'clientExpenses' ? 'Invoiced' : 'Paid'}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <div className="text-2xl font-bold">€{totalUnpaid.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <div className="text-2xl font-bold !text-[#381980]">€{totalUnpaid.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
             <p className="text-sm text-muted-foreground">{activeTab === 'clientExpenses' ? 'Not Invoiced' : 'Not Paid'}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-foreground">{filteredExpenses.length}</div>
+            <div className="text-2xl font-bold text-foreground !text-[#381980]">{filteredExpenses.length}</div>
             <p className="text-sm text-muted-foreground">Total Items</p>
           </CardContent>
         </Card>
@@ -723,70 +725,81 @@ const ExpensesLogTab = () => {
       </Card>
 
       {/* Filter Buttons above table */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+
+      {/* <CardContent className="p-4"> */}
+      {/* Main container: stacks vertically on mobile, row on sm screens and up */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+
+        {/* Filter buttons container: allows buttons to wrap */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant={statusFilter === 'all' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setStatusFilter('all')}
+            className="h-8 px-3 text-xs border-0"
+          >
+            {/* <Filter className="h-4 w-4" />/ */}
+            All
+          </Button>
+          {activeTab === 'clientExpenses' && (
+            <>
               <Button
-                variant={statusFilter === 'all' ? 'default' : 'outline'}
+                variant={statusFilter === 'not invoiced' ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setStatusFilter('all')}
+                onClick={() => setStatusFilter('not invoiced')}
+                className="h-8 px-3 text-xs  border-0"
+              >
+                {/* <Filter className="h-4 w-4" /> */}
+                Not Invoiced
+              </Button>
+              <Button
+                variant={statusFilter === 'invoiced' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setStatusFilter('invoiced')}
+                className="h-8 px-3 text-xs border-0"
+              >
+                {/* <Filter className="h-4 w-4" /> */}
+                Invoiced
+              </Button>
+            </>
+          )}
+          {activeTab === 'teamExpenses' && (
+            <>
+              <Button
+                variant={statusFilter === 'not paid' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setStatusFilter('not paid')}
                 className="gap-2"
               >
                 <Filter className="h-4 w-4" />
-                All
+                Not Paid
               </Button>
-              {activeTab === 'clientExpenses' && (
-                <>
-                  <Button
-                    variant={statusFilter === 'not invoiced' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setStatusFilter('not invoiced')}
-                    className="gap-2"
-                  >
-                    <Filter className="h-4 w-4" />
-                    Not Invoiced
-                  </Button>
-                  <Button
-                    variant={statusFilter === 'invoiced' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setStatusFilter('invoiced')}
-                    className="gap-2"
-                  >
-                    <Filter className="h-4 w-4" />
-                    Invoiced
-                  </Button>
-                </>
-              )}
-              {activeTab === 'teamExpenses' && (
-                <>
-                  <Button
-                    variant={statusFilter === 'not paid' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setStatusFilter('not paid')}
-                    className="gap-2"
-                  >
-                    <Filter className="h-4 w-4" />
-                    Not Paid
-                  </Button>
-                  <Button
-                    variant={statusFilter === 'paid' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setStatusFilter('paid')}
-                    className="gap-2"
-                  >
-                    <Filter className="h-4 w-4" />
-                    Paid
-                  </Button>
-                </>
-              )}
-            </div>
-            <Button onClick={() => activeTab === 'clientExpenses' ? setAddClientExpenseOpen(true) : setAddTeamExpenseOpen(true)} className="gap-2">
-              + {activeTab === 'clientExpenses' ? 'Client' : 'Team'} Expense
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+              <Button
+                variant={statusFilter === 'paid' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setStatusFilter('paid')}
+                className="gap-2"
+              >
+                <Filter className="h-4 w-4" />
+                Paid
+              </Button>
+            </>
+          )}
+        </div>
+
+        {/* Add Expense button: full-width on mobile, auto-width on larger screens */}
+        <Button
+          onClick={() => activeTab === 'clientExpenses' ? setAddClientExpenseOpen(true) : setAddTeamExpenseOpen(true)}
+          className="gap-2 w-full sm:w-auto"
+        >
+          <Plus className="h-4 w-4" />
+          {activeTab === 'clientExpenses' ? 'Client' : 'Team'} Expense
+        </Button>
+
+      </div>
+      {/* </CardContent> */}
+
+
 
       {/* Expenses Table */}
       <Card>

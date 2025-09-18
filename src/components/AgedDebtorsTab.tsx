@@ -349,88 +349,102 @@ const AgedDebtorsTab = () => {
 
   return (
     <div className="space-y-6">
-          {/* Dashboard Cards */}
-          <DashboardGrid columns={4}>
-            <DashboardCard
-              title="30 Days"
-              value={`€${totals.days30.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-            />
-            
-            <DashboardCard
-              title="60 Days"
-              value={`€${totals.days60.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-            />
-            
-            <DashboardCard
-              title="90+ Days"
-              value={`€${(totals.days90 + totals.days120).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-            />
-            
-            <DashboardCard
-              title="150+ Days"
-              value={`€${(totals.days150 + totals.days180).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-            />
-          </DashboardGrid>
+      {/* Dashboard Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="h-full">
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold !text-[#381980]">
+              €{totals.days30.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+            <p className="text-sm text-muted-foreground">30 Days</p>
+          </CardContent>
+        </Card>
+        <Card className="h-full">
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold !text-[#381980]">
+              €{totals.days60.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+            <p className="text-sm text-muted-foreground">60 Days</p>
+          </CardContent>
+        </Card>
+        <Card className="h-full">
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold !text-[#381980]">
+              €{(totals.days90 + totals.days120).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+            <p className="text-sm text-muted-foreground">90+ Days</p>
+          </CardContent>
+        </Card>
+        <Card className="h-full">
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold !text-[#381980]">
+              €{(totals.days150 + totals.days180).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+            <p className="text-sm text-muted-foreground">150+ Days</p>
+          </CardContent>
+        </Card>
+      </div>
 
-          {/* Aged Debtors Table */}
-          <Card>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-sm">
-                  <thead>
-                    <tr className="border-b bg-gray-50">
-                       <th className="text-left p-3 font-medium text-foreground h-12">Client Ref.</th>
-                       <th className="text-left p-3 font-medium text-foreground h-12">Client</th>
-                       <th className="text-right p-3 font-medium text-foreground h-12">Balance</th>
-                       <th className="text-right p-3 font-medium text-foreground h-12">30 Days</th>
-                       <th className="text-right p-3 font-medium text-foreground h-12">60 Days</th>
-                       <th className="text-right p-3 font-medium text-foreground h-12">90 Days</th>
-                       <th className="text-right p-3 font-medium text-foreground h-12">120 Days</th>
-                       <th className="text-right p-3 font-medium text-foreground h-12">150 Days</th>
-                       <th className="text-right p-3 font-medium text-foreground h-12">180 Days</th>
+
+      {/* Aged Debtors Table */}
+      <Card>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="border-b bg-gray-50">
+                  <th className="text-left p-3 font-medium text-foreground h-12">Client Ref.</th>
+                  <th className="text-left p-3 font-medium text-foreground h-12">Client</th>
+                  <th className="text-right p-3 font-medium text-foreground h-12">Balance</th>
+                  <th className="text-right p-3 font-medium text-foreground h-12">30 Days</th>
+                  <th className="text-right p-3 font-medium text-foreground h-12">60 Days</th>
+                  <th className="text-right p-3 font-medium text-foreground h-12">90 Days</th>
+                  <th className="text-right p-3 font-medium text-foreground h-12">120 Days</th>
+                  <th className="text-right p-3 font-medium text-foreground h-12">150 Days</th>
+                  <th className="text-right p-3 font-medium text-foreground h-12">180 Days</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedEntries.map((entry) => {
+                  const riskLevel = getRiskLevel(entry);
+                  return (
+                    <tr key={entry.id} className="border-b hover:bg-gray-50 h-12">
+                      <td className="p-3">
+                        <div className="font-medium">{entry.clientRef}</div>
+                      </td>
+                      <td className="p-3">
+                        <div className="font-medium">
+                          <ClientNameLink clientName={entry.client} />
+                        </div>
+                      </td>
+                      <td className="p-3 text-right text-sm">€{entry.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      <td className="p-3 text-right">{entry.days30 > 0 ? `€${entry.days30.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}</td>
+                      <td className="p-3 text-right">{entry.days60 > 0 ? `€${entry.days60.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}</td>
+                      <td className="p-3 text-right">{entry.days90 > 0 ? `€${entry.days90.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}</td>
+                      <td className="p-3 text-right">{entry.days120 > 0 ? `€${entry.days120.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}</td>
+                      <td className="p-3 text-right">{entry.days150 > 0 ? `€${entry.days150.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}</td>
+                      <td className="p-3 text-right">{entry.days180 > 0 ? `€${entry.days180.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {sortedEntries.map((entry) => {
-                      const riskLevel = getRiskLevel(entry);
-                      return (
-                        <tr key={entry.id} className="border-b hover:bg-gray-50 h-12">
-                          <td className="p-3">
-                            <div className="font-medium">{entry.clientRef}</div>
-                          </td>
-                           <td className="p-3">
-                             <div className="font-medium">
-                               <ClientNameLink clientName={entry.client} />
-                             </div>
-                           </td>
-                          <td className="p-3 text-right text-sm">€{entry.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                          <td className="p-3 text-right">{entry.days30 > 0 ? `€${entry.days30.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}</td>
-                          <td className="p-3 text-right">{entry.days60 > 0 ? `€${entry.days60.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}</td>
-                          <td className="p-3 text-right">{entry.days90 > 0 ? `€${entry.days90.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}</td>
-                          <td className="p-3 text-right">{entry.days120 > 0 ? `€${entry.days120.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}</td>
-                          <td className="p-3 text-right">{entry.days150 > 0 ? `€${entry.days150.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}</td>
-                          <td className="p-3 text-right">{entry.days180 > 0 ? `€${entry.days180.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                  <tfoot>
-                    <tr className="border-t-2 bg-gray-100">
-                      <td className="p-3"></td>
-                      <td className="p-3">TOTALS</td>
-                      <td className="p-3 text-right">€{totals.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                      <td className="p-3 text-right">€{totals.days30.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                      <td className="p-3 text-right">€{totals.days60.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                      <td className="p-3 text-right">€{totals.days90.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                      <td className="p-3 text-right">€{totals.days120.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                      <td className="p-3 text-right">€{totals.days150.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                      <td className="p-3 text-right">€{totals.days180.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 bg-gray-100">
+                  <td className="p-3"></td>
+                  <td className="p-3">TOTALS</td>
+                  <td className="p-3 text-right">€{totals.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  <td className="p-3 text-right">€{totals.days30.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  <td className="p-3 text-right">€{totals.days60.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  <td className="p-3 text-right">€{totals.days90.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  <td className="p-3 text-right">€{totals.days120.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  <td className="p-3 text-right">€{totals.days150.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  <td className="p-3 text-right">€{totals.days180.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Client Details Dialog */}
       {selectedClient && (

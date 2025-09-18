@@ -53,8 +53,18 @@ export function Sidebar({ onClose }: SidebarProps) {
       <div>
         <div className="flex items-center gap-3 p-6 border-b border-sidebar-border">
           <Avatar className="w-8 h-8">
-            <AvatarImage src={logdinUser?.avatarUrl ? logdinUser?.avatarUrl : "/lovable-uploads/avatar-icon-on-black-round-flat-symbol-vector-21698060.webp"} />
-            <AvatarFallback>NK</AvatarFallback>
+            <AvatarImage
+              src={
+                logdinUser?.avatarUrl
+                  ? `${import.meta.env.VITE_BACKEND_BASE_URL}${logdinUser.avatarUrl}`
+                 : undefined
+              }
+            />
+            <AvatarFallback>
+              {logdinUser?.name
+                ? logdinUser.name.charAt(0).toUpperCase()
+                : "U"}
+            </AvatarFallback>
           </Avatar>
           <span className="text-sidebar-foreground font-medium">{logdinUser?.name}</span>
         </div>
@@ -70,8 +80,8 @@ export function Sidebar({ onClose }: SidebarProps) {
                 to={item.href}
                 onClick={onClose}
                 className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${isActive
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                  : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
                   }`}
               >
                 <Icon className="w-5 h-5" />
