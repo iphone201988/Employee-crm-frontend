@@ -299,11 +299,8 @@ const AccessContent: React.FC<AccessContentProps> = ({ onUnsavedChangesChange })
                     <TableCell className="p-4 border-r">
                       <div className="flex items-center gap-3">
                         <Avatar className="h-8 w-8">
-                          <AvatarImage
-                            src={member.avatarUrl || getProfileImage(member.name)}
-                            alt={member.name}
-                          />
-                          <AvatarFallback className="text-xs">{getUserInitials(member.name)}</AvatarFallback>
+                          <AvatarImage src={import.meta.env.VITE_BACKEND_BASE_URL + member.avatarUrl || getProfileImage(member.name)} alt={member.name} />
+                          <AvatarFallback>{getUserInitials(member.name)}</AvatarFallback>
                         </Avatar>
                         <div>
                           <div className="text-base font-medium">{member.name}</div>

@@ -171,7 +171,7 @@ export const ServiceRatesContent: React.FC<ServiceRatesContentProps> = ({ onUnsa
         const currentMember = teamMembers.find(m => m.id === memberId);
         if (!currentMember) return;
         const newLockState = !currentMember.isDefaultRateLocked;
-        const status = newLockState ? 'active' : 'inactive';
+        const status = newLockState ? 'active' : 'inActive';
         updateTeamMembers({ singleTeamMenber: { userId: memberId, status }})
             .unwrap()
             .then(() => {
