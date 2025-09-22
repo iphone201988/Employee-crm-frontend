@@ -8,6 +8,9 @@ import AccessContent from '@/components/Team/AccessContent';
 import { usePermissionTabs } from '@/hooks/usePermissionTabs';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
+import { useLazyGetTabAccessQuery } from '@/store/authApi';
+import { Avatar, AvatarFallback, AvatarImage } from '@radix-ui/react-avatar';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@radix-ui/react-tooltip';
 const tabs = [
     {
         id: 'teamList',
@@ -31,6 +34,7 @@ const tabs = [
 const TeamTab = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const navigate = useNavigate();
+    const [getTabAccess, { data: currentTabsUsers }] = useLazyGetTabAccessQuery()
     const { visibleTabs, isLoading, isError } = usePermissionTabs(tabs);
     const {
         hasUnsavedChanges,
@@ -53,7 +57,7 @@ const TeamTab = () => {
         if (visibleTabs.some(tab => tab.id === 'teamList')) {
             return 'teamList';
         }
-        return visibleTabs.length > 0 ? visibleTabs[0].id : 'teamList';
+        return visibleTabs.length > 0 ? visibleTabs[0].id : '';
     };
 
     const activeTab = getActiveTab();
@@ -65,6 +69,7 @@ const TeamTab = () => {
             newParams.set('tab', defaultTab);
             setSearchParams(newParams);
         }
+        getTabAccess(activeTab).unwrap();
     }, [visibleTabs, activeTab, searchParams, setSearchParams]);
 
     useEffect(() => {
@@ -113,11 +118,50 @@ const TeamTab = () => {
 
     return (
         <div className="space-y-6">
-            <CustomTabs
+            <div className="mb-6">
+
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                        <h1 className="text-xl sm:text-2xl font-semibold text-foreground">Teams</h1>
+                        <div className="flex -space-x-2 overflow-x-auto pb-2 sm:pb-0">
+                            {/* Wrap the list of avatars in a single TooltipProvider */}
+                            <TooltipProvider>
+                                {currentTabsUsers?.result.length > 0 &&
+                                    currentTabsUsers?.result.map((user: any, index) => (
+                                        <Tooltip key={user?.id || index} delayDuration={100}>
+                                            <TooltipTrigger asChild>
+                                                <Avatar
+                                                    className="border-2 border-background w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0 rounded-full"
+                                                // The native `title` attribute is no longer needed
+                                                >
+                                                    <AvatarImage
+                                                        src={
+                                                            import.meta.env.VITE_BACKEND_BASE_URL + user?.avatarUrl
+                                                        }
+                                                        className="rounded-full"
+                                                    />
+                                                    <AvatarFallback className="text-xs rounded-full">
+                                                        {user?.name}
+                                                    </AvatarFallback>
+                                                </Avatar>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>{user?.name}</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    ))}
+                            </TooltipProvider>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Tabs */}
+                 <CustomTabs
                 tabs={visibleTabs}
                 activeTab={activeTab}
                 setActiveTab={handleTabSwitch}
             />
+            </div>
             {
                 activeTab === 'teamList' && (
                     <DetailsContent
@@ -155,6 +199,11 @@ const TeamTab = () => {
                             setUnsavedChanges(hasChanges, saveFn, discardFn, 'access')
                         }
                     />
+                )
+            }
+            {
+                activeTab === '' && (
+                   <div>YOU HAVE NO ACCESS</div>
                 )
             }
 

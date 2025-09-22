@@ -12,7 +12,9 @@ import { CreditCard, Search, Filter, Eye, Edit, Download, Upload, Paperclip, Ext
 import sampleReceipt from "@/assets/sample-receipt.png";
 import CustomTabs from '@/components/Tabs';
 import { usePermissionTabs } from '@/hooks/usePermissionTabs';
-
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@radix-ui/react-tooltip';
+import { useLazyGetTabAccessQuery } from '@/store/authApi';
+import { useGetCurrentUserQuery } from '@/store/authApi';
 interface Expense {
   id: string;
   date: string;
@@ -472,17 +474,17 @@ const ExpensesLogTab = () => {
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState<string | null>(null);
   const { visibleTabs, isLoading, isError } = usePermissionTabs(tabs);
-
+  const [getTabAccess, { data: currentTabsUsers }] = useLazyGetTabAccessQuery()
+    const { data: currentUserData }: any = useGetCurrentUserQuery();
   useEffect(() => {
-    // Reset activeTab when visibleTabs changes
     if (visibleTabs.length > 0) {
       if (!visibleTabs.some(tab => tab.id === activeTab)) {
         setActiveTab(visibleTabs[0].id);
       }
     } else {
-      // Clear activeTab if no tabs are visible
       setActiveTab('');
     }
+    getTabAccess(activeTab).unwrap();
   }, [visibleTabs, activeTab]);
 
   const formatDate = (dateString: string) => {
@@ -490,7 +492,6 @@ const ExpensesLogTab = () => {
     return `${day}/${month}/${year}`;
   };
 
-  // Early return if no tabs are visible
   if (!isLoading && !isError && visibleTabs.length === 0) {
     return (
       <div className="space-y-6">
@@ -503,7 +504,6 @@ const ExpensesLogTab = () => {
     );
   }
 
-  // Show loading state
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -514,7 +514,6 @@ const ExpensesLogTab = () => {
     );
   }
 
-  // Show error state
   if (isError) {
     return (
       <div className="space-y-6">
@@ -642,12 +641,47 @@ const ExpensesLogTab = () => {
   const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
 
   return (
-    <div className="space-y-6">
-      <CustomTabs
-        tabs={visibleTabs}
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-      />
+    <div className="space-y-6 p-6">
+      <div className="mb-6">
+
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <h1 className="text-xl sm:text-2xl font-semibold text-foreground">Expenses</h1>
+            <div className="flex -space-x-2 overflow-x-auto pb-2 sm:pb-0">
+              {/* Wrap the list of avatars in a single TooltipProvider */}
+              <TooltipProvider>
+                {currentTabsUsers?.result.length > 0 &&
+                  currentTabsUsers?.result.map((user: any, index) => (
+                    <Tooltip key={user?.id || index} delayDuration={100}>
+                      <TooltipTrigger asChild>
+                        <Avatar
+                          className="border-2 border-background w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0 rounded-full"
+                        // The native `title` attribute is no longer needed
+                        >
+                          <AvatarImage
+                            src={
+                              import.meta.env.VITE_BACKEND_BASE_URL + user?.avatarUrl
+                            }
+                            className="rounded-full"
+                          />
+                          <AvatarFallback className="text-xs rounded-full">
+                            {user?.name}
+                          </AvatarFallback>
+                        </Avatar>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{user?.name}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  ))}
+              </TooltipProvider>
+            </div>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <CustomTabs tabs={visibleTabs} activeTab={activeTab} setActiveTab={setActiveTab} />
+      </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

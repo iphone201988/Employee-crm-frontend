@@ -16,6 +16,7 @@ import { usePermissionTabs } from "@/hooks/usePermissionTabs";
 import AllTimeLogsTab from "@/components/AllTimeLogsTab";
 import { Card, CardContent } from "@/components/ui/card";
 import { useGetTabAccessQuery, useLazyGetTabAccessQuery } from "@/store/authApi";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@radix-ui/react-tooltip";
 const generateRandomTime = () => {
   const hours = Math.floor(Math.random() * 10) + 30; // 30-39 hours
   const minutes = Math.floor(Math.random() * 60);
@@ -506,21 +507,33 @@ export function TimesheetDashboard() {
         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
           <h1 className="text-xl sm:text-2xl font-semibold text-foreground">Time</h1>
           <div className="flex -space-x-2 overflow-x-auto pb-2 sm:pb-0">
-            {/* User avatars */}
-
-            {currentTabsUsers?.result.length > 0 && currentTabsUsers?.result.map((user: any, index: number) => (
-              <Avatar
-                key={user.id || index} // Use user.id or fallback to index
-                className="border-2 border-background w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0 rounded-full" // Explicitly add rounded-full
-                title={user?.name}
-              >
-                <AvatarImage
-                  src={import.meta.env.VITE_BACKEND_BASE_URL + user?.avatarUrl}
-                  className="rounded-full" // Also add to the image
-                />
-                <AvatarFallback className="text-xs rounded-full">{user?.name}</AvatarFallback>
-              </Avatar>
-            ))}
+            {/* Wrap the list of avatars in a single TooltipProvider */}
+            <TooltipProvider>
+              {currentTabsUsers?.result.length > 0 &&
+                currentTabsUsers?.result.map((user: any, index) => (
+                  <Tooltip key={user?.id || index} delayDuration={100}>
+                    <TooltipTrigger asChild>
+                      <Avatar
+                        className="border-2 border-background w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0 rounded-full"
+                      // The native `title` attribute is no longer needed
+                      >
+                        <AvatarImage
+                          src={
+                            import.meta.env.VITE_BACKEND_BASE_URL + user?.avatarUrl
+                          }
+                          className="rounded-full"
+                        />
+                        <AvatarFallback className="text-xs rounded-full">
+                          {user?.name}
+                        </AvatarFallback>
+                      </Avatar>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{user?.name}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
+            </TooltipProvider>
           </div>
         </div>
       </div>
@@ -533,6 +546,8 @@ export function TimesheetDashboard() {
     {activeTab === "allTimesheets" && <div className="mb-3">
       <WeekNavigation />
     </div>}
+
+      {activeTab === '' && <div>YOU HAVE NO ACCESS</div>}
 
     {/* Status Summary Cards - Only show in allTimesheets tab */}
     {activeTab === "allTimesheets" && (

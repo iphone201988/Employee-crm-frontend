@@ -11,6 +11,9 @@ import CustomTabs from './Tabs';
 import { useGetAllCategorieasQuery, useAddCategoryMutation, useDeleteCategoryMutation } from '@/store/categoryApi';
 import { toast } from 'sonner';
 import { usePermissionTabs } from '@/hooks/usePermissionTabs';
+import { useLazyGetTabAccessQuery } from '@/store/authApi';
+import { Avatar, AvatarFallback, AvatarImage } from '@radix-ui/react-avatar';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@radix-ui/react-tooltip';
 
 interface SettingsTabProps {
   autoApproveTimesheets: boolean;
@@ -18,11 +21,11 @@ interface SettingsTabProps {
 }
 
 const tabs = [
-    { id: 'general', label: 'General' },
-    { id: 'tags', label: 'Categories' },
-    { id: 'clientImport', label: 'Client Import' },
-    { id: 'timeLogsImport', label: 'Time Logs Import' },
-    { id: 'integrations', label: 'Integrations' }
+  { id: 'general', label: 'General' },
+  { id: 'tags', label: 'Categories' },
+  { id: 'clientImport', label: 'Client Import' },
+  { id: 'timeLogsImport', label: 'Time Logs Import' },
+  { id: 'integrations', label: 'Integrations' }
 ];
 
 const SettingsTab = ({
@@ -30,7 +33,7 @@ const SettingsTab = ({
   onAutoApproveChange
 }: SettingsTabProps) => {
   const [newJobType, setNewJobType] = useState('');
-  const [activeTab, setActiveTab] = useState<string>('general');
+  const [activeTab, setActiveTab] = useState<string>('');
   const [newDepartment, setNewDepartment] = useState('');
   const [newService, setNewService] = useState('');
   const [newTimeTag, setNewTimeTag] = useState('');
@@ -40,7 +43,7 @@ const SettingsTab = ({
   const [isBusinessDialogOpen, setIsBusinessDialogOpen] = useState(false);
   const [isJobDialogOpen, setIsJobDialogOpen] = useState(false);
   const [isDepartmentDialogOpen, setIsDepartmentDialogOpen] = useState(false);
-  
+  const [getTabAccess, { data: currentTabsUsers }] = useLazyGetTabAccessQuery()
   const { visibleTabs, isLoading } = usePermissionTabs(tabs);
   const { data: categories, isLoading: isLoadingCategories, isError } = useGetAllCategorieasQuery("all");
   const [addCategory, { isLoading: isAdding }] = useAddCategoryMutation();
@@ -50,6 +53,7 @@ const SettingsTab = ({
     if (visibleTabs.length > 0 && !visibleTabs.some(tab => tab.id === activeTab)) {
       setActiveTab(visibleTabs[0].id);
     }
+    getTabAccess(activeTab).unwrap();
   }, [visibleTabs, activeTab]);
 
   const handleAddNewCategory = async (type: 'service' | 'department' | 'time' | 'bussiness' | 'job') => {
@@ -58,27 +62,27 @@ const SettingsTab = ({
     let closeDialog: (isOpen: boolean) => void;
 
     switch (type) {
-      case 'service': 
+      case 'service':
         name = newService;
         resetInput = () => setNewService('');
         closeDialog = setIsServiceDialogOpen;
         break;
-      case 'department': 
+      case 'department':
         name = newDepartment;
         resetInput = () => setNewDepartment('');
         closeDialog = setIsDepartmentDialogOpen;
         break;
-      case 'time': 
+      case 'time':
         name = newTimeTag;
         resetInput = () => setNewTimeTag('');
         closeDialog = setIsTimeDialogOpen;
         break;
-      case 'bussiness': 
+      case 'bussiness':
         name = newBusinessType;
         resetInput = () => setNewBusinessType('');
         closeDialog = setIsBusinessDialogOpen;
         break;
-      case 'job': 
+      case 'job':
         name = newJobType;
         resetInput = () => setNewJobType('');
         closeDialog = setIsJobDialogOpen;
@@ -109,12 +113,12 @@ const SettingsTab = ({
   };
 
   const renderCategoryCard = (
-    title: string, 
-    categoryType: 'service' | 'department' | 'time' | 'bussiness' | 'job', 
-    items: { _id: string; name: string }[], 
-    dialogOpen: boolean, 
-    setDialogOpen: (open: boolean) => void, 
-    newValue: string, 
+    title: string,
+    categoryType: 'service' | 'department' | 'time' | 'bussiness' | 'job',
+    items: { _id: string; name: string }[],
+    dialogOpen: boolean,
+    setDialogOpen: (open: boolean) => void,
+    newValue: string,
     setNewValue: (value: string) => void
   ) => (
     <Card>
@@ -143,12 +147,47 @@ const SettingsTab = ({
   );
 
   return (
-    <div className="space-y-6">
-      <CustomTabs
-        tabs={visibleTabs}
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-      />
+    <div className="space-y-6 p-6">
+      <div className="mb-6">
+
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <h1 className="text-xl sm:text-2xl font-semibold text-foreground">Settings</h1>
+            <div className="flex -space-x-2 overflow-x-auto pb-2 sm:pb-0">
+              {/* Wrap the list of avatars in a single TooltipProvider */}
+              <TooltipProvider>
+                {currentTabsUsers?.result.length > 0 &&
+                  currentTabsUsers?.result.map((user: any, index) => (
+                    <Tooltip key={user?.id || index} delayDuration={100}>
+                      <TooltipTrigger asChild>
+                        <Avatar
+                          className="border-2 border-background w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0 rounded-full"
+                        // The native `title` attribute is no longer needed
+                        >
+                          <AvatarImage
+                            src={
+                              import.meta.env.VITE_BACKEND_BASE_URL + user?.avatarUrl
+                            }
+                            className="rounded-full"
+                          />
+                          <AvatarFallback className="text-xs rounded-full">
+                            {user?.name}
+                          </AvatarFallback>
+                        </Avatar>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{user?.name}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  ))}
+              </TooltipProvider>
+            </div>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <CustomTabs tabs={visibleTabs} activeTab={activeTab} setActiveTab={setActiveTab} />
+      </div>
 
       {activeTab === "general" && (
         <Card>
@@ -179,7 +218,7 @@ const SettingsTab = ({
           {isLoadingCategories && <div className="text-center p-4">Loading...</div>}
           {isError && <div className="text-center p-4 text-red-500">Failed to load categories.</div>}
           {!isLoadingCategories && !isError && (
-             <div className="space-y-6">
+            <div className="space-y-6">
               {renderCategoryCard('Services', 'service', categories?.data?.services ?? [], isServiceDialogOpen, setIsServiceDialogOpen, newService, setNewService)}
               {renderCategoryCard('Time Tags', 'time', categories?.data?.times ?? [], isTimeDialogOpen, setIsTimeDialogOpen, newTimeTag, setNewTimeTag)}
               {renderCategoryCard('Business Types', 'bussiness', categories?.data?.bussiness ?? [], isBusinessDialogOpen, setIsBusinessDialogOpen, newBusinessType, setNewBusinessType)}

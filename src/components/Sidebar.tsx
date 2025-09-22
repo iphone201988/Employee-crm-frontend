@@ -8,16 +8,16 @@ import {
   UserCheck,
   Settings,
   LogOut,
-  Pencil, // Import the Pencil icon for editing
+  Pencil,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useLogoutMutation } from "@/store/authApi";
 import { useAuthContext } from "@/context/AuthContext";
 import { useGetCurrentUserQuery, useUpdateProfileImageMutation } from '../store/authApi';
-import { useRef, ChangeEvent } from "react"; // Import React hooks
+import { useRef, ChangeEvent, useMemo } from "react"; // Import useMemo
 
-const navigation = [
+const baseNavigation = [
   { name: "Time", icon: Clock, href: "/" },
   { name: "WIP & Debtors", icon: FileText, href: "/wip-debtors" },
   { name: "Clients", icon: Users, href: "/clients" },
@@ -38,24 +38,32 @@ export function Sidebar({ onClose }: SidebarProps) {
   const { clearCredentials } = useAuthContext();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // --- HOOKS ---
   const [logout, { isLoading: isLoggingOut }] = useLogoutMutation();
   const { data: user }: any = useGetCurrentUserQuery();
   const [updateProfileImage, { isLoading: isUploading }] = useUpdateProfileImageMutation();
   
   const loggedInUser = user?.data;
 
-  // --- EVENT HANDLERS ---
+  // Memoize the filtered navigation to prevent re-calculation on every render
+  const filteredNavigation = useMemo(() => {
+    // Correctly access the features object from loggedInUser
+    const reportTabPermission = loggedInUser?.features?.reports;
+
+    return baseNavigation.filter(item => {
+      if (item.name === "Reports") {
+        return !!reportTabPermission; // Ensure it's a boolean value
+      }
+      return true;
+    });
+  }, [loggedInUser]); // Dependency array ensures this runs only when loggedInUser changes
+
   const handleLogout = async () => {
-    // Note: The API call to '/logout' is prepared but not executed here.
-    // To execute, you would call `await logout().unwrap();`
     clearCredentials();
     navigate('/login');
     onClose?.();
   };
 
   const handleAvatarClick = () => {
-    // Trigger the hidden file input when the edit icon is clicked
     fileInputRef.current?.click();
   };
 
@@ -64,12 +72,9 @@ export function Sidebar({ onClose }: SidebarProps) {
     if (!file) return;
 
     try {
-      // Call the mutation to upload the file
       await updateProfileImage(file).unwrap();
-      // Optionally: show a success toast message
     } catch (error) {
       console.error('Failed to update profile image:', error);
-      // Optionally: show an error toast message
     }
   };
 
@@ -77,7 +82,6 @@ export function Sidebar({ onClose }: SidebarProps) {
     <div className="flex h-screen w-64 flex-col justify-between bg-sidebar">
       <div>
         <div className="flex items-center gap-3 p-6 border-b border-sidebar-border">
-          {/* --- AVATAR WITH EDIT ICON --- */}
           <div className="relative">
             <Avatar className="w-8 h-8">
               <AvatarImage
@@ -93,7 +97,6 @@ export function Sidebar({ onClose }: SidebarProps) {
                   : "U"}
               </AvatarFallback>
             </Avatar>
-            {/* Edit button positioned over the avatar */}
             <button
               onClick={handleAvatarClick}
               disabled={isUploading}
@@ -102,7 +105,6 @@ export function Sidebar({ onClose }: SidebarProps) {
             >
               <Pencil className="w-3 h-3" />
             </button>
-            {/* Hidden file input */}
             <input
               type="file"
               ref={fileInputRef}
@@ -114,9 +116,8 @@ export function Sidebar({ onClose }: SidebarProps) {
           <span className="text-sidebar-foreground font-medium">{loggedInUser?.name}</span>
         </div>
 
-        {/* --- NAVIGATION --- */}
         <nav className="flex-1 px-4 py-6 space-y-2">
-          {navigation.map((item) => {
+          {filteredNavigation.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.href;
 
@@ -138,7 +139,6 @@ export function Sidebar({ onClose }: SidebarProps) {
         </nav>
       </div>
 
-      {/* --- LOGOUT BUTTON --- */}
       <div className="px-4 py-6">
         <button
           onClick={handleLogout}
