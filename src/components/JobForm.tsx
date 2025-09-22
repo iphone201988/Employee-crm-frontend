@@ -77,7 +77,7 @@ export const JobForm = ({ job, onSubmit, onCancel }: JobFormProps) => {
             setErrors(prev => ({ ...prev, [field]: undefined }));
         }
     };
-    
+
     const handleClientNameChange = (value: string) => {
         setFormData({ ...formData, clientName: value, clientId: '' });
         setShowClientSuggestions(true);
@@ -171,34 +171,10 @@ export const JobForm = ({ job, onSubmit, onCancel }: JobFormProps) => {
                     {errors.jobTypeId && <p className="text-sm text-red-600 mt-1">{errors.jobTypeId}</p>}
                 </div>
 
-                <div>
-                    <Label htmlFor="jobManager">Job Manager</Label>
-                    <Select value={formData.jobManagerId} onValueChange={handleInputChange('jobManagerId')}>
-                        <SelectTrigger><SelectValue placeholder="Select job manager" /></SelectTrigger>
-                        <SelectContent>{teamMembers.map(member => <SelectItem key={member._id} value={member._id}>{member.name}</SelectItem>)}</SelectContent>
-                    </Select>
-                    {errors.jobManagerId && <p className="text-sm text-red-600 mt-1">{errors.jobManagerId}</p>}
-                </div>
+                <InputComponent label="Estimated Cost" id="estimatedCost" type="number" value={String(formData.jobCost ?? '')} onChange={(val) => handleInputChange('jobCost')(parseFloat(val as string) || undefined)} error={errors.jobCost} />
 
                 <InputComponent label="Start Date" id="startDate" type="date" value={formData.startDate} onChange={handleInputChange('startDate')} error={errors.startDate} />
                 <InputComponent label="End Date" id="endDate" type="date" value={formData.endDate} onChange={handleInputChange('endDate')} error={errors.endDate} />
-                <InputComponent label="Estimated Cost" id="estimatedCost" type="number" value={String(formData.jobCost ?? '')} onChange={(val) => handleInputChange('jobCost')(parseFloat(val as string) || undefined)} error={errors.jobCost} />
-
-                <div>
-                    <Label htmlFor="status">Status</Label>
-                    <Select value={formData.status} onValueChange={handleInputChange('status')}>
-                        <SelectTrigger><SelectValue/></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="queued">Queued</SelectItem>
-                            <SelectItem value="inProgress">In Progress</SelectItem>
-                            <SelectItem value="withClient">With Client</SelectItem>
-                            <SelectItem value="forApproval">For Approval</SelectItem>
-                            <SelectItem value="completed">Completed</SelectItem>
-                            <SelectItem value="cancelled">Cancelled</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-
                 <div>
                     <Label htmlFor="priority">Priority</Label>
                     <Select value={formData.priority} onValueChange={handleInputChange('priority')}>
@@ -210,6 +186,30 @@ export const JobForm = ({ job, onSubmit, onCancel }: JobFormProps) => {
                             <SelectItem value="urgent">Urgent</SelectItem>
                         </SelectContent>
                     </Select>
+                </div>
+
+                <div>
+                    <Label htmlFor="status">Status</Label>
+                    <Select value={formData.status} onValueChange={handleInputChange('status')}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="queued">Queued</SelectItem>
+                            <SelectItem value="inProgress">In Progress</SelectItem>
+                            <SelectItem value="withClient">With Client</SelectItem>
+                            <SelectItem value="forApproval">For Approval</SelectItem>
+                            <SelectItem value="completed">Completed</SelectItem>
+                            <SelectItem value="cancelled">Cancelled</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+
+               <div>
+                    <Label htmlFor="jobManager">Job Manager</Label>
+                    <Select value={formData.jobManagerId} onValueChange={handleInputChange('jobManagerId')}>
+                        <SelectTrigger><SelectValue placeholder="Select job manager" /></SelectTrigger>
+                        <SelectContent>{teamMembers.map(member => <SelectItem key={member._id} value={member._id}>{member.name}</SelectItem>)}</SelectContent>
+                    </Select>
+                    {errors.jobManagerId && <p className="text-sm text-red-600 mt-1">{errors.jobManagerId}</p>}
                 </div>
 
                 <div>

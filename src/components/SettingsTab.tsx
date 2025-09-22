@@ -4,7 +4,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Plus, X } from 'lucide-react';
 import CustomTabs from './Tabs';
@@ -43,7 +43,10 @@ const SettingsTab = ({
   const [isBusinessDialogOpen, setIsBusinessDialogOpen] = useState(false);
   const [isJobDialogOpen, setIsJobDialogOpen] = useState(false);
   const [isDepartmentDialogOpen, setIsDepartmentDialogOpen] = useState(false);
-  const [getTabAccess, { data: currentTabsUsers }] = useLazyGetTabAccessQuery()
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState<{ type: string; id: string } | null>(null);
+
+  const [getTabAccess, { data: currentTabsUsers }] = useLazyGetTabAccessQuery();
   const { visibleTabs, isLoading } = usePermissionTabs(tabs);
   const { data: categories, isLoading: isLoadingCategories, isError } = useGetAllCategorieasQuery("all");
   const [addCategory, { isLoading: isAdding }] = useAddCategoryMutation();
@@ -53,8 +56,10 @@ const SettingsTab = ({
     if (visibleTabs.length > 0 && !visibleTabs.some(tab => tab.id === activeTab)) {
       setActiveTab(visibleTabs[0].id);
     }
-    getTabAccess(activeTab).unwrap();
-  }, [visibleTabs, activeTab]);
+    if (activeTab) {
+      getTabAccess(activeTab).unwrap();
+    }
+  }, [visibleTabs, activeTab, getTabAccess]);
 
   const handleAddNewCategory = async (type: 'service' | 'department' | 'time' | 'bussiness' | 'job') => {
     let name = '';
@@ -102,13 +107,24 @@ const SettingsTab = ({
     }
   };
 
-  const handleDeleteCategory = async (type: string, id: string) => {
+  const openDeleteConfirmation = (type: string, id: string) => {
+    setCategoryToDelete({ type, id });
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!categoryToDelete) return;
+
     try {
-      await deleteCategory({ type, id }).unwrap();
+      await deleteCategory(categoryToDelete).unwrap();
       toast.success('Category deleted successfully!');
+      setIsDeleteDialogOpen(false);
+      setCategoryToDelete(null);
     } catch (err) {
-      console.error(`Failed to delete category: ${type}`, err);
+      console.error(`Failed to delete category: ${categoryToDelete.type}`, err);
       toast.error('Failed to delete category. Please try again.');
+      setIsDeleteDialogOpen(false);
+      setCategoryToDelete(null);
     }
   };
 
@@ -124,7 +140,7 @@ const SettingsTab = ({
     <Card>
       <CardHeader>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <CardTitle>{title}</CardTitle>
+          <CardTitle>{title} ({items.length})</CardTitle>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild><Button size="sm" className="w-full sm:w-auto"><Plus className="h-4 w-4 mr-2" />Add {title.slice(0, -1)}</Button></DialogTrigger>
             <DialogContent>
@@ -139,7 +155,7 @@ const SettingsTab = ({
         {items.map((item) => (
           <Badge key={item._id} variant="secondary" className="bg-blue-100 text-blue-800 border-blue-200">
             {item.name}
-            <button onClick={() => handleDeleteCategory(categoryType, item._id)} disabled={isDeleting} className="ml-2 cursor-pointer"><X size={14} /></button>
+            <button onClick={() => openDeleteConfirmation(categoryType, item._id)} disabled={isDeleting} className="ml-2 cursor-pointer"><X size={14} /></button>
           </Badge>
         ))}
       </CardContent>
@@ -149,12 +165,10 @@ const SettingsTab = ({
   return (
     <div className="space-y-6 p-6">
       <div className="mb-6">
-
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-4">
           <div className="flex flex-col sm:flex-row sm:items-center gap-4">
             <h1 className="text-xl sm:text-2xl font-semibold text-foreground">Settings</h1>
             <div className="flex -space-x-2 overflow-x-auto pb-2 sm:pb-0">
-              {/* Wrap the list of avatars in a single TooltipProvider */}
               <TooltipProvider>
                 {currentTabsUsers?.result.length > 0 &&
                   currentTabsUsers?.result.map((user: any, index) => (
@@ -162,7 +176,6 @@ const SettingsTab = ({
                       <TooltipTrigger asChild>
                         <Avatar
                           className="border-2 border-background w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0 rounded-full"
-                        // The native `title` attribute is no longer needed
                         >
                           <AvatarImage
                             src={
@@ -171,7 +184,7 @@ const SettingsTab = ({
                             className="rounded-full"
                           />
                           <AvatarFallback className="text-xs rounded-full">
-                            {user?.name}
+                            {user?.name?.charAt(0).toUpperCase() ?? 'U'}
                           </AvatarFallback>
                         </Avatar>
                       </TooltipTrigger>
@@ -185,7 +198,6 @@ const SettingsTab = ({
           </div>
         </div>
 
-        {/* Tabs */}
         <CustomTabs tabs={visibleTabs} activeTab={activeTab} setActiveTab={setActiveTab} />
       </div>
 
@@ -228,6 +240,24 @@ const SettingsTab = ({
           )}
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Are you sure?</DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. This will permanently delete the category.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={confirmDelete} disabled={isDeleting}>
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {activeTab === "clientImport" && (
         <Card>
@@ -291,4 +321,3 @@ const SettingsTab = ({
 };
 
 export default SettingsTab;
-

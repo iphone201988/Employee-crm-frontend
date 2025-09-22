@@ -12,8 +12,18 @@ import { useGetAllTeamMembersQuery, useUpdateTeamMembersMutation } from '@/store
 import { useGetAllCategorieasQuery } from "@/store/categoryApi";
 import { toast } from 'sonner';
 
-interface JobType { _id: string; name: string; key: string; }
-interface JobFee { jobId: string; fee: number; _id: string; }
+interface ServiceType {
+    _id: string;
+    name: string;
+    key: string;
+}
+
+interface ServiceFee {
+    serviceId: string;
+    fee: number;
+    _id: string;
+}
+
 interface ServiceRatesTeamMember {
     id: string;
     name: string;
@@ -24,18 +34,20 @@ interface ServiceRatesTeamMember {
     rates: { [key: string]: number | 'N/A' };
 }
 
-const transformToServiceRates = (member: any, jobTypes: JobType[]): ServiceRatesTeamMember => {
+const transformToServiceRates = (member: any, serviceTypes: ServiceType[]): ServiceRatesTeamMember => {
     const rates: { [key: string]: number | 'N/A' } = {};
-    jobTypes.forEach(jobType => {
-        const jobFee = member.jobFees?.find((fee: JobFee) => fee.jobId === jobType._id);
-        rates[jobType.key] = jobFee ? jobFee.fee : 'N/A';
+    serviceTypes.forEach(serviceType => {
+        const serviceFee = member.serviceFees?.find((fee: ServiceFee) => fee.serviceId === serviceType._id);
+        rates[serviceType.key] = serviceFee ? serviceFee.fee : 'N/A';
     });
+
     return {
         id: member._id,
         name: member.name,
         avatarUrl: member.avatarUrl,
         hourlyRate: member.hourlyRate || 0,
         defaultRate: member.billableRate || 0,
+        // The lock state should be based on the 'status' field.
         isDefaultRateLocked: member.status === 'active',
         rates,
     };
@@ -55,28 +67,29 @@ export const ServiceRatesContent: React.FC<ServiceRatesContentProps> = ({ onUnsa
     const [page, setPage] = useState(1);
     const [limit, setLimit] = useState(10);
 
-    const { data: categoriesData, isLoading: isLoadingCategories } = useGetAllCategorieasQuery('job');
-    const { data: teamData, isLoading: isLoadingTeam, isFetching: isFetchingTeam } = useGetAllTeamMembersQuery({ page, limit });
+    const { data: categoriesData, isLoading: isLoadingCategories } = useGetAllCategorieasQuery('service');
+    const { data: teamData, isLoading: isLoadingTeam, isFetching: isFetchingTeam, refetch } = useGetAllTeamMembersQuery({ page, limit });
     const [updateTeamMembers, { isLoading: isUpdating }] = useUpdateTeamMembersMutation();
 
-    const mainJobTypes: JobType[] = useMemo(() => {
-        const jobList = categoriesData?.data?.jobs || categoriesData?.data;
-        return Array.isArray(jobList) ? jobList.map((job: any) => ({
-            _id: job._id,
-            name: job.name,
-            key: job.name.toLowerCase().replace(/\s/g, ''),
+    const mainServiceTypes: ServiceType[] = useMemo(() => {
+        const serviceList = categoriesData?.data?.services || [];
+        return Array.isArray(serviceList) ? serviceList.map((service: any) => ({
+            _id: service._id,
+            name: service.name,
+            key: service.name.toLowerCase().replace(/\s/g, ''),
         })) : [];
     }, [categoriesData]);
 
     const pagination = teamData?.data?.pagination;
 
     useEffect(() => {
-        if (teamData?.data?.teamMembers && mainJobTypes.length > 0 && !isFetchingTeam) {
-            const transformedMembers = teamData.data.teamMembers.map(member => transformToServiceRates(member, mainJobTypes));
+        if (teamData?.data?.teamMembers && mainServiceTypes.length > 0 && !isFetchingTeam) {
+            const transformedMembers = teamData.data.teamMembers.map(member => transformToServiceRates(member, mainServiceTypes));
             setTeamMembers(transformedMembers);
+            // Reset unsaved changes when data is re-fetched.
             setHasUnsavedChanges({});
         }
-    }, [teamData, mainJobTypes, isFetchingTeam]);
+    }, [teamData, mainServiceTypes, isFetchingTeam]);
 
     useEffect(() => { setPage(1); }, [limit]);
 
@@ -94,10 +107,9 @@ export const ServiceRatesContent: React.FC<ServiceRatesContentProps> = ({ onUnsa
             const aValue = getSortValue(a, sortField);
             const bValue = getSortValue(b, sortField);
 
-            if (aValue === 'N/A' || bValue === 'N/A') {
-                if (aValue === bValue) return 0;
-                return aValue === 'N/A' ? 1 : -1;
-            }
+            if (aValue === 'N/A') return 1;
+            if (bValue === 'N/A') return -1;
+            
             return sortDirection === 'asc' ? (aValue as number) - (bValue as number) : (bValue as number) - (aValue as number);
         });
     }, [teamMembers, sortField, sortDirection]);
@@ -117,18 +129,18 @@ export const ServiceRatesContent: React.FC<ServiceRatesContentProps> = ({ onUnsa
         const rateUpdates = teamMembers
             .filter(member => changedMemberIds.includes(member.id))
             .map(member => {
-                const jobFees = mainJobTypes
-                    .map(jobType => {
-                        const rate = member.rates[jobType.key];
-                        return rate !== 'N/A' ? { jobId: jobType._id, fee: Number(rate) } : null;
+                const serviceFees = mainServiceTypes
+                    .map(serviceType => {
+                        const rate = member.rates[serviceType.key];
+                        return rate !== 'N/A' ? { serviceId: serviceType._id, fee: Number(rate) } : null;
                     })
-                    .filter(fee => fee !== null) as { jobId: string; fee: number }[];
+                    .filter(fee => fee !== null) as { serviceId: string; fee: number }[];
 
                 return {
                     userId: member.id,
                     hourlyRate: member.hourlyRate,
                     billableRate: member.defaultRate,
-                    jobFees,
+                    serviceFees,
                 };
             });
 
@@ -141,25 +153,30 @@ export const ServiceRatesContent: React.FC<ServiceRatesContentProps> = ({ onUnsa
             console.error("Failed to update rates:", error);
             toast.error("Failed to update rates.");
         }
-    }, [teamMembers, mainJobTypes, updateTeamMembers, onUnsavedChangesChange, hasUnsavedChanges]);
+    }, [teamMembers, mainServiceTypes, updateTeamMembers, onUnsavedChangesChange, hasUnsavedChanges]);
     
     const handleDiscardChanges = useCallback(() => {
-        if (teamData?.data?.teamMembers && mainJobTypes.length > 0) {
-            setTeamMembers(teamData.data.teamMembers.map(member => transformToServiceRates(member, mainJobTypes)));
-        }
+        refetch(); // Refetch original data to discard changes
         setHasUnsavedChanges({});
         onUnsavedChangesChange?.(false);
-    }, [teamData, mainJobTypes, onUnsavedChangesChange]);
+    }, [refetch, onUnsavedChangesChange]);
 
     const handleCellSave = (memberId: string, fieldKey: string) => {
         const value = parseFloat(editingValue);
-        const finalValue: number | 'N/A' = isNaN(value) ? (fieldKey === 'hourlyRate' || fieldKey === 'defaultRate' ? 0 : 'N/A') : value;
+        const finalValue: number | 'N/A' = isNaN(value) ? 'N/A' : value;
 
         setTeamMembers(prev => prev.map(member => {
             if (member.id !== memberId) return member;
-            if (fieldKey === 'hourlyRate') return { ...member, hourlyRate: finalValue as number };
-            if (fieldKey === 'defaultRate') return { ...member, defaultRate: finalValue as number };
-            return { ...member, rates: { ...member.rates, [fieldKey]: finalValue } };
+            
+            const updatedMember = { ...member };
+            if (fieldKey === 'hourlyRate') {
+                updatedMember.hourlyRate = isNaN(value) ? member.hourlyRate : value;
+            } else if (fieldKey === 'defaultRate') {
+                updatedMember.defaultRate = isNaN(value) ? member.defaultRate : value;
+            } else {
+                updatedMember.rates = { ...member.rates, [fieldKey]: finalValue };
+            }
+            return updatedMember;
         }));
 
         setEditingCell(null);
@@ -167,19 +184,23 @@ export const ServiceRatesContent: React.FC<ServiceRatesContentProps> = ({ onUnsa
         onUnsavedChangesChange?.(true, handleSaveChanges, handleDiscardChanges, 'rates');
     };
 
-    const toggleDefaultRateLock = (memberId: string) => {
+    const toggleDefaultRateLock = async (memberId: string) => {
         const currentMember = teamMembers.find(m => m.id === memberId);
         if (!currentMember) return;
+        
         const newLockState = !currentMember.isDefaultRateLocked;
-        const status = newLockState ? 'active' : 'inActive';
-        updateTeamMembers({ singleTeamMenber: { userId: memberId, status }})
-            .unwrap()
-            .then(() => {
-                setTeamMembers(prev => prev.map(member =>
-                    member.id === memberId ? { ...member, isDefaultRateLocked: newLockState } : member
-                ));
-                toast.success(`Lock status updated.`);
-            }).catch(() => toast.error("Failed to update lock status."));
+        const newStatus = newLockState ? 'active' : 'inActive';
+
+        try {
+            await updateTeamMembers({ singleTeamMenber: { userId: memberId, status: newStatus } }).unwrap();
+            setTeamMembers(prev => prev.map(member =>
+                member.id === memberId ? { ...member, isDefaultRateLocked: newLockState } : member
+            ));
+            toast.success(`Lock status updated successfully.`);
+        } catch (error) {
+            console.error("Failed to update lock status:", error);
+            toast.error("Failed to update lock status.");
+        }
     };
     
     const handleKeyDown = (e: React.KeyboardEvent, memberId: string, fieldKey: string) => {
@@ -188,6 +209,11 @@ export const ServiceRatesContent: React.FC<ServiceRatesContentProps> = ({ onUnsa
     };
 
     const handleCellClick = (memberId: string, fieldKey: string, currentValue: number | string) => {
+        const member = teamMembers.find(m => m.id === memberId);
+        // Prevent editing service rates when the row is locked
+        if (member?.isDefaultRateLocked && fieldKey !== 'hourlyRate' && fieldKey !== 'defaultRate') {
+            return;
+        }
         setEditingCell(`${memberId}-${fieldKey}`);
         setEditingValue(currentValue === 'N/A' ? '' : String(currentValue));
     };
@@ -217,7 +243,7 @@ export const ServiceRatesContent: React.FC<ServiceRatesContentProps> = ({ onUnsa
                                     >
                                         <div className="flex items-center gap-2">
                                             Team Member
-                                            <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+                                        <ArrowUpDown className="h-4 w-4" />
                                         </div>
                                     </TableHead>
                                     <TableHead
@@ -226,7 +252,7 @@ export const ServiceRatesContent: React.FC<ServiceRatesContentProps> = ({ onUnsa
                                     >
                                         <div className="flex items-center gap-2">
                                             Hourly Rate
-                                            <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+                                             <ArrowUpDown className="h-4 w-4" />
                                         </div>
                                     </TableHead>
                                     <TableHead
@@ -235,28 +261,37 @@ export const ServiceRatesContent: React.FC<ServiceRatesContentProps> = ({ onUnsa
                                     >
                                         <div className="flex items-center gap-2">
                                            Billable Rate
-                                            <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+                                         <ArrowUpDown className="h-4 w-4" />
                                         </div>
                                     </TableHead>
                                     <TableHead className="w-[100px]">Lock</TableHead>
-                                    {mainJobTypes.map((job) => (
+                                    {mainServiceTypes.map((service) => (
                                         <TableHead
-                                            key={job.key}
+                                            key={service.key}
                                             className="w-[150px] cursor-pointer hover:bg-muted/50"
-                                            onClick={() => handleSort(job.key)}
+                                            onClick={() => handleSort(service.key)}
                                         >
                                             <div className="flex items-center gap-2">
-                                                {job.name}
-                                                <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+                                                {service.name}
+                                                 <ArrowUpDown className="h-4 w-4" />
                                             </div>
                                         </TableHead>
                                     ))}
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {sortedTeamMembers.length === 0 && !isLoading ? (
+                                {isLoading ? (
                                     <TableRow>
-                                        <TableCell colSpan={mainJobTypes.length + 4} className="h-24 text-center">
+                                        <TableCell colSpan={mainServiceTypes.length + 4} className="h-24 text-center">
+                                            <div className="flex justify-center items-center">
+                                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                                                <p className="ml-3">Loading members...</p>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ) : sortedTeamMembers.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={mainServiceTypes.length + 4} className="h-24 text-center">
                                             No team members found.
                                         </TableCell>
                                     </TableRow>
@@ -264,11 +299,22 @@ export const ServiceRatesContent: React.FC<ServiceRatesContentProps> = ({ onUnsa
                                     sortedTeamMembers.map((member) => {
                                         const renderCell = (fieldKey: 'hourlyRate' | 'defaultRate' | string, rateValue: number | 'N/A') => {
                                             const isEditing = editingCell === `${member.id}-${fieldKey}`;
+                                            const isLocked = member.isDefaultRateLocked && fieldKey !== 'hourlyRate' && fieldKey !== 'defaultRate';
+
+                                            if (isLocked) {
+                                                return <div className="p-2 text-gray-400">-</div>;
+                                            }
+                                            
                                             return isEditing ? (
                                                 <Input
-                                                    type="text" value={editingValue} onChange={(e) => setEditingValue(e.target.value)}
-                                                    onBlur={() => handleCellSave(member.id, fieldKey)} onKeyDown={(e) => handleKeyDown(e, member.id, fieldKey)}
-                                                    className="w-24 h-8 text-sm" autoFocus
+                                                    type="number"
+                                                    value={editingValue}
+                                                    onChange={(e) => setEditingValue(e.target.value)}
+                                                    onBlur={() => handleCellSave(member.id, fieldKey)}
+                                                    onKeyDown={(e) => handleKeyDown(e, member.id, fieldKey)}
+                                                    className="w-24 h-8 text-sm"
+                                                    autoFocus
+                                                    placeholder="N/A"
                                                 />
                                             ) : (
                                                 <div onClick={() => handleCellClick(member.id, fieldKey, rateValue)} className="cursor-pointer p-2 rounded hover:bg-gray-100 min-h-[36px] flex items-center">
@@ -278,7 +324,7 @@ export const ServiceRatesContent: React.FC<ServiceRatesContentProps> = ({ onUnsa
                                         };
 
                                         return (
-                                            <TableRow key={member.id} className="h-12">
+                                            <TableRow key={member.id} className="h-12 hover:bg-gray-50">
                                                 <TableCell className="sticky left-0 bg-white z-10 border-r font-medium">
                                                     <div className="flex items-center gap-3">
                                                         <Avatar className="h-8 w-8">
@@ -290,10 +336,16 @@ export const ServiceRatesContent: React.FC<ServiceRatesContentProps> = ({ onUnsa
                                                 </TableCell>
                                                 <TableCell>{renderCell('hourlyRate', member.hourlyRate)}</TableCell>
                                                 <TableCell>{renderCell('defaultRate', member.defaultRate)}</TableCell>
-                                                <TableCell><Switch checked={member.isDefaultRateLocked} onCheckedChange={() => toggleDefaultRateLock(member.id)}/></TableCell>
-                                                {mainJobTypes.map((job) => (
-                                                    <TableCell key={job.key}>
-                                                        {!member.isDefaultRateLocked ? renderCell(job.key, member.rates[job.key]) : <div className="p-2 text-gray-400">-</div>}
+                                                <TableCell>
+                                                    <Switch 
+                                                        checked={member.isDefaultRateLocked} 
+                                                        onCheckedChange={() => toggleDefaultRateLock(member.id)}
+                                                        disabled={isUpdating}
+                                                    />
+                                                </TableCell>
+                                                {mainServiceTypes.map((service) => (
+                                                    <TableCell key={service.key}>
+                                                        {renderCell(service.key, member.rates[service.key])}
                                                     </TableCell>
                                                 ))}
                                             </TableRow>
@@ -306,7 +358,6 @@ export const ServiceRatesContent: React.FC<ServiceRatesContentProps> = ({ onUnsa
                 </CardContent>
             </Card>
 
-            {/* MODIFIED: Full pagination controls restored */}
             {pagination && pagination.totalPages > 0 && (
                 <div className="space-y-4 mt-6">
                     <div className="flex items-center justify-between">

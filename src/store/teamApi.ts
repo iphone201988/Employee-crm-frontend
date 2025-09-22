@@ -46,7 +46,7 @@ export const teamApi = createApi({
                     : [{ type: 'Team', id: 'LIST' }];
             },
         }),
-        updateTeamMembers: builder.mutation<UpdateTeamMembersResponse, UpdateTeamMembersRequest>({
+        updateTeamMembers: builder.mutation<UpdateTeamMembersResponse, any>({
             query: (updateData) => ({
                 url: '/update-team-members',
                 method: 'POST',
