@@ -15,6 +15,7 @@ type SortDirection = 'asc' | 'desc' | null;
 import { usePermissionTabs } from "@/hooks/usePermissionTabs";
 import AllTimeLogsTab from "@/components/AllTimeLogsTab";
 import { Card, CardContent } from "@/components/ui/card";
+import { useGetTabAccessQuery, useLazyGetTabAccessQuery } from "@/store/authApi";
 const generateRandomTime = () => {
   const hours = Math.floor(Math.random() * 10) + 30; // 30-39 hours
   const minutes = Math.floor(Math.random() * 60);
@@ -180,6 +181,7 @@ const tabs = [{
   label: "Time Logs"
 }];
 export function TimesheetDashboard() {
+
   const [activeTab, setActiveTab] = useState("");
   const { visibleTabs, isLoading, isError } = usePermissionTabs(tabs);
   const [activeFilter, setActiveFilter] = useState("allTimesheets");
@@ -193,6 +195,7 @@ export function TimesheetDashboard() {
   const [hideWeekend, setHideWeekend] = useState(false);
   const [timesheetSortField, setTimesheetSortField] = useState<'ref' | 'client' | 'job' | 'category' | 'description' | 'rate' | null>(null);
   const [timesheetSortDirection, setTimesheetSortDirection] = useState<'asc' | 'desc' | null>(null);
+
   const [timesheetRows, setTimesheetRows] = useState([{
     id: 1,
     ref: "JOH-23",
@@ -284,16 +287,24 @@ export function TimesheetDashboard() {
       sun: 0
     }
   }]);
-  const clients = ["John Kelly", "David Owens", "Jakob Rogers", "Mary Duffy"];
-  const jobs = ["VAT (01/01/2025 - 28/02/2025)", "Annual Returns - 2024", "Payroll - W5 2025", "Audit - 2024"];
-  const categories = ["Client Work", "Admin", "Training", "Meeting"];
-  const rates = ["€100.00", "€75.00", "€50.00", "€125.00"];
 
+
+  const [currentTabsUsersData, setCurrentTabsUsersData] = useState()
+
+  const [getTabAccess, { data: currentTabsUsers }] = useLazyGetTabAccessQuery()
+
+  useEffect(() => {
+    getTabAccess(activeTab).unwrap();
+  }, [])
+
+
+  // const { data: currentTabsUsers }: any = useGetTabAccessQuery(activeTab);
   const statusCounts = getStatusCounts(timesheetData);
   useEffect(() => {
     if (visibleTabs.length > 0 && !visibleTabs.some(tab => tab.id === activeTab)) {
       setActiveTab(visibleTabs[0].id);
     }
+    getTabAccess(activeTab).unwrap();
   }, [visibleTabs, activeTab]);
   const handleRefresh = () => {
     // Reset all filters and regenerate data
@@ -490,44 +501,26 @@ export function TimesheetDashboard() {
   return <div className="flex-1 p-6 bg-background">
     {/* Header */}
     <div className="mb-6">
+
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-4">
         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
           <h1 className="text-xl sm:text-2xl font-semibold text-foreground">Time</h1>
           <div className="flex -space-x-2 overflow-x-auto pb-2 sm:pb-0">
             {/* User avatars */}
-            <Avatar className="border-2 border-background w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0">
-              <AvatarImage src="/lovable-uploads/faf9d4db-b73b-4771-9b8a-fbf1d0e1c69a.png" />
-              <AvatarFallback className="text-xs">NK</AvatarFallback>
-            </Avatar>
-            <Avatar className="border-2 border-background w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0">
-              <AvatarImage src="/lovable-uploads/4f26d575-4f3c-42d8-a83e-e7a97e2b7e70.png" />
-              <AvatarFallback className="text-xs">MD</AvatarFallback>
-            </Avatar>
-            <Avatar className="border-2 border-background w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0">
-              <AvatarImage src="/lovable-uploads/f713038f-661b-4859-829f-22567834d707.png" />
-              <AvatarFallback className="text-xs">JC</AvatarFallback>
-            </Avatar>
-            <Avatar className="border-2 border-background w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0">
-              <AvatarImage src="/lovable-uploads/71cb7f14-f958-4960-a6ae-688e313603a5.png" />
-              <AvatarFallback className="text-xs">JT</AvatarFallback>
-            </Avatar>
-            <Avatar className="border-2 border-background w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0">
-              <AvatarImage src="/lovable-uploads/3c214215-2945-4eb0-b253-52de50f12239.png" />
-              <AvatarFallback className="text-xs">JW</AvatarFallback>
-            </Avatar>
-            <Avatar className="border-2 border-background w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0">
-              <AvatarImage src="/lovable-uploads/c1b6c757-1457-46be-b74b-d870e28417ac.png" />
-              <AvatarFallback className="text-xs">JH</AvatarFallback>
-            </Avatar>
-            <Avatar className="border-2 border-background w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0">
-              <AvatarImage src="/lovable-uploads/69927594-4747-4d86-a60e-64c607e67d1f.png" />
-              <AvatarFallback className="text-xs">JS</AvatarFallback>
-            </Avatar>
-            <Avatar className="border-2 border-background w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0">
-              <AvatarImage src="/lovable-uploads/229c8a34-da0e-4b64-bda9-444834d2242b.png" />
-              <AvatarFallback className="text-xs">LA</AvatarFallback>
-            </Avatar>
 
+            {currentTabsUsers?.result.length > 0 && currentTabsUsers?.result.map((user: any, index: number) => (
+              <Avatar
+                key={user.id || index} // Use user.id or fallback to index
+                className="border-2 border-background w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0 rounded-full" // Explicitly add rounded-full
+                title={user?.name}
+              >
+                <AvatarImage
+                  src={import.meta.env.VITE_BACKEND_BASE_URL + user?.avatarUrl}
+                  className="rounded-full" // Also add to the image
+                />
+                <AvatarFallback className="text-xs rounded-full">{user?.name}</AvatarFallback>
+              </Avatar>
+            ))}
           </div>
         </div>
       </div>

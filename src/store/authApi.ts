@@ -2,25 +2,40 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 
 import { LoginRequest, LoginResponse, User } from '../types/APIs/authApiType';
 
+interface TabAccessResponse {
+  success: boolean;
+  message: string;
+  result: {
+    _id: string;
+    name: string;
+    avatarUrl: string;
+  }[];
+}
+
+interface TabAccessRequest {
+  tabName: string;
+}
+
 export const authApi = createApi({
   reducerPath: 'authApi',
   baseQuery: fetchBaseQuery({
-    baseUrl: `${import.meta.env.VITE_API_URL}/auth`,
+    // Adjusted baseUrl to be more generic, allowing for different prefixes like /auth and /user
+    baseUrl: import.meta.env.VITE_API_URL,
     prepareHeaders: (headers) => {
       const token = localStorage.getItem('userToken');
       if (token) {
         headers.set('authorization', `Bearer ${token}`);
       }
-          headers.set('ngrok-skip-browser-warning', "69420");
-
+      headers.set('ngrok-skip-browser-warning', '69420');
       return headers;
     },
   }),
-  tagTypes: ['Auth'],
+  tagTypes: ['Auth', 'UserTabs'], // Added a new tag type
   endpoints: (builder) => ({
+    // --- AUTH ENDPOINTS ---
     login: builder.mutation<LoginResponse, LoginRequest>({
       query: (credentials) => ({
-        url: '/login',
+        url: '/auth/login', // Prefixed with /auth
         method: 'POST',
         body: credentials,
       }),
@@ -29,25 +44,47 @@ export const authApi = createApi({
           const { data }: any = await queryFulfilled;
           localStorage.setItem('userToken', data?.data?.token);
         } catch (error) {
-         console.error('Login failed:', error);
+          console.error('Login failed:', error);
         }
       },
       invalidatesTags: ['Auth'],
     }),
-    
+
     logout: builder.mutation<void, void>({
       query: () => ({
         url: '/auth/logout',
         method: 'POST',
       }),
-    
       invalidatesTags: ['Auth'],
     }),
-    
-    // Optional: Get current user endpoint
+
+    updateProfileImage: builder.mutation<User, File>({
+      query: (file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return {
+          url: '/auth/update-profile-image', // Prefixed with /auth
+          method: 'PUT',
+          body: formData,
+        };
+      },
+      invalidatesTags: ['Auth'],
+    }),
+
     getCurrentUser: builder.query<User, void>({
-      query: () => '/me',
+      query: () => '/auth/me', // Prefixed with /auth
       providesTags: ['Auth'],
+    }),
+
+    // --- NEW USER ENDPOINT ---
+    getTabAccess: builder.query<TabAccessResponse, any>({
+      query: (tabName) => {
+        const _cacheBuster = Date.now()
+        return {
+          url: '/user/get-access-of-tabs',
+          params: { tabName, _cacheBuster },
+        }
+      },
     }),
   }),
 });
@@ -55,5 +92,10 @@ export const authApi = createApi({
 export const {
   useLoginMutation,
   useLogoutMutation,
+  useUpdateProfileImageMutation,
   useGetCurrentUserQuery,
+  useGetTabAccessQuery,
+  useLazyGetTabAccessQuery
 } = authApi;
+
+

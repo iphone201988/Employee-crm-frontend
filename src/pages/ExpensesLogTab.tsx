@@ -769,18 +769,18 @@ const ExpensesLogTab = () => {
                 variant={statusFilter === 'not paid' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setStatusFilter('not paid')}
-                className="gap-2"
+                className="h-8 px-3 text-xs border-0"
               >
-                <Filter className="h-4 w-4" />
+                {/* <Filter className="h-4 w-4" /> */}
                 Not Paid
               </Button>
               <Button
                 variant={statusFilter === 'paid' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setStatusFilter('paid')}
-                className="gap-2"
+                className="h-8 px-3 text-xs border-0"
               >
-                <Filter className="h-4 w-4" />
+                {/* <Filter className="h-4 w-4" /> */}
                 Paid
               </Button>
             </>

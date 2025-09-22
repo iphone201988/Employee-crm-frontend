@@ -9,7 +9,8 @@ import AgedDebtorsTab from "@/components/AgedDebtorsTab";
 import WriteOffMergedTab from "@/components/WriteOffMergedTab";
 import InvoiceLogTab from "@/components/InvoiceLogTab";
 import CustomTabs from "@/components/Tabs";
-
+import { useGetTabAccessQuery, useLazyGetTabAccessQuery } from "@/store/authApi";
+import { Avatar, AvatarFallback, AvatarImage } from "@radix-ui/react-avatar";
 
 const tabs = [{
   id: "WIP",
@@ -296,66 +297,16 @@ export function WipDebtors() {
   const categories = ["Client Work", "Admin", "Training", "Meeting"];
   const rates = ["€100.00", "€75.00", "€50.00", "€125.00"];
   const statusCounts = getStatusCounts(timesheetData);
-  const handleRefresh = () => {
-    // Reset all filters and regenerate data
-    setSearchQuery("");
-    setSelectedDepartments([]);
-    setSelectedStatuses([]);
-    setSortField(null);
-    setSortDirection(null);
-    setCurrentPage(1);
-    setActiveFilter("all-timesheets");
-    // In a real app, this would refetch data from the server
-    window.location.reload();
-  };
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      if (sortDirection === 'asc') {
-        setSortDirection('desc');
-      } else if (sortDirection === 'desc') {
-        setSortField(null);
-        setSortDirection(null);
-      } else {
-        setSortDirection('asc');
-      }
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
-  const getSortIcon = (field: SortField) => {
-    if (sortField !== field) return <ArrowUpDown className="w-3 h-3 opacity-50" />;
-    if (sortDirection === 'asc') return <ArrowUp className="w-3 h-3" />;
-    if (sortDirection === 'desc') return <ArrowDown className="w-3 h-3" />;
-    return <ArrowUpDown className="w-3 h-3 opacity-50" />;
-  };
 
-  const handleTimesheetSort = (field: 'ref' | 'client' | 'job' | 'category' | 'description' | 'rate') => {
-    if (timesheetSortField === field) {
-      if (timesheetSortDirection === 'asc') {
-        setTimesheetSortDirection('desc');
-      } else if (timesheetSortDirection === 'desc') {
-        setTimesheetSortField(null);
-        setTimesheetSortDirection(null);
-      } else {
-        setTimesheetSortDirection('asc');
-      }
-    } else {
-      setTimesheetSortField(field);
-      setTimesheetSortDirection('asc');
-    }
-  };
 
-  const getTimesheetSortIcon = (field: 'ref' | 'client' | 'job' | 'category' | 'description' | 'rate') => {
-    if (timesheetSortField !== field) return <ArrowUpDown className="w-3 h-3 opacity-50" />;
-    if (timesheetSortDirection === 'asc') return <ArrowUp className="w-3 h-3" />;
-    if (timesheetSortDirection === 'desc') return <ArrowDown className="w-3 h-3" />;
-    return <ArrowUpDown className="w-3 h-3 opacity-50" />;
-  };
+
+  const [getTabAccess, { data: currentTabsUsers }] = useLazyGetTabAccessQuery()
+
   useEffect(() => {
     if (visibleTabs.length > 0 && !visibleTabs.some(tab => tab.id === activeTab)) {
       setActiveTab(visibleTabs[0].id);
     }
+    getTabAccess(activeTab).unwrap();
   }, [visibleTabs, activeTab]);
   // Filter and sort data
   const filteredData = timesheetData.filter(item => {
@@ -503,16 +454,36 @@ export function WipDebtors() {
   return (
 
     <div className="flex-1 p-6 bg-background">
-      {/* Header */}
-      <div className="mb-6">
-        {/* Tabs */}
-        <CustomTabs
-          tabs={visibleTabs}
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-        />
-      </div>
 
+
+      <div className="mb-6">
+
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <h1 className="text-xl sm:text-2xl font-semibold text-foreground">WIP & Debtors</h1>
+            <div className="flex -space-x-2 overflow-x-auto pb-2 sm:pb-0">
+              {/* User avatars */}
+
+              {currentTabsUsers?.result.length > 0 && currentTabsUsers?.result.map((user: any, index: number) => (
+                <Avatar
+                  key={user.id || index} // Use user.id or fallback to index
+                  className="border-2 border-background w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0 rounded-full" // Explicitly add rounded-full
+                  title={user?.name}
+                >
+                  <AvatarImage
+                    src={import.meta.env.VITE_BACKEND_BASE_URL + user?.avatarUrl}
+                    className="rounded-full" // Also add to the image
+                  />
+                  <AvatarFallback className="text-xs rounded-full">{user?.name}</AvatarFallback>
+                </Avatar>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <CustomTabs tabs={visibleTabs} activeTab={activeTab} setActiveTab={setActiveTab} />
+      </div>
       {activeTab === "WIP" &&
         <WIPTableTab onInvoiceCreate={handleInvoiceCreate} onWriteOff={handleWriteOff} />
       }
