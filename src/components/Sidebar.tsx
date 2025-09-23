@@ -9,6 +9,7 @@ import {
   Settings,
   LogOut,
   Pencil,
+  GroupIcon
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -25,6 +26,7 @@ const baseNavigation = [
   { name: "Expenses", icon: CreditCard, href: "/expenses" },
   { name: "Reports", icon: BarChart3, href: "/reports" },
   { name: "Team", icon: UserCheck, href: "/team" },
+  { name: "Company Accounts", icon: GroupIcon, href: "/business-accounts" },
   { name: "Settings", icon: Settings, href: "/settings" },
 ];
 
@@ -43,19 +45,22 @@ export function Sidebar({ onClose }: SidebarProps) {
   const [updateProfileImage, { isLoading: isUploading }] = useUpdateProfileImageMutation();
   
   const loggedInUser = user?.data;
-
-  // Memoize the filtered navigation to prevent re-calculation on every render
+  const logdInUserRole = loggedInUser?.role;
   const filteredNavigation = useMemo(() => {
-    // Correctly access the features object from loggedInUser
-    const reportTabPermission = loggedInUser?.features?.reports;
 
+    const reportTabPermission = loggedInUser?.features?.reports;
+    const isUserSuperAdmin = logdInUserRole === "superAdmin";
     return baseNavigation.filter(item => {
       if (item.name === "Reports") {
-        return !!reportTabPermission; // Ensure it's a boolean value
+        return !!reportTabPermission; 
+      }
+
+      if (item.name === "Company Accounts") {
+        return isUserSuperAdmin; 
       }
       return true;
     });
-  }, [loggedInUser]); // Dependency array ensures this runs only when loggedInUser changes
+  }, [loggedInUser]); 
 
   const handleLogout = async () => {
     clearCredentials();

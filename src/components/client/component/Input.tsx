@@ -15,8 +15,9 @@ interface IInput {
     required?: boolean;
     className?: string;
     error?: string;
-    autoComplete?: string; // Added for completeness
-    onFocus?: () => void;   // <<< --- ADD THIS LINE ---
+    autoComplete?: string;
+    onFocus?: () => void;
+    disabled?: boolean; // <<< --- ADD THIS LINE ---
 }
 
 const InputComponent = ({
@@ -30,7 +31,8 @@ const InputComponent = ({
     className = "",
     error,
     autoComplete,
-    onFocus, // <<< --- ADD THIS LINE ---
+    onFocus,
+    disabled = false, // <<< --- ADD THIS LINE ---
 }: IInput) => {
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         if (type === 'checkbox') {
@@ -54,6 +56,7 @@ const InputComponent = ({
                     required={required}
                     className={`mt-1 ${error ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                     autoComplete={autoComplete}
+                    disabled={disabled} // <<< --- ADD THIS LINE ---
                 />
                 {error && (
                     <p className="mt-1 text-sm text-red-600">{error}</p>
@@ -71,6 +74,7 @@ const InputComponent = ({
                         checked={value as boolean || false}
                         onCheckedChange={(checked) => onChange?.(checked as boolean)}
                         className={error ? 'border-red-500' : ''}
+                        disabled={disabled} // <<< --- ADD THIS LINE ---
                     />
                     <Label htmlFor={id} className="text-sm font-medium cursor-pointer">
                         {label}
@@ -97,7 +101,8 @@ const InputComponent = ({
                 required={required}
                 className={`mt-1 ${error ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                 autoComplete={autoComplete}
-                onFocus={onFocus} // <<< --- ADD THIS LINE ---
+                onFocus={onFocus}
+                disabled={disabled} // <<< --- ADD THIS LINE ---
             />
             {error && (
                 <p className="mt-1 text-sm text-red-600">{error}</p>

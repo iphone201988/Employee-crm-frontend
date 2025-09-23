@@ -53,6 +53,7 @@ export interface TeamMember {
     department: Department;
     featureAccess: FeatureAccess;
     permission: Permission;
+    companyId: string;
 }
 
 interface WorkSchedule {
@@ -170,5 +171,71 @@ export interface SendInviteRequest {
 export interface SendInviteResponse {
     success: boolean;
     message: string;
-    data?: any; // You can make this more specific based on your API response
+    data?: any;
 }
+
+export interface AddCompanyRequest {
+    name: string;
+    email: string;
+    avatarUrl: string;
+}
+
+
+export interface AddCompanyResponse {
+    success: boolean;
+    message: string;
+    data?: any;
+}
+
+// In ../types/APIs/teamApiType.ts
+
+// Type for the arguments of the new query
+export interface GetAllCompanyMembersRequest {
+    page: number;
+    limit: number;
+    search?: string;
+}
+
+// Types for the nested objects in the response
+
+
+
+
+
+
+export interface CompanyMember {
+    _id: string;
+    name: string;
+    email: string;
+    status: string;
+    avatarUrl: string;
+    role: string;
+    hourlyRate: number;
+    billableRate: number;
+    isLocked: boolean;
+    workSchedule: WorkSchedule;
+    companyId: string;
+    serviceFees: any[];
+    createdAt: string;
+    updatedAt: string;
+    __v: number;
+    featureAccess: FeatureAccess;
+    permission: Permission;
+}
+
+export interface Pagination {
+    total: number;
+    totalPages: number;
+}
+
+// The main response type for the new endpoint
+export interface GetAllCompanyMembersResponse {
+    success: boolean;
+    message: string;
+    data: {
+        companyMembers: CompanyMember[];
+        pagination: Pagination;
+    };
+}
+
+// ... other existing types

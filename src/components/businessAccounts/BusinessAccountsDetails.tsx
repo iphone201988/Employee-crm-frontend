@@ -11,9 +11,9 @@ import { getProfileImage, getUserInitials } from '@/utils/profiles';
 import AddTeamMemberDialog from '../AddTeamMemberDialog';
 import { useGetAllCategorieasQuery } from "@/store/categoryApi";
 import {
-  useGetAllTeamMembersQuery,
   useUpdateTeamMembersMutation,
-  useSendInviteToTeamMemberMutation
+  useSendInviteToTeamMemberMutation,
+  useGetAllCompanyMembersQuery
 } from '@/store/teamApi';
 import { TeamMember } from '@/types/APIs/teamApiType';
 import { toast } from 'sonner';
@@ -30,7 +30,7 @@ interface DetailsContentProps {
   ) => void;
 }
 
-const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange }) => {
+const BusinessAccountsDetails: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange }) => {
   // --- State Management ---
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
@@ -40,21 +40,19 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [detailsCapacities, setDetailsCapacities] = useState<{ [key: string]: { [key: string]: number } }>({});
   
-  // State for search and filter
   const [searchTerm, setSearchTerm] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('all');
   const [debouncedSearchTerm] = useDebounce(searchTerm, 500);
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
 
-  // MODIFIED: State for sorting
   const [sortField, setSortField] = useState<string>('name');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
-  // Refs
   const detailsCapacitiesRef = useRef(detailsCapacities);
   
-  // --- RTK Query Hooks ---
-  const { data: teamData, isLoading, isError, isFetching } = useGetAllTeamMembersQuery({
+
+  const { data: teamData, isLoading, isError, isFetching } = useGetAllCompanyMembersQuery
+({
     page,
     limit,
     search: debouncedSearchTerm,
@@ -64,9 +62,8 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
   const [updateTeamMembers, { isLoading: isUpdating }] = useUpdateTeamMembersMutation();
   const [sendInvite, { isLoading: isSendingInvite }] = useSendInviteToTeamMemberMutation();
   const { data: categoriesData, isLoading: isLoadingCategories } = useGetAllCategorieasQuery('department');
-  
-  // --- Data Extraction ---
-  const teamMembers = teamData?.data?.teamMembers || [];
+
+  const teamMembers = teamData?.data?.companyMembers || [];
   const pagination = teamData?.data?.pagination;
   
   const mainDepartments: { _id: string; name: string }[] = useMemo(() => {
@@ -74,7 +71,6 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
     return Array.isArray(departmentList) ? departmentList : [];
   }, [categoriesData]);
 
-  // MODIFIED: Memoized sorting logic
   const sortedTeamMembers = useMemo(() => {
     const sorted = [...teamMembers];
     if (sortField) {
@@ -105,7 +101,6 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
     return sorted;
   }, [teamMembers, sortField, sortDirection]);
 
-  // --- Effects ---
   useEffect(() => {
     setPage(1);
   }, [limit, debouncedSearchTerm, departmentFilter]);
@@ -113,8 +108,7 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
   useEffect(() => {
     detailsCapacitiesRef.current = detailsCapacities;
   }, [detailsCapacities]);
-  
-  // --- Handlers ---
+
   const handleEditMember = (member: TeamMember) => {
     setEditingMember(member);
     setIsAddMemberDialogOpen(true);
@@ -130,7 +124,6 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
     setIsInviteDialogOpen(true);
   };
 
-  // MODIFIED: Sorting handler
   const handleSort = (field: string) => {
     setSortDirection(prev => sortField === field && prev === 'asc' ? 'desc' : 'asc');
     setSortField(field);
@@ -232,7 +225,7 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
           {isUpdating ? 'Saving...' : 'Save Changes'}
         </Button>
         <Button className="flex items-center gap-2" onClick={handleAddMember}>
-          <Plus className="h-4 w-4" /> Add Team Member
+          <Plus className="h-4 w-4" /> Company
         </Button>
       </div>
 
@@ -245,32 +238,23 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
                 <TableRow className="h-12">
                   {/* MODIFIED: Added sorting to headers */}
                   <TableHead className="w-[200px] cursor-pointer hover:bg-muted/50" onClick={() => handleSort('name')}>
-                    <div className="flex items-center gap-2">Team Member <ArrowUpDown className="h-4 w-4 text-muted-foreground" /></div>
+                    <div className="flex items-center gap-2">Business Name <ArrowUpDown className="h-4 w-4 text-muted-foreground" /></div>
                   </TableHead>
-                  <TableHead className="w-[120px] cursor-pointer hover:bg-muted/50" onClick={() => handleSort('department')}>
-                    <div className="flex items-center gap-2">Department <ArrowUpDown className="h-4 w-4 text-muted-foreground" /></div>
-                  </TableHead>
+            
                   <TableHead className="w-[250px] cursor-pointer hover:bg-muted/50" onClick={() => handleSort('email')}>
                     <div className="flex items-center gap-2">Email Address <ArrowUpDown className="h-4 w-4 text-muted-foreground" /></div>
                   </TableHead>
-                  <TableHead className="w-[80px]">Mon</TableHead>
-                  <TableHead className="w-[80px]">Tue</TableHead>
-                  <TableHead className="w-[80px]">Wed</TableHead>
-                  <TableHead className="w-[80px]">Thu</TableHead>
-                  <TableHead className="w-[80px]">Fri</TableHead>
-                  <TableHead className="w-[80px]">Sat</TableHead>
-                  <TableHead className="w-[80px]">Sun</TableHead>
                   <TableHead className="w-[150px]">Invite</TableHead>
                   <TableHead className="w-[100px] text-center">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoadingData ? (
-                  <TableRow><TableCell colSpan={13} className="text-center h-24">Loading team members...</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={13} className="text-center h-24">Loading Business Accounts...</TableCell></TableRow>
                 ) : isError ? (
-                  <TableRow><TableCell colSpan={13} className="text-center h-24 text-red-500">Failed to load team members.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={13} className="text-center h-24 text-red-500">Failed to load Business Accounts.</TableCell></TableRow>
                 ) : sortedTeamMembers.length === 0 ? (
-                  <TableRow><TableCell colSpan={13} className="text-center h-24">No team members found.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={13} className="text-center h-24">No Business Accounts found.</TableCell></TableRow>
                 ) : (
                   // MODIFIED: Map over sortedTeamMembers
                   sortedTeamMembers.map(member => (
@@ -284,18 +268,8 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
                           {member.name}
                         </div>
                       </TableCell>
-                      <TableCell>{member.department?.name || 'N/A'}</TableCell>
                       <TableCell>{member.email}</TableCell>
-                      {(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const).map(day => (
-                        <TableCell key={day}>
-                          <Input
-                            value={getCapacityValue(member, day)}
-                            onChange={e => handleCapacityChange(member._id, day, e.target.value)}
-                            className="w-16 h-8 text-sm" type="number"
-                            min="0" max="24" step="0.5"
-                          />
-                        </TableCell>
-                      ))}
+                    
                       <TableCell>
                         <Button size="sm" variant="outline" onClick={() => handleSendInvite(member)} disabled={isSendingInvite}>
                           {isSendingInvite && selectedMemberForInvite?._id === member._id ? 'Sending...' : 'Send Invite'}
@@ -346,7 +320,7 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
         </div>
       )}
       
-      <AddTeamMemberDialog
+      <AddBusinessAccount
         open={isAddMemberDialogOpen}
         onOpenChange={setIsAddMemberDialogOpen}
         memberToEdit={editingMember}
@@ -368,4 +342,4 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
   );
 };
 
-export default DetailsContent;
+export default BusinessAccountsDetails;

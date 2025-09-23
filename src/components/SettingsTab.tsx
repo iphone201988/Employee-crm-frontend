@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -10,8 +10,7 @@ import { Plus, X } from 'lucide-react';
 import CustomTabs from './Tabs';
 import { useGetAllCategorieasQuery, useAddCategoryMutation, useDeleteCategoryMutation } from '@/store/categoryApi';
 import { toast } from 'sonner';
-import { usePermissionTabs } from '@/hooks/usePermissionTabs';
-import { useLazyGetTabAccessQuery } from '@/store/authApi';
+import { useLazyGetTabAccessQuery, useGetCurrentUserQuery } from '@/store/authApi';
 import { Avatar, AvatarFallback, AvatarImage } from '@radix-ui/react-avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@radix-ui/react-tooltip';
 
@@ -20,7 +19,8 @@ interface SettingsTabProps {
   onAutoApproveChange: (enabled: boolean) => void;
 }
 
-const tabs = [
+// Define all possible tabs in a constant
+const allTabs = [
   { id: 'general', label: 'General' },
   { id: 'tags', label: 'Categories' },
   { id: 'clientImport', label: 'Client Import' },
@@ -46,20 +46,39 @@ const SettingsTab = ({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<{ type: string; id: string } | null>(null);
 
+  const { data: currentUserData } = useGetCurrentUserQuery<any>();
   const [getTabAccess, { data: currentTabsUsers }] = useLazyGetTabAccessQuery();
-  const { visibleTabs, isLoading } = usePermissionTabs(tabs);
-  const { data: categories, isLoading: isLoadingCategories, isError } = useGetAllCategorieasQuery("all");
+
+  // Conditionally filter the tabs based on the user's role
+  const visibleTabs = useMemo(() => {
+    if (currentUserData?.data?.role === 'superAdmin') {
+      return allTabs;
+    }
+    // For non-superAdmins, filter out the 'tags' tab
+    return allTabs.filter(tab => tab.id !== 'tags');
+  }, [currentUserData]);
+
+  // Conditionally fetch categories only if the user is a superAdmin
+  const { data: categories, isLoading: isLoadingCategories, isError } = useGetAllCategorieasQuery("all", {
+    skip: currentUserData?.data?.role !== 'superAdmin',
+  });
+  
   const [addCategory, { isLoading: isAdding }] = useAddCategoryMutation();
   const [deleteCategory, { isLoading: isDeleting }] = useDeleteCategoryMutation();
 
+  // Effect to set the active tab correctly when visible tabs change
   useEffect(() => {
     if (visibleTabs.length > 0 && !visibleTabs.some(tab => tab.id === activeTab)) {
       setActiveTab(visibleTabs[0].id);
     }
+  }, [visibleTabs, activeTab]);
+
+  // Effect to fetch access data for the active tab
+  useEffect(() => {
     if (activeTab) {
-      getTabAccess(activeTab).unwrap();
+      getTabAccess(activeTab).unwrap().catch(err => console.error("Failed to get tab access:", err));
     }
-  }, [visibleTabs, activeTab, getTabAccess]);
+  }, [activeTab, getTabAccess]);
 
   const handleAddNewCategory = async (type: 'service' | 'department' | 'time' | 'bussiness' | 'job') => {
     let name = '';
@@ -170,8 +189,7 @@ const SettingsTab = ({
             <h1 className="text-xl sm:text-2xl font-semibold text-foreground">Settings</h1>
             <div className="flex -space-x-2 overflow-x-auto pb-2 sm:pb-0">
               <TooltipProvider>
-                {currentTabsUsers?.result.length > 0 &&
-                  currentTabsUsers?.result.map((user: any, index) => (
+                {currentTabsUsers?.result?.map((user: any, index: number) => (
                     <Tooltip key={user?.id || index} delayDuration={100}>
                       <TooltipTrigger asChild>
                         <Avatar
@@ -229,7 +247,7 @@ const SettingsTab = ({
         <div className='space-y-6 pt-6'>
           {isLoadingCategories && <div className="text-center p-4">Loading...</div>}
           {isError && <div className="text-center p-4 text-red-500">Failed to load categories.</div>}
-          {!isLoadingCategories && !isError && (
+          {!isLoadingCategories && !isError && categories && (
             <div className="space-y-6">
               {renderCategoryCard('Services', 'service', categories?.data?.services ?? [], isServiceDialogOpen, setIsServiceDialogOpen, newService, setNewService)}
               {renderCategoryCard('Time Tags', 'time', categories?.data?.times ?? [], isTimeDialogOpen, setIsTimeDialogOpen, newTimeTag, setNewTimeTag)}
@@ -241,7 +259,6 @@ const SettingsTab = ({
         </div>
       )}
 
-      {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>

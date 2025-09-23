@@ -48,7 +48,7 @@ const transformToServiceRates = (member: any, serviceTypes: ServiceType[]): Serv
         hourlyRate: member.hourlyRate || 0,
         defaultRate: member.billableRate || 0,
         // The lock state should be based on the 'status' field.
-        isDefaultRateLocked: member.status === 'active',
+        isDefaultRateLocked: member.isLocked === true,
         rates,
     };
 };
@@ -187,12 +187,12 @@ export const ServiceRatesContent: React.FC<ServiceRatesContentProps> = ({ onUnsa
     const toggleDefaultRateLock = async (memberId: string) => {
         const currentMember = teamMembers.find(m => m.id === memberId);
         if (!currentMember) return;
-        
+        console.log('===========sfcsdfadsdfsdfsdfdsfdsf',currentMember);
         const newLockState = !currentMember.isDefaultRateLocked;
-        const newStatus = newLockState ? 'active' : 'inActive';
+        const newStatus = newLockState ? true : false;
 
         try {
-            await updateTeamMembers({ singleTeamMenber: { userId: memberId, status: newStatus } }).unwrap();
+            await updateTeamMembers({ singleTeamMenber: { userId: memberId, isLocked: newStatus } }).unwrap();
             setTeamMembers(prev => prev.map(member =>
                 member.id === memberId ? { ...member, isDefaultRateLocked: newLockState } : member
             ));

@@ -6,12 +6,17 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Upload, X, Loader2 } from 'lucide-react';
 import { useGetAllCategorieasQuery } from '@/store/categoryApi';
-import { useAddTeamMemberMutation, useUpdateTeamMembersMutation, useUploadImageMutation } from '@/store/teamApi';
+import { useAddTeamMemberMutation, useUpdateTeamMembersMutation, useUploadImageMutation, useGetDropdownOptionsQuery } from '@/store/teamApi';
+import { useGetCurrentUserQuery } from '@/store/authApi';
 import { toast } from 'sonner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { TeamMemberData, validateTeamMemberForm } from '@/utils/validation/teamMemberValidation';
+import { TeamMemberData as OriginalTeamMemberData, validateTeamMemberForm } from '@/utils/validation/teamMemberValidation';
 import InputComponent from './client/component/Input';
-import { TeamMember } from '@/types/APIs/teamApiType'; // Assuming this type is available
+import { TeamMember } from '@/types/APIs/teamApiType';
+// Extend the type to include the optional companyId
+interface TeamMemberData extends OriginalTeamMemberData {
+    companyId?: string;
+}
 
 interface AddTeamMemberDialogProps {
     open: boolean;
@@ -21,6 +26,7 @@ interface AddTeamMemberDialogProps {
 
 const AddTeamMemberDialog = ({ open, onOpenChange, memberToEdit }: AddTeamMemberDialogProps) => {
     const isEditMode = !!memberToEdit;
+    const { data: currentUser } = useGetCurrentUserQuery<any>();
     
     const getInitialFormData = (): TeamMemberData => ({
         name: '',
@@ -28,6 +34,7 @@ const AddTeamMemberDialog = ({ open, onOpenChange, memberToEdit }: AddTeamMember
         departmentId: '',
         avatarUrl: '',
         hourlyRate: '',
+        companyId: '', // Initialize companyId
         workSchedule: { monday: 8, tuesday: 8, wednesday: 8, thursday: 8, friday: 8, saturday: 0, sunday: 0 },
     });
 
@@ -38,11 +45,15 @@ const AddTeamMemberDialog = ({ open, onOpenChange, memberToEdit }: AddTeamMember
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const { data: categoriesData } = useGetAllCategorieasQuery("department");
+    const { data: companiesData } = useGetDropdownOptionsQuery('company', {
+        skip: currentUser?.data?.role !== 'superAdmin',
+    });
     const [uploadImage, { isLoading: isUploadingImage }] = useUploadImageMutation();
     const [addTeamMember, { isLoading: isAddingMember }] = useAddTeamMemberMutation();
     const [updateTeamMember, { isLoading: isUpdatingMember }] = useUpdateTeamMembersMutation();
 
     const departments = categoriesData?.data?.departments || [];
+    const companies = companiesData?.data?.companies || [];
     const days = [
         { key: 'monday', label: 'Mon' }, { key: 'tuesday', label: 'Tue' }, { key: 'wednesday', label: 'Wed' },
         { key: 'thursday', label: 'Thu' }, { key: 'friday', label: 'Fri' }, { key: 'saturday', label: 'Sat' }, { key: 'sunday', label: 'Sun' },
@@ -57,7 +68,7 @@ const AddTeamMemberDialog = ({ open, onOpenChange, memberToEdit }: AddTeamMember
             fileInputRef.current.value = '';
         }
     };
-    
+
     const handleDialogClose = (isOpen: boolean) => {
         if (!isOpen) {
             resetForm();
@@ -73,14 +84,15 @@ const AddTeamMemberDialog = ({ open, onOpenChange, memberToEdit }: AddTeamMember
                 departmentId: memberToEdit.department?._id || '',
                 avatarUrl: memberToEdit.avatarUrl || '',
                 hourlyRate: String(memberToEdit.hourlyRate || ''),
+                companyId: memberToEdit?.companyId || '',
                 workSchedule: {
-                    monday: memberToEdit.workSchedule.monday ?? 0,
-                    tuesday: memberToEdit.workSchedule.tuesday ?? 0,
-                    wednesday: memberToEdit.workSchedule.wednesday ?? 0,
-                    thursday: memberToEdit.workSchedule.thursday ?? 0,
-                    friday: memberToEdit.workSchedule.friday ?? 0,
-                    saturday: memberToEdit.workSchedule.saturday ?? 0,
-                    sunday: memberToEdit.workSchedule.sunday ?? 0,
+                    monday: memberToEdit.workSchedule?.monday ?? 0,
+                    tuesday: memberToEdit.workSchedule?.tuesday ?? 0,
+                    wednesday: memberToEdit.workSchedule?.wednesday ?? 0,
+                    thursday: memberToEdit.workSchedule?.thursday ?? 0,
+                    friday: memberToEdit.workSchedule?.friday ?? 0,
+                    saturday: memberToEdit.workSchedule?.saturday ?? 0,
+                    sunday: memberToEdit.workSchedule?.sunday ?? 0,
                 },
             });
             if (memberToEdit.avatarUrl) {
@@ -115,45 +127,56 @@ const AddTeamMemberDialog = ({ open, onOpenChange, memberToEdit }: AddTeamMember
 
         try {
             const result = await uploadImage(file).unwrap();
-            handleInputChange('avatarUrl')(result.fileUrl);
+            setFormData(prev => ({ ...prev, avatarUrl: result.fileUrl }));
             toast.success('Image uploaded successfully!');
         } catch (error) {
             toast.error('Image upload failed.');
             setImagePreview(null);
         }
     };
-    
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setSubmitError("");
-        setErrors({});
-
+        
         const validationResult = validateTeamMemberForm(formData);
-        if (!validationResult.isValid) {
-            setErrors(validationResult.errors);
-            return;
+        const currentErrors:any = { ...validationResult.errors };
+
+        // Conditionally require companyId only if the user is a superAdmin
+        if (currentUser?.data?.role === 'superAdmin' && !formData.companyId) {
+            currentErrors.companyId = 'Company is required.';
         }
 
+        if (Object.keys(currentErrors).length > 0) {
+            setErrors(currentErrors);
+            return;
+        }
+        setErrors({});
+
         try {
+            const payload = {
+                name: formData.name,
+                email: formData.email,
+                departmentId: formData.departmentId,
+                avatarUrl: formData.avatarUrl,
+                workSchedule: formData.workSchedule,
+                hourlyRate: Number(formData.hourlyRate) || 0,
+                // Only include companyId if the user is a superAdmin
+                ...(currentUser?.data?.role === 'superAdmin' && { companyId: formData.companyId }),
+            };
+
             if (isEditMode && memberToEdit) {
-                // Handle Update
+                payload.email = undefined;
+                payload.companyId = undefined;
                 await updateTeamMember({
                     singleTeamMenber: {
                         userId: memberToEdit._id,
-                        name: formData.name,
-                        departmentId: formData.departmentId,
-                        avatarUrl: formData.avatarUrl,
-                        workSchedule: formData.workSchedule,
-                        hourlyRate: Number(formData.hourlyRate) || 0,
+                        ...payload
                     },
                 }).unwrap();
                 toast.success('Team member updated successfully!');
             } else {
-                // Handle Add
-                await addTeamMember({
-                    ...formData,
-                    hourlyRate: Number(formData.hourlyRate) || 0,
-                }).unwrap();
+                await addTeamMember(payload).unwrap();
                 toast.success('Team member added successfully!');
             }
             handleDialogClose(false);
@@ -189,7 +212,7 @@ const AddTeamMemberDialog = ({ open, onOpenChange, memberToEdit }: AddTeamMember
                             onChange={handleInputChange('email')}
                             placeholder="Enter email"
                             error={errors.email}
-                            // disabled={isEditMode} // Disable email editing
+                            disabled={isEditMode}
                         />
                         <InputComponent
                             label="Hourly Rate (€)"
@@ -202,7 +225,7 @@ const AddTeamMemberDialog = ({ open, onOpenChange, memberToEdit }: AddTeamMember
                         />
                         <div>
                             <Label htmlFor="department">Department</Label>
-                            <Select value={formData.departmentId} onValueChange={(value) => handleInputChange('departmentId')(value)}>
+                            <Select value={formData.departmentId} onValueChange={(value) => handleInputChange('departmentId')(value)}  >
                                 <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
                                 <SelectContent>
                                     {departments.map((dept: any) => (
@@ -212,6 +235,24 @@ const AddTeamMemberDialog = ({ open, onOpenChange, memberToEdit }: AddTeamMember
                             </Select>
                             {errors.departmentId && <p className="mt-1 text-sm text-red-600">{errors.departmentId}</p>}
                         </div>
+                        
+                        {/* Conditionally render the "For (Company)" field */}
+                        {currentUser?.data?.role === 'superAdmin' && (
+                            <div>
+                                <Label htmlFor="company">For (Company)</Label>
+                                <Select value={formData.companyId} onValueChange={(value) => handleInputChange('companyId')(value)} disabled={isEditMode}>
+                                    <SelectTrigger id="company">
+                                        <SelectValue placeholder="Select a company" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {companies.map((company: any) => (
+                                            <SelectItem key={company._id} value={company._id}>{company.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                {errors.companyId && <p className="mt-1 text-sm text-red-600">{errors.companyId}</p>}
+                            </div>
+                        )}
                     </div>
 
                     <div>
@@ -263,7 +304,7 @@ const AddTeamMemberDialog = ({ open, onOpenChange, memberToEdit }: AddTeamMember
                             ))}
                         </div>
                     </div>
-                    
+
                     {submitError && (
                         <div className="text-sm text-red-600 bg-red-50 p-3 rounded-md border border-red-200">{submitError}</div>
                     )}

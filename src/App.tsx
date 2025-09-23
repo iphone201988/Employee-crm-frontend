@@ -20,6 +20,7 @@ import Login from "./pages/Login";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PublicRoute from "./components/PublicRoute";
 import SetPassword from "./pages/SetPassword";
+import BusinessAccountsTab from "./pages/BusinessAccountsTab";
 
 const queryClient = new QueryClient();
 
@@ -63,6 +64,7 @@ const App = () => (
                       <Route path="/reports" element={<ReportsTab />} />
                       <Route path="/team" element={<TeamTab />} />
                       <Route path="/settings" element={<Settings />} />
+                      <Route path="/business-accounts" element={<BusinessAccountsTab />} />
                     </Routes>
                   </Layout>
                 </ProtectedRoute>
