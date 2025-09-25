@@ -126,12 +126,13 @@ const AddBusinessAccount = ({ open, onOpenChange, memberToEdit }: AddTeamMemberD
                     singleTeamMenber: {
                         userId: memberToEdit._id,
                         name: formData.name,
-                        avatarUrl: formData.avatarUrl,
+                        // avatarUrl: formData.avatarUrl,
                     },
                 }).unwrap();
                 toast.success('Team member updated successfully!');
             } else {
                 // Handle Add
+                formData.avatarUrl = undefined;
                 await addTeamMember(formData).unwrap();
                 toast.success('Team member added successfully!');
             }
@@ -150,12 +151,12 @@ const AddBusinessAccount = ({ open, onOpenChange, memberToEdit }: AddTeamMemberD
         <Dialog open={open} onOpenChange={handleDialogClose}>
             <DialogContent className="max-w-md">
                 <DialogHeader>
-                    <DialogTitle>{isEditMode ? 'Edit' : 'Add'} Team Member</DialogTitle>
+                    <DialogTitle>{isEditMode ? 'Edit' : 'Add'} Company</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="space-y-4">
                         <InputComponent
-                            label="Team Name"
+                            label="Company Name"
                             id="name"
                             value={formData.name}
                             onChange={handleInputChange('name')}
@@ -171,61 +172,9 @@ const AddBusinessAccount = ({ open, onOpenChange, memberToEdit }: AddTeamMemberD
                             onChange={handleInputChange('email')}
                             placeholder="Enter email"
                             error={errors.email}
+                            disabled={isEditMode}
                         />
                     </div>
-
-                    <div>
-                        <label className="block text-sm font-medium mb-2">Profile Image</label>
-                        <div className="mt-2">
-                            {imagePreview ? (
-                                <div className="flex items-center gap-4">
-                                    <Avatar className="h-14 w-14">
-                                        <AvatarImage src={imagePreview} alt="Image Preview" />
-                                        <AvatarFallback>IMG</AvatarFallback>
-                                    </Avatar>
-                                    <Button
-                                        type="button" 
-                                        variant="destructive" 
-                                        size="sm"
-                                        onClick={() => {
-                                            setImagePreview(null);
-                                            handleInputChange('avatarUrl')('');
-                                            if (fileInputRef.current) fileInputRef.current.value = '';
-                                        }}
-                                    >
-                                        <X className="h-4 w-4 mr-2" />
-                                        Remove
-                                    </Button>
-                                </div>
-                            ) : (
-                                <>
-                                    <input 
-                                        type="file" 
-                                        ref={fileInputRef} 
-                                        onChange={handleFileChange} 
-                                        className="hidden" 
-                                        accept="image/*" 
-                                    />
-                                    <Button 
-                                        type="button" 
-                                        variant="outline" 
-                                        onClick={() => fileInputRef.current?.click()} 
-                                        disabled={isUploadingImage}
-                                    >
-                                        <Upload className="h-4 w-4 mr-2" />
-                                        Upload Image
-                                    </Button>
-                                </>
-                            )}
-                            {isUploadingImage && (
-                                <p className="text-sm text-muted-foreground mt-2">Uploading image...</p>
-                            )}
-                            {errors.avatarUrl && (
-                                <p className="mt-1 text-sm text-red-600">{errors.avatarUrl}</p>
-                            )}
-                        </div>
-                    </div>
-                    
                     {submitError && (
                         <div className="text-sm text-red-600 bg-red-50 p-3 rounded-md border border-red-200">
                             {submitError}
@@ -243,7 +192,7 @@ const AddBusinessAccount = ({ open, onOpenChange, memberToEdit }: AddTeamMemberD
                                     {isEditMode ? 'Saving...' : 'Adding...'}
                                 </>
                             ) : (
-                                isEditMode ? 'Save Changes' : 'Add Member'
+                                isEditMode ? 'Save Changes' : 'Add Company'
                             )}
                         </Button>
                     </div>

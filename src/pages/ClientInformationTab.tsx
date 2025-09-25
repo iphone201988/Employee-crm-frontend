@@ -18,7 +18,7 @@ import { useGetClientsQuery } from '@/store/clientApi';
 import { usePermissionTabs } from '@/hooks/usePermissionTabs';
 import EditClientModal from '@/components/client/component/EditClientModal';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@radix-ui/react-tooltip';
-import { Avatar, AvatarFallback, AvatarImage } from '@radix-ui/react-avatar';
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useLazyGetTabAccessQuery } from '@/store/authApi';
 
 const tabs = [
@@ -188,8 +188,8 @@ const ClientInformationTab = () => {
                             }
                             className="rounded-full"
                           />
-                          <AvatarFallback className="text-xs rounded-full">
-                            {user?.name}
+                          <AvatarFallback className="text-xs rounded-full bg-gray-400">
+                            {user?.name.charAt(0)}
                           </AvatarFallback>
                         </Avatar>
                       </TooltipTrigger>

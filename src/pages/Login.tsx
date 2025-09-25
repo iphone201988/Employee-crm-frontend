@@ -25,7 +25,12 @@ const Login = () => {
       toast.success('Login successful!', {
         description: 'Welcome back! Redirecting you now...',
       });
-      setCredentials(result?.data?.user, result.data.token);
+      if (result?.data?.user?.role === 'superAdmin') {
+        setCredentials(result?.data?.user,null, result?.data?.token);
+      }else{
+        setCredentials(result?.data?.user, result?.data?.token, null);
+      }
+
       navigate(from, { replace: true });
     } catch (err) {
       const errorMessage = err?.data?.message || 'Login failed. Please check your credentials.';

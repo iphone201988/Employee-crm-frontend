@@ -11,7 +11,7 @@ import CustomTabs from './Tabs';
 import { useGetAllCategorieasQuery, useAddCategoryMutation, useDeleteCategoryMutation } from '@/store/categoryApi';
 import { toast } from 'sonner';
 import { useLazyGetTabAccessQuery, useGetCurrentUserQuery } from '@/store/authApi';
-import { Avatar, AvatarFallback, AvatarImage } from '@radix-ui/react-avatar';
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@radix-ui/react-tooltip';
 
 interface SettingsTabProps {
@@ -51,18 +51,14 @@ const SettingsTab = ({
 
   // Conditionally filter the tabs based on the user's role
   const visibleTabs = useMemo(() => {
-    if (currentUserData?.data?.role === 'superAdmin') {
-      return allTabs;
-    }
-    // For non-superAdmins, filter out the 'tags' tab
-    return allTabs.filter(tab => tab.id !== 'tags');
+
+    return allTabs;
+
   }, [currentUserData]);
 
   // Conditionally fetch categories only if the user is a superAdmin
-  const { data: categories, isLoading: isLoadingCategories, isError } = useGetAllCategorieasQuery("all", {
-    skip: currentUserData?.data?.role !== 'superAdmin',
-  });
-  
+  const { data: categories, isLoading: isLoadingCategories, isError } = useGetAllCategorieasQuery("all");
+
   const [addCategory, { isLoading: isAdding }] = useAddCategoryMutation();
   const [deleteCategory, { isLoading: isDeleting }] = useDeleteCategoryMutation();
 
@@ -171,9 +167,9 @@ const SettingsTab = ({
         </div>
       </CardHeader>
       <CardContent className="flex flex-wrap gap-2">
-        {items.map((item) => (
+        {items.map((item: any) => (
           <Badge key={item._id} variant="secondary" className="bg-blue-100 text-blue-800 border-blue-200">
-            {item.name}
+            <span className='mr-2 font-semibold '>{item.count}</span>{item.name}
             <button onClick={() => openDeleteConfirmation(categoryType, item._id)} disabled={isDeleting} className="ml-2 cursor-pointer"><X size={14} /></button>
           </Badge>
         ))}
@@ -190,27 +186,27 @@ const SettingsTab = ({
             <div className="flex -space-x-2 overflow-x-auto pb-2 sm:pb-0">
               <TooltipProvider>
                 {currentTabsUsers?.result?.map((user: any, index: number) => (
-                    <Tooltip key={user?.id || index} delayDuration={100}>
-                      <TooltipTrigger asChild>
-                        <Avatar
-                          className="border-2 border-background w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0 rounded-full"
-                        >
-                          <AvatarImage
-                            src={
-                              import.meta.env.VITE_BACKEND_BASE_URL + user?.avatarUrl
-                            }
-                            className="rounded-full"
-                          />
-                          <AvatarFallback className="text-xs rounded-full">
-                            {user?.name?.charAt(0).toUpperCase() ?? 'U'}
-                          </AvatarFallback>
-                        </Avatar>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>{user?.name}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  ))}
+                  <Tooltip key={user?.id || index} delayDuration={100}>
+                    <TooltipTrigger asChild>
+                      <Avatar
+                        className="border-2 border-background w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0 rounded-full"
+                      >
+                        <AvatarImage
+                          src={
+                            import.meta.env.VITE_BACKEND_BASE_URL + user?.avatarUrl
+                          }
+                          className="rounded-full"
+                        />
+                        <AvatarFallback className="text-xs rounded-full bg-gray-400">
+                          {user?.name.charAt(0)}
+                        </AvatarFallback>
+                      </Avatar>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{user?.name}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
               </TooltipProvider>
             </div>
           </div>

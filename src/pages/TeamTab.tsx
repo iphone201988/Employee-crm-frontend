@@ -9,7 +9,7 @@ import { usePermissionTabs } from '@/hooks/usePermissionTabs';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import { useLazyGetTabAccessQuery } from '@/store/authApi';
-import { Avatar, AvatarFallback, AvatarImage } from '@radix-ui/react-avatar';
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@radix-ui/react-tooltip';
 const tabs = [
     {
@@ -117,7 +117,7 @@ const TeamTab = () => {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 p-6">
             <div className="mb-6">
 
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-4">
@@ -140,8 +140,8 @@ const TeamTab = () => {
                                                         }
                                                         className="rounded-full"
                                                     />
-                                                    <AvatarFallback className="text-xs rounded-full">
-                                                        {user?.name}
+                                                    <AvatarFallback className="text-xs rounded-full bg-gray-400">
+                                                        {user?.name.charAt(0)}
                                                     </AvatarFallback>
                                                 </Avatar>
                                             </TooltipTrigger>
@@ -156,11 +156,11 @@ const TeamTab = () => {
                 </div>
 
                 {/* Tabs */}
-                 <CustomTabs
-                tabs={visibleTabs}
-                activeTab={activeTab}
-                setActiveTab={handleTabSwitch}
-            />
+                <CustomTabs
+                    tabs={visibleTabs}
+                    activeTab={activeTab}
+                    setActiveTab={handleTabSwitch}
+                />
             </div>
             {
                 activeTab === 'teamList' && (
@@ -203,7 +203,7 @@ const TeamTab = () => {
             }
             {
                 activeTab === '' && (
-                   <div>YOU HAVE NO ACCESS</div>
+                    <div>YOU HAVE NO ACCESS</div>
                 )
             }
 

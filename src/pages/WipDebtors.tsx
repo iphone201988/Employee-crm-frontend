@@ -10,7 +10,7 @@ import WriteOffMergedTab from "@/components/WriteOffMergedTab";
 import InvoiceLogTab from "@/components/InvoiceLogTab";
 import CustomTabs from "@/components/Tabs";
 import { useGetTabAccessQuery, useLazyGetTabAccessQuery } from "@/store/authApi";
-import { Avatar, AvatarFallback, AvatarImage } from "@radix-ui/react-avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@radix-ui/react-tooltip";
 
 const tabs = [{
@@ -457,46 +457,46 @@ export function WipDebtors() {
     <div className="flex-1 p-6 bg-background">
 
 
-      <div className="mb-6">
+ <div className="mb-6">
 
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-4">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-            <h1 className="text-xl sm:text-2xl font-semibold text-foreground">WIP & Debtors</h1>
-            <div className="flex -space-x-2 overflow-x-auto pb-2 sm:pb-0">
-              {/* Wrap the list of avatars in a single TooltipProvider */}
-              <TooltipProvider>
-                {currentTabsUsers?.result.length > 0 &&
-                  currentTabsUsers?.result.map((user: any, index) => (
-                    <Tooltip key={user?.id || index} delayDuration={100}>
-                      <TooltipTrigger asChild>
-                        <Avatar
-                          className="border-2 border-background w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0 rounded-full"
-                        // The native `title` attribute is no longer needed
-                        >
-                          <AvatarImage
-                            src={
-                              import.meta.env.VITE_BACKEND_BASE_URL + user?.avatarUrl
-                            }
-                            className="rounded-full"
-                          />
-                          <AvatarFallback className="text-xs rounded-full">
-                            {user?.name}
-                          </AvatarFallback>
-                        </Avatar>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>{user?.name}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  ))}
-              </TooltipProvider>
-            </div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <h1 className="text-xl sm:text-2xl font-semibold text-foreground">WIP & Debtors</h1>
+          <div className="flex -space-x-2 overflow-x-auto pb-2 sm:pb-0">
+            {/* Wrap the list of avatars in a single TooltipProvider */}
+            <TooltipProvider>
+              {currentTabsUsers?.result.length > 0 &&
+                currentTabsUsers?.result.map((user: any, index) => (
+                  <Tooltip key={user?.id || index} delayDuration={100}>
+                    <TooltipTrigger asChild>
+                      <Avatar
+                        className="border-2 border-background w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0 rounded-full"
+                      // The native `title` attribute is no longer needed
+                      >
+                        <AvatarImage
+                          src={
+                            import.meta.env.VITE_BACKEND_BASE_URL + user?.avatarUrl
+                          }
+                          className="rounded-full"
+                        />
+                        <AvatarFallback className="text-xs rounded-full bg-gray-400">
+                          {user?.name.charAt(0)}
+                        </AvatarFallback>
+                      </Avatar>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{user?.name}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
+            </TooltipProvider>
           </div>
         </div>
-
-        {/* Tabs */}
-        <CustomTabs tabs={visibleTabs} activeTab={activeTab} setActiveTab={setActiveTab} />
       </div>
+
+      {/* Tabs */}
+      <CustomTabs tabs={visibleTabs} activeTab={activeTab} setActiveTab={setActiveTab} />
+    </div>
       {activeTab === "WIP" &&
         <WIPTableTab onInvoiceCreate={handleInvoiceCreate} onWriteOff={handleWriteOff} />
       }

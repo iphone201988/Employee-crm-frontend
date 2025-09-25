@@ -1,24 +1,26 @@
 import React, { createContext, useContext, ReactNode } from 'react';
 import { useAuth } from '../hooks/useAuth';
 
+// Add the 'role' property to the User interface
 interface User {
   id: string;
   name: string;
   email: string;
+  role: string; // Add role here
 }
 
 interface AuthContextType {
   isAuthenticated: boolean;
   userInfo: User | null;
   loading: boolean;
-  setCredentials: (user: User, token: string) => void;
+  setCredentials: (user: User, token: any, superAdminToken?: any) => void;
   clearCredentials: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const auth = useAuth();
+  const auth:any = useAuth();
   
   return (
     <AuthContext.Provider value={auth}>

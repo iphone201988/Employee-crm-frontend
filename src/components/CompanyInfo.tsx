@@ -462,7 +462,7 @@ const tabs = [
   }
 ]
 
-const ExpensesLogTab = () => {
+const CompanyInfo = () => {
   const [expenses, setExpenses] = useState<Expense[]>(sampleExpenses);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'invoiced' | 'not invoiced' | 'paid' | 'not paid'>('all');
@@ -475,7 +475,7 @@ const ExpensesLogTab = () => {
   const [selectedReceipt, setSelectedReceipt] = useState<string | null>(null);
   const { visibleTabs, isLoading, isError } = usePermissionTabs(tabs);
   const [getTabAccess, { data: currentTabsUsers }] = useLazyGetTabAccessQuery()
-  const { data: currentUserData }: any = useGetCurrentUserQuery();
+    const { data: currentUserData }: any = useGetCurrentUserQuery();
   useEffect(() => {
     if (visibleTabs.length > 0) {
       if (!visibleTabs.some(tab => tab.id === activeTab)) {
@@ -664,8 +664,8 @@ const ExpensesLogTab = () => {
                             }
                             className="rounded-full"
                           />
-                          <AvatarFallback className="text-xs rounded-full bg-gray-400">
-                            {user?.name.charAt(0)}
+                          <AvatarFallback className="text-xs rounded-full">
+                            {user?.name}
                           </AvatarFallback>
                         </Avatar>
                       </TooltipTrigger>
@@ -1165,4 +1165,4 @@ const ExpensesLogTab = () => {
   );
 };
 
-export default ExpensesLogTab;
+export default CompanyInfo;

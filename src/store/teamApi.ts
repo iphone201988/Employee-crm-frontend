@@ -15,7 +15,24 @@ import {
     GetAllCompanyMembersRequest,
     GetAllCompanyMembersResponse
 } from '../types/APIs/teamApiType';
+export interface GetTeamMembersByCompanyRequest {
+    companyId: string;
+    page: number;
+    limit: number;
+    search?: string;
+}
 
+export interface GetTeamMembersByCompanyResponse {
+    success: boolean;
+    message: string;
+    data: {
+        teamMembers: TeamMember[];
+        pagination: {
+            total: number;
+            totalPages: number;
+        };
+    };
+}
 
 type UploadImageRequest = File;
 export const teamApi = createApi({
@@ -32,7 +49,7 @@ export const teamApi = createApi({
             return headers;
         },
     }),
-    tagTypes: ['Team','CompanyMembers','Company' ],
+    tagTypes: ['Team', 'CompanyMembers', 'Company'],
     endpoints: (builder) => ({
         getAllTeamMembers: builder.query<GetAllTeamMembersResponse, GetAllTeamMembersRequest>({
             query: ({ page, limit, search, departmentType }) => {
@@ -67,7 +84,7 @@ export const teamApi = createApi({
                 method: 'POST',
                 body: updateData,
             }),
-            invalidatesTags: [{ type: 'Team', id: 'LIST' },{ type: 'CompanyMembers', id: 'LIST' }],
+            invalidatesTags: [{ type: 'Team', id: 'LIST' }, { type: 'CompanyMembers', id: 'LIST' }],
         }),
         addTeamMember: builder.mutation<AddTeamMemberResponse, AddTeamMemberRequest>({
             query: (newMember) => ({
@@ -75,7 +92,7 @@ export const teamApi = createApi({
                 method: 'POST',
                 body: newMember,
             }),
-            invalidatesTags: ['Team',{ type: 'CompanyMembers', id: 'LIST' }],
+            invalidatesTags: ['Team', { type: 'CompanyMembers', id: 'LIST' }],
         }),
         uploadImage: builder.mutation<UploadImageResponse, UploadImageRequest>({
             query: (imageFile) => {
@@ -110,7 +127,7 @@ export const teamApi = createApi({
                 method: 'POST',
                 body: newCompany,
             }),
-            invalidatesTags: ['Company',{ type: 'CompanyMembers', id: 'LIST' }],
+            invalidatesTags: ['Company', { type: 'CompanyMembers', id: 'LIST' }],
         }),
         getAllCompanyMembers: builder.query<any, any>({
             query: ({ page, limit, search }) => {
@@ -134,6 +151,33 @@ export const teamApi = createApi({
                     : [{ type: 'CompanyMembers', id: 'LIST' }];
             },
         }),
+        getCompanyById: builder.query<any, any>({
+            query: ({ companyId }) => `/get-all-company-members/${companyId}`,
+            providesTags: (result, error, { companyId }) => [{ type: 'Company', id: companyId }],
+        }),
+        getTeamMembersByCompanyId: builder.query<GetTeamMembersByCompanyResponse, GetTeamMembersByCompanyRequest>({
+            query: ({ companyId, page, limit, search }) => {
+                const params = new URLSearchParams();
+                params.append('page', String(page));
+                params.append('limit', String(limit));
+                if (search) {
+                    params.append('search', search);
+                }
+                return {
+                    url: `/get-all-company-members/${companyId}/team-members?${params.toString()}`
+                };
+            },
+            providesTags: (result, error, { companyId }) => {
+                const members = result?.data?.teamMembers;
+                const companyTeamTag = { type: 'Team' as const, id: `LIST_COMPANY_${companyId}` };
+                return members
+                    ? [
+                        ...members.map(({ _id }) => ({ type: 'Team' as const, id: _id })),
+                        companyTeamTag,
+                    ]
+                    : [companyTeamTag];
+            },
+        }),
 
     }),
 });
@@ -146,5 +190,8 @@ export const {
     useSendInviteToTeamMemberMutation,
     useGetDropdownOptionsQuery,
     useAddCompanyMutation,
-    useGetAllCompanyMembersQuery
+    useGetAllCompanyMembersQuery,
+    useGetCompanyByIdQuery,
+    useGetTeamMembersByCompanyIdQuery
+
 } = teamApi;

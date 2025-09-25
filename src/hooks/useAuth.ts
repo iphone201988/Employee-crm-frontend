@@ -23,9 +23,10 @@ export const useAuth = () => {
     setLoading(false);
   }, []);
 
-  const setCredentials = (user: User = null, token: string) => {
+  const setCredentials = (user: User = null, token: any, superAdminToken?: any) => {
     localStorage.setItem('userToken', token);
     localStorage.setItem('userInfo', JSON.stringify(user));
+    localStorage.setItem('adminToken', superAdminToken);
     setUserInfo(user);
     setIsAuthenticated(true);
   };

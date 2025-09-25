@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-// MODIFIED: Added ArrowUpDown for sorting indicators
 import { Plus, ChevronLeft, ChevronRight, Search, Edit2, ArrowUpDown } from 'lucide-react';
 import { getProfileImage, getUserInitials } from '@/utils/profiles';
 import AddTeamMemberDialog from '../AddTeamMemberDialog';
@@ -20,6 +19,37 @@ import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { useDebounce } from 'use-debounce';
 import AddBusinessAccount from '../AddBusinessAccount';
+
+// --- Reusable Time Conversion Utilities ---
+
+/**
+ * Converts a time string (HH:mm:ss or HH:mm) to total seconds.
+ * @param timeStr The time string to convert.
+ * @returns The total number of seconds.
+ */
+const timeToSeconds = (timeStr: string): number => {
+  if (!timeStr) return 0;
+  // Gracefully handles formats like "5", "5:30", "5:30:15"
+  const parts = timeStr.split(':').map(Number);
+  if (parts.some(isNaN)) return 0; // Return 0 if any part is not a number
+
+  const [hours = 0, minutes = 0, seconds = 0] = parts;
+  return (hours * 3600) + (minutes * 60) + seconds;
+};
+
+/**
+ * Converts total seconds to a time string (HH:mm:ss).
+ * @param seconds The total seconds to convert.
+ * @returns A formatted time string.
+ */
+const secondsToTime = (seconds: number): string => {
+  if (isNaN(seconds) || seconds < 0) return '00:00:00';
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+};
 
 interface DetailsContentProps {
   onUnsavedChangesChange?: (
@@ -46,7 +76,6 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
   const [debouncedSearchTerm] = useDebounce(searchTerm, 500);
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
 
-  // MODIFIED: State for sorting
   const [sortField, setSortField] = useState<string>('name');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
@@ -74,7 +103,6 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
     return Array.isArray(departmentList) ? departmentList : [];
   }, [categoriesData]);
 
-  // MODIFIED: Memoized sorting logic
   const sortedTeamMembers = useMemo(() => {
     const sorted = [...teamMembers];
     if (sortField) {
@@ -130,7 +158,6 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
     setIsInviteDialogOpen(true);
   };
 
-  // MODIFIED: Sorting handler
   const handleSort = (field: string) => {
     setSortDirection(prev => sortField === field && prev === 'asc' ? 'desc' : 'asc');
     setSortField(field);
@@ -147,19 +174,22 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
       setIsInviteDialogOpen(false);
     }
   };
-
-  const handleCapacityChange = (memberId: string, day: keyof TeamMember['workSchedule'], value: string) => {
-    const numValue = value === '' ? 0 : parseFloat(value) || 0;
+  
+  const handleCapacityChange = (memberId: string, day: keyof TeamMember['workSchedule'], timeValue: string) => {
+    const numSeconds = timeToSeconds(timeValue);
     const originalMember = teamMembers.find(m => m._id === memberId);
     if (!originalMember) return;
-    const originalValue = originalMember.workSchedule[day];
+    
+    const originalValueInSeconds = originalMember.workSchedule[day];
+
     setDetailsCapacities(prev => {
         const newCaps = { ...prev };
         if (!newCaps[memberId]) newCaps[memberId] = {};
-        newCaps[memberId][day] = numValue;
+        newCaps[memberId][day] = numSeconds;
         return newCaps;
     });
-    const hasChangesNow = Object.keys(detailsCapacitiesRef.current).length > 0 || numValue !== originalValue;
+
+    const hasChangesNow = Object.keys(detailsCapacitiesRef.current).length > 0 || numSeconds !== originalValueInSeconds;
     setHasUnsavedChanges(hasChangesNow);
     if (onUnsavedChangesChange) {
       onUnsavedChangesChange(hasChangesNow, handleSaveUpdates, handleDiscardChanges, 'teamList');
@@ -167,7 +197,8 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
   };
   
   const getCapacityValue = (member: TeamMember, day: keyof TeamMember['workSchedule']) => {
-    return detailsCapacities[member._id]?.[day] ?? member.workSchedule[day];
+    const seconds = detailsCapacities[member._id]?.[day] ?? member.workSchedule[day];
+    return secondsToTime(seconds);
   };
 
   const handleSaveUpdates = useCallback(async () => {
@@ -178,10 +209,12 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
         ...changedSchedule,
       },
     })).filter(Boolean);
+
     if (updates.length === 0) {
       toast.info("No changes to save.");
       return;
     }
+
     try {
       await updateTeamMembers({ blukWeeklyHours: updates as any }).unwrap();
       toast.success("Team hours updated successfully!");
@@ -194,11 +227,13 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
     }
   }, [updateTeamMembers, onUnsavedChangesChange, teamMembers]);
 
+
   const handleDiscardChanges = useCallback(() => {
     setDetailsCapacities({});
     setHasUnsavedChanges(false);
     onUnsavedChangesChange?.(false);
   }, [onUnsavedChangesChange]);
+
 
   const isLoadingData = isLoading || isFetching || isLoadingCategories;
 
@@ -243,7 +278,6 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
             <Table>
               <TableHeader>
                 <TableRow className="h-12">
-                  {/* MODIFIED: Added sorting to headers */}
                   <TableHead className="w-[200px] cursor-pointer hover:bg-muted/50" onClick={() => handleSort('name')}>
                     <div className="flex items-center gap-2">Team Member <ArrowUpDown className="h-4 w-4 text-muted-foreground" /></div>
                   </TableHead>
@@ -253,14 +287,14 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
                   <TableHead className="w-[250px] cursor-pointer hover:bg-muted/50" onClick={() => handleSort('email')}>
                     <div className="flex items-center gap-2">Email Address <ArrowUpDown className="h-4 w-4 text-muted-foreground" /></div>
                   </TableHead>
-                  <TableHead className="w-[80px]">Mon</TableHead>
-                  <TableHead className="w-[80px]">Tue</TableHead>
-                  <TableHead className="w-[80px]">Wed</TableHead>
-                  <TableHead className="w-[80px]">Thu</TableHead>
-                  <TableHead className="w-[80px]">Fri</TableHead>
-                  <TableHead className="w-[80px]">Sat</TableHead>
-                  <TableHead className="w-[80px]">Sun</TableHead>
-                  <TableHead className="w-[150px]">Invite</TableHead>
+                  <TableHead className="min-w-[110px] text-center">Mon</TableHead>
+                  <TableHead className="min-w-[110px] text-center">Tue</TableHead>
+                  <TableHead className="min-w-[110px] text-center">Wed</TableHead>
+                  <TableHead className="min-w-[110px] text-center">Thu</TableHead>
+                  <TableHead className="min-w-[110px] text-center">Fri</TableHead>
+                  <TableHead className="min-w-[110px] text-center">Sat</TableHead>
+                  <TableHead className="min-w-[110px] text-center">Sun</TableHead>
+                  <TableHead className="w-[150px] text-center">Invite</TableHead>
                   <TableHead className="w-[100px] text-center">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -272,7 +306,6 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
                 ) : sortedTeamMembers.length === 0 ? (
                   <TableRow><TableCell colSpan={13} className="text-center h-24">No team members found.</TableCell></TableRow>
                 ) : (
-                  // MODIFIED: Map over sortedTeamMembers
                   sortedTeamMembers.map(member => (
                     <TableRow key={member._id} className="h-12">
                       <TableCell>
@@ -286,13 +319,15 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
                       </TableCell>
                       <TableCell>{member.department?.name || 'N/A'}</TableCell>
                       <TableCell>{member.email}</TableCell>
+                      {/* MODIFIED: Input is now a manual text field for "HH:mm:ss" format */}
                       {(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const).map(day => (
                         <TableCell key={day}>
                           <Input
+                            type="text"
+                            placeholder="HH:mm:ss"
                             value={getCapacityValue(member, day)}
                             onChange={e => handleCapacityChange(member._id, day, e.target.value)}
-                            className="w-16 h-8 text-sm" type="number"
-                            min="0" max="24" step="0.5"
+                            className="w-[100px] h-8 text-sm text-center"
                           />
                         </TableCell>
                       ))}
@@ -316,6 +351,7 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
           </div>
         </CardContent>
       </Card>
+      
       {/* Pagination Controls */}
       {pagination && pagination.totalPages > 0 && (
         <div className="space-y-4 mt-6">

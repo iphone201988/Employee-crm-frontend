@@ -166,8 +166,8 @@ const ReportsTab = () => {
                           }
                           className="rounded-full"
                         />
-                        <AvatarFallback className="text-xs rounded-full">
-                          {user?.name}
+                        <AvatarFallback className="text-xs rounded-full bg-gray-400">
+                          {user?.name.charAt(0)}
                         </AvatarFallback>
                       </Avatar>
                     </TooltipTrigger>
