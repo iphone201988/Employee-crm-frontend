@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { useLazyGetTabAccessQuery, useGetCurrentUserQuery } from '@/store/authApi';
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@radix-ui/react-tooltip';
+import Avatars from './Avatars';
 
 interface SettingsTabProps {
   autoApproveTimesheets: boolean;
@@ -180,37 +181,7 @@ const SettingsTab = ({
   return (
     <div className="space-y-6 p-6">
       <div className="mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-4">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-            <h1 className="text-xl sm:text-2xl font-semibold text-foreground">Settings</h1>
-            <div className="flex -space-x-2 overflow-x-auto pb-2 sm:pb-0">
-              <TooltipProvider>
-                {currentTabsUsers?.result?.map((user: any, index: number) => (
-                  <Tooltip key={user?.id || index} delayDuration={100}>
-                    <TooltipTrigger asChild>
-                      <Avatar
-                        className="border-2 border-background w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0 rounded-full"
-                      >
-                        <AvatarImage
-                          src={
-                            import.meta.env.VITE_BACKEND_BASE_URL + user?.avatarUrl
-                          }
-                          className="rounded-full"
-                        />
-                        <AvatarFallback className="text-xs rounded-full bg-gray-400">
-                          {user?.name.charAt(0)}
-                        </AvatarFallback>
-                      </Avatar>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{user?.name}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                ))}
-              </TooltipProvider>
-            </div>
-          </div>
-        </div>
+      <Avatars activeTab={activeTab} title={"Settings"} />
 
         <CustomTabs tabs={visibleTabs} activeTab={activeTab} setActiveTab={setActiveTab} />
       </div>

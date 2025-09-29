@@ -34,6 +34,7 @@ export const useAuth = () => {
   const clearCredentials = () => {
     localStorage.removeItem('userToken');
     localStorage.removeItem('userInfo');
+    localStorage.removeItem('superAdminToken');
     setUserInfo(null);
     setIsAuthenticated(false);
   };

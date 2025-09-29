@@ -152,12 +152,39 @@ export const JobForm = ({ job, onSubmit, onCancel }: JobFormProps) => {
                 <InputComponent label="Job Name" id="jobName" value={formData.name} onChange={handleInputChange('name')} error={errors.name} />
 
                 <div className="relative" ref={clientInputContainerRef}>
-                    <InputComponent label="Client Name" id="clientName" value={formData.clientName} onChange={handleClientNameChange} onFocus={() => setShowClientSuggestions(true)} autoComplete="off" error={errors.clientName} />
-                    {showClientSuggestions && filteredClients.length > 0 && (
+                    <InputComponent
+                        label="Client Name"
+                        id="clientName"
+                        value={formData.clientName}
+                        onChange={handleClientNameChange}
+                        onFocus={() => setShowClientSuggestions(true)}
+                        autoComplete="off"
+                        error={errors.clientName}
+                    />
+
+                    {showClientSuggestions && (
                         <ul className="absolute z-10 w-full bg-background border border-border rounded-md mt-1 max-h-40 overflow-y-auto shadow-lg">
-                            {filteredClients.map(client => (
-                                <li key={client._id} onClick={() => handleSuggestionClick(client)} className="px-3 py-2 cursor-pointer hover:bg-muted">{client.name}</li>
-                            ))}
+                            {filteredClients.length > 0 ? (
+                                filteredClients.map((client) => (
+                                    <li
+                                        key={client._id}
+                                        onClick={() => handleSuggestionClick(client)}
+                                        className="px-3 py-2 cursor-pointer hover:bg-muted"
+                                    >
+                                        {client.name}
+                                    </li>
+                                ))
+                            ) : (
+                                <li className="px-3 py-2 text-muted-foreground">
+                                    Type client name.{" "}
+                                    <a
+                                        href="/clients"
+                                        className="text-primary hover:underline font-medium"
+                                    >
+                                        Add new client
+                                    </a>
+                                </li>
+                            )}
                         </ul>
                     )}
                 </div>
@@ -203,7 +230,7 @@ export const JobForm = ({ job, onSubmit, onCancel }: JobFormProps) => {
                     </Select>
                 </div>
 
-               <div>
+                <div>
                     <Label htmlFor="jobManager">Job Manager</Label>
                     <Select value={formData.jobManagerId} onValueChange={handleInputChange('jobManagerId')}>
                         <SelectTrigger><SelectValue placeholder="Select job manager" /></SelectTrigger>

@@ -15,6 +15,8 @@ import {
   useGetTeamMembersByCompanyIdQuery
 } from '@/store/teamApi';
 import { useGetCurrentUserQuery } from '@/store/authApi';
+import { useLoginAsGuestMutation } from '@/store/companiesApi';
+import { useSuperAdminContext } from '@/context/SuperAdminContext';
 import { TeamMember } from '@/types/APIs/teamApiType';
 import { toast } from 'sonner';
 import { useDebounce } from 'use-debounce';
@@ -69,6 +71,8 @@ const BusinessAccountsDetails: React.FC<DetailsContentProps> = ({ onUnsavedChang
   );
 
   const [sendInvite, { isLoading: isSendingInvite }] = useSendInviteToTeamMemberMutation();
+  const [loginAsGuest, { isLoading: isLoggingAsGuest }] = useLoginAsGuestMutation();
+  const { switchToCompanyMode } = useSuperAdminContext();
 
   const companies = companiesData?.data?.companyMembers || [];
   const pagination = companiesData?.data?.pagination;
@@ -135,6 +139,19 @@ const BusinessAccountsDetails: React.FC<DetailsContentProps> = ({ onUnsavedChang
     setSearchTerm('');
   };
 
+  const handleAccessCompany = async (companyId: string) => {
+    try {
+      // Use the companyId directly as userId
+      const result = await loginAsGuest({ userId: companyId }).unwrap();
+      toast.success('Successfully accessed company account');
+      switchToCompanyMode(result.data.token);
+      // Navigate to the main dashboard
+      window.location.href = '/';
+    } catch (err: any) {
+      toast.error(err?.data?.message || 'Failed to access company account');
+    }
+  };
+
   const isLoadingData = isLoading || isFetching;
 
   if (showInfo) {
@@ -160,10 +177,11 @@ const BusinessAccountsDetails: React.FC<DetailsContentProps> = ({ onUnsavedChang
           </Button>
           <Button
             size="sm"
-            onClick={() => alert('In progress')}
+            onClick={() => selectedCompanyId && handleAccessCompany(selectedCompanyId)}
+            disabled={isLoggingAsGuest}
             className={`h-8 px-3 text-xs ${activeSection === 'access' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-800'}`}
           >
-            Access Company
+            {isLoggingAsGuest ? 'Accessing...' : 'Access Company'}
           </Button>
         </div>
 

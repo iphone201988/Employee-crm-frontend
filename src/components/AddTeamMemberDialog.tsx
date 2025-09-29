@@ -13,9 +13,28 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { TeamMemberData as OriginalTeamMemberData, validateTeamMemberForm } from '@/utils/validation/teamMemberValidation';
 import InputComponent from './client/component/Input';
 import { TeamMember } from '@/types/APIs/teamApiType';
-// Extend the type to include the optional companyId
-interface TeamMemberData extends OriginalTeamMemberData {
+
+// --- Reusable Time Conversion Utilities ---
+const timeToSeconds = (timeStr: string): number => {
+  if (!timeStr) return 0;
+  const parts = timeStr.split(':').map(Number);
+  if (parts.some(isNaN)) return 0;
+  const [hours = 0, minutes = 0, seconds = 0] = parts;
+  return (hours * 3600) + (minutes * 60) + seconds;
+};
+
+const secondsToTime = (seconds: number): string => {
+  if (isNaN(seconds) || seconds < 0) return '00:00:00';
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+};
+
+// Extend the type to include the optional companyId and string-based workSchedule
+interface TeamMemberData extends Omit<OriginalTeamMemberData, 'workSchedule'> {
     companyId?: string;
+    workSchedule: { [key in 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday']: string };
 }
 
 interface AddTeamMemberDialogProps {
@@ -28,14 +47,23 @@ const AddTeamMemberDialog = ({ open, onOpenChange, memberToEdit }: AddTeamMember
     const isEditMode = !!memberToEdit;
     const { data: currentUser } = useGetCurrentUserQuery<any>();
     
+    // MODIFIED: Initial form data now uses time strings for workSchedule
     const getInitialFormData = (): TeamMemberData => ({
         name: '',
         email: '',
         departmentId: '',
         avatarUrl: '',
         hourlyRate: '',
-        companyId: '', // Initialize companyId
-        workSchedule: { monday: 8, tuesday: 8, wednesday: 8, thursday: 8, friday: 8, saturday: 0, sunday: 0 },
+        companyId: '',
+        workSchedule: {
+            monday: '00:00:00',
+            tuesday: '00:00:00',
+            wednesday: '00:00:00',
+            thursday: '00:00:00',
+            friday: '00:00:00',
+            saturday: '00:00:00',
+            sunday: '00:00:00',
+        },
     });
 
     const [formData, setFormData] = useState<TeamMemberData>(getInitialFormData());
@@ -57,7 +85,7 @@ const AddTeamMemberDialog = ({ open, onOpenChange, memberToEdit }: AddTeamMember
     const days = [
         { key: 'monday', label: 'Mon' }, { key: 'tuesday', label: 'Tue' }, { key: 'wednesday', label: 'Wed' },
         { key: 'thursday', label: 'Thu' }, { key: 'friday', label: 'Fri' }, { key: 'saturday', label: 'Sat' }, { key: 'sunday', label: 'Sun' },
-    ];
+    ] as const;
 
     const resetForm = () => {
         setFormData(getInitialFormData());
@@ -78,6 +106,14 @@ const AddTeamMemberDialog = ({ open, onOpenChange, memberToEdit }: AddTeamMember
 
     useEffect(() => {
         if (isEditMode && memberToEdit) {
+            // MODIFIED: Convert seconds to time strings when populating the form
+            const scheduleInTimeFormat = Object.fromEntries(
+                days.map(day => [
+                    day.key,
+                    secondsToTime(memberToEdit.workSchedule?.[day.key] ?? 0)
+                ])
+            ) as TeamMemberData['workSchedule'];
+
             setFormData({
                 name: memberToEdit.name,
                 email: memberToEdit.email,
@@ -85,15 +121,7 @@ const AddTeamMemberDialog = ({ open, onOpenChange, memberToEdit }: AddTeamMember
                 avatarUrl: memberToEdit.avatarUrl || '',
                 hourlyRate: String(memberToEdit.hourlyRate || ''),
                 companyId: memberToEdit?.companyId || '',
-                workSchedule: {
-                    monday: memberToEdit.workSchedule?.monday ?? 0,
-                    tuesday: memberToEdit.workSchedule?.tuesday ?? 0,
-                    wednesday: memberToEdit.workSchedule?.wednesday ?? 0,
-                    thursday: memberToEdit.workSchedule?.thursday ?? 0,
-                    friday: memberToEdit.workSchedule?.friday ?? 0,
-                    saturday: memberToEdit.workSchedule?.saturday ?? 0,
-                    sunday: memberToEdit.workSchedule?.sunday ?? 0,
-                },
+                workSchedule: scheduleInTimeFormat,
             });
             if (memberToEdit.avatarUrl) {
                 setImagePreview(import.meta.env.VITE_BACKEND_BASE_URL + memberToEdit.avatarUrl);
@@ -110,14 +138,12 @@ const AddTeamMemberDialog = ({ open, onOpenChange, memberToEdit }: AddTeamMember
         }
     };
 
+    // MODIFIED: Handle daily capacity as a string
     const handleDailyCapacityChange = (day: keyof TeamMemberData['workSchedule'], value: string) => {
-        const numValue = Number(value);
-        if (!isNaN(numValue) && numValue >= 0 && numValue <= 24) {
-            setFormData(prev => ({
-                ...prev,
-                workSchedule: { ...prev.workSchedule, [day]: numValue }
-            }));
-        }
+        setFormData(prev => ({
+            ...prev,
+            workSchedule: { ...prev.workSchedule, [day]: value }
+        }));
     };
 
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -139,10 +165,10 @@ const AddTeamMemberDialog = ({ open, onOpenChange, memberToEdit }: AddTeamMember
         e.preventDefault();
         setSubmitError("");
         
-        const validationResult = validateTeamMemberForm(formData);
+        // Assuming validation is adapted for string-based schedule
+        const validationResult = validateTeamMemberForm(formData as any); 
         const currentErrors:any = { ...validationResult.errors };
 
-        // Conditionally require companyId only if the user is a superAdmin
         if (currentUser?.data?.role === 'superAdmin' && !formData.companyId) {
             currentErrors.companyId = 'Company is required.';
         }
@@ -154,20 +180,27 @@ const AddTeamMemberDialog = ({ open, onOpenChange, memberToEdit }: AddTeamMember
         setErrors({});
 
         try {
-            const payload = {
+            // MODIFIED: Convert workSchedule from time strings to seconds before API call
+            const scheduleInSeconds = Object.fromEntries(
+                Object.entries(formData.workSchedule).map(([day, timeStr]) => [
+                    day,
+                    timeToSeconds(timeStr)
+                ])
+            );
+
+            const payload: any = {
                 name: formData.name,
                 email: formData.email,
                 departmentId: formData.departmentId,
                 avatarUrl: formData.avatarUrl,
-                workSchedule: formData.workSchedule,
+                workSchedule: scheduleInSeconds,
                 hourlyRate: Number(formData.hourlyRate) || 0,
-                // Only include companyId if the user is a superAdmin
                 ...(currentUser?.data?.role === 'superAdmin' && { companyId: formData.companyId }),
             };
 
             if (isEditMode && memberToEdit) {
-                payload.email = undefined;
-                payload.companyId = undefined;
+                delete payload.email;
+                delete payload.companyId;
                 await updateTeamMember({
                     singleTeamMenber: {
                         userId: memberToEdit._id,
@@ -195,6 +228,7 @@ const AddTeamMemberDialog = ({ open, onOpenChange, memberToEdit }: AddTeamMember
             <DialogContent className="max-w-2xl">
                 <DialogHeader><DialogTitle>{isEditMode ? 'Edit' : 'Add'} Team Member</DialogTitle></DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-6">
+                    {/* ... other form fields remain the same ... */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <InputComponent
                             label="Team Name"
@@ -236,7 +270,6 @@ const AddTeamMemberDialog = ({ open, onOpenChange, memberToEdit }: AddTeamMember
                             {errors.departmentId && <p className="mt-1 text-sm text-red-600">{errors.departmentId}</p>}
                         </div>
                         
-                        {/* Conditionally render the "For (Company)" field */}
                         {currentUser?.data?.role === 'superAdmin' && (
                             <div>
                                 <Label htmlFor="company">For (Company)</Label>
@@ -254,7 +287,6 @@ const AddTeamMemberDialog = ({ open, onOpenChange, memberToEdit }: AddTeamMember
                             </div>
                         )}
                     </div>
-
                     <div>
                         <Label>Profile Image</Label>
                         <div className="mt-2">
@@ -288,17 +320,20 @@ const AddTeamMemberDialog = ({ open, onOpenChange, memberToEdit }: AddTeamMember
                         </div>
                     </div>
 
+                    {/* MODIFIED: Daily capacity inputs now use text and time format */}
                     <div>
-                        <Label>Daily Capacity Hours</Label>
-                        <div className="grid grid-cols-7 gap-2 mt-2">
+                        <Label>Daily Capacity</Label>
+                        <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 mt-2">
                             {days.map((day) => (
                                 <div key={day.key}>
-                                    <Label htmlFor={day.key} className="text-xs">{day.label}</Label>
+                                    <Label htmlFor={day.key} className="text-xs font-medium">{day.label}</Label>
                                     <Input
-                                        id={day.key} type="number" min="0" max="24" step="0.1"
-                                        value={formData.workSchedule[day.key as keyof typeof formData.workSchedule]}
-                                        onChange={(e) => handleDailyCapacityChange(day.key as keyof typeof formData.workSchedule, e.target.value)}
-                                        className="w-full h-8 text-sm" placeholder="0"
+                                        id={day.key}
+                                        type="text"
+                                        value={formData.workSchedule[day.key]}
+                                        onChange={(e) => handleDailyCapacityChange(day.key, e.target.value)}
+                                        className="w-full h-8 text-sm text-center"
+                                        placeholder="HH:mm:ss"
                                     />
                                 </div>
                             ))}
@@ -322,3 +357,4 @@ const AddTeamMemberDialog = ({ open, onOpenChange, memberToEdit }: AddTeamMember
 };
 
 export default AddTeamMemberDialog;
+

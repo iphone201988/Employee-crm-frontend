@@ -318,7 +318,6 @@ const JobsTab = () => {
 
 
     const deleteJobById = async (job: any) => {
-        console.log('==============asdasdasdasd', job)
         try {
             await deleteJob(job?._id).unwrap();
             toast.success('Job deleted successfully!');
@@ -352,7 +351,7 @@ const JobsTab = () => {
                             </Button>
                         ))}
                     </div>
-                    <div className="flex items-center gap-2">
+                    {/* <div className="flex items-center gap-2">
                         <Button variant="outline" size="sm" onClick={() => navigateDate('prev')}>
                             <ChevronLeft className="w-4 h-4" />
                         </Button>
@@ -362,7 +361,7 @@ const JobsTab = () => {
                         <Button variant="outline" size="sm" onClick={() => navigateDate('next')}>
                             <ChevronRight className="w-4 h-4" />
                         </Button>
-                    </div>
+                    </div> */}
                 </CardContent>
             </Card>
 

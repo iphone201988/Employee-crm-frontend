@@ -73,7 +73,7 @@ const SetPassword = () => {
             });
 
             const result = await response.json();
-            console.log('================tertertretertert', result);
+            // console.log('================tertertretertert', result);
             if (response.ok) {
                 console.log("Password set successfully:", result);
                 alert("✅ Password has been set successfully!");

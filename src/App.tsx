@@ -5,6 +5,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Provider } from 'react-redux';
 import { store } from './store/store';
 import { AuthProvider } from './context/AuthContext';
+import { SuperAdminProvider } from './context/SuperAdminContext';
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import { WipDebtors } from "./pages/WipDebtors";
@@ -22,12 +23,14 @@ import SetPassword from "./pages/SetPassword";
 import BusinessAccountsTab from "./pages/BusinessAccountsTab";
 import { useGetCurrentUserQuery } from "@/store/authApi";
 import { useAuthContext } from "./context/AuthContext";
+import { useSuperAdminContext } from "./context/SuperAdminContext";
 const queryClient = new QueryClient();
 
 const AppContent = () => {
    const userToken:any = localStorage.getItem('userToken');
    const {data:user}:any = useGetCurrentUserQuery(userToken);
    const {isAuthenticated} = useAuthContext();
+   const {isSuperAdminMode, isAccessingCompany} = useSuperAdminContext();
    const isSuperAdmin = user?.data?.role === 'superAdmin';
 
   return (
@@ -57,7 +60,7 @@ const AppContent = () => {
             <ProtectedRoute>
               <Layout>
                 <Routes>
-                  {isSuperAdmin ? (
+                  {isSuperAdmin && isSuperAdminMode ? (
                     <>
                       <Route path="/business-accounts" element={<BusinessAccountsTab />} />
                       {/* Redirect any other path to business-accounts for superAdmin */}
@@ -92,12 +95,14 @@ const AppContent = () => {
 const App = () => (
   <Provider store={store}>
     <AuthProvider>
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <Sonner richColors />
-          <AppContent />
-        </TooltipProvider>
-      </QueryClientProvider>
+      <SuperAdminProvider>
+        <QueryClientProvider client={queryClient}>
+          <TooltipProvider>
+            <Sonner richColors />
+            <AppContent />
+          </TooltipProvider>
+        </QueryClientProvider>
+      </SuperAdminProvider>
     </AuthProvider>
   </Provider>
 );

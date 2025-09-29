@@ -10,11 +10,13 @@ import {
   LogOut,
   Pencil,
   GroupIcon,
+  ArrowLeft,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useLogoutMutation } from "@/store/authApi";
 import { useAuthContext } from "@/context/AuthContext";
+import { useSuperAdminContext } from "@/context/SuperAdminContext";
 import {
   useGetCurrentUserQuery,
   useUpdateProfileImageMutation,
@@ -41,6 +43,7 @@ export function Sidebar({ onClose }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { clearCredentials } = useAuthContext();
+  const { isSuperAdminMode, switchBackToSuperAdmin, isAccessingCompany }:any = useSuperAdminContext();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [logout, { isLoading: isLoggingOut }] = useLogoutMutation();
@@ -55,20 +58,20 @@ export function Sidebar({ onClose }: SidebarProps) {
   const filteredNavigation = useMemo(() => {
     const isUserSuperAdmin = logdInUserRole === "superAdmin";
 
-    // If the user is a superAdmin, only show these specific tabs
-    if (isUserSuperAdmin) {
+    // If the user is a superAdmin and in super admin mode, only show these specific tabs
+    if (isUserSuperAdmin && isSuperAdminMode) {
       const superAdminTabs = ["Companies Accounts"];
       return baseNavigation.filter((item) =>
         superAdminTabs.includes(item.name)
       );
     }
 
-    // Otherwise, for regular users, filter out admin tabs and apply other rules
+    // Otherwise, for regular users or when accessing company, filter out admin tabs and apply other rules
     const reportTabPermission = loggedInUser?.features?.reports;
     const adminOnlyTabs = ["Companies Accounts"];
 
     return baseNavigation.filter((item) => {
-      // Exclude admin-only tabs for non-admins
+      // Exclude admin-only tabs for non-admins or when accessing company
       if (adminOnlyTabs.includes(item.name)) {
         return false;
       }
@@ -81,7 +84,7 @@ export function Sidebar({ onClose }: SidebarProps) {
       // Otherwise, show the item
       return true;
     });
-  }, [logdInUserRole, loggedInUser?.features?.reports]);
+  }, [logdInUserRole, loggedInUser?.features?.reports, isSuperAdminMode]);
 
   const handleLogout = async () => {
     clearCredentials();
@@ -170,7 +173,20 @@ export function Sidebar({ onClose }: SidebarProps) {
         </nav>
       </div>
 
-      <div className="px-4 py-6">
+      <div className="px-4 py-6 space-y-2">
+        {isAccessingCompany && (
+          <button
+            onClick={() => {
+              switchBackToSuperAdmin();
+              navigate("/business-accounts");
+              onClose?.();
+            }}
+            className="flex w-full items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            Go Back to Super Admin
+          </button>
+        )}
         <button
           onClick={handleLogout}
           disabled={isLoggingOut}

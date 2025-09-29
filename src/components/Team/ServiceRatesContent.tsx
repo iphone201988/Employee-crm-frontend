@@ -187,7 +187,6 @@ export const ServiceRatesContent: React.FC<ServiceRatesContentProps> = ({ onUnsa
     const toggleDefaultRateLock = async (memberId: string) => {
         const currentMember = teamMembers.find(m => m.id === memberId);
         if (!currentMember) return;
-        console.log('===========sfcsdfadsdfsdfsdfdsfdsf',currentMember);
         const newLockState = !currentMember.isDefaultRateLocked;
         const newStatus = newLockState ? true : false;
 

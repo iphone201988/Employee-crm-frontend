@@ -1,6 +1,7 @@
 import { Sidebar } from "@/components/Sidebar";
 import { ReactNode, useState } from "react";
 import { Menu, X } from "lucide-react";
+import CompanyAccessBanner from "./CompanyAccessBanner";
 
 interface LayoutProps {
   children: ReactNode;
@@ -49,6 +50,7 @@ export const Layout = ({ children }: LayoutProps) => {
         <Sidebar onClose={closeSidebar} />
       </div>
       <main className="flex-1 h-screen overflow-y-auto p-6 lg:ml-0">
+        <CompanyAccessBanner />
         {children}
       </main>
     </div>
