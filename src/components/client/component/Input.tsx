@@ -18,6 +18,7 @@ interface IInput {
     autoComplete?: string;
     onFocus?: () => void;
     disabled?: boolean; // <<< --- ADD THIS LINE ---
+    defaultValue?: string;
 }
 
 const InputComponent = ({
@@ -33,6 +34,7 @@ const InputComponent = ({
     autoComplete,
     onFocus,
     disabled = false, // <<< --- ADD THIS LINE ---
+    defaultValue = '',
 }: IInput) => {
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         if (type === 'checkbox') {
@@ -95,7 +97,8 @@ const InputComponent = ({
             <Input
                 id={id}
                 type={type}
-                value={value as string || ''}
+                value={value !== undefined ? (value as string) : undefined}
+                defaultValue={value === undefined ? defaultValue : undefined}
                 onChange={handleChange}
                 placeholder={placeholder}
                 required={required}

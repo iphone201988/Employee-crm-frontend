@@ -11,12 +11,7 @@ export interface ValidationResult {
 }
 
 export const validateClientRef = (clientRef: string): string | null => {
-    if (!clientRef || !clientRef.trim()) {
-        return 'Client reference is required';
-    }
-    if (clientRef.trim().length < 2) {
-        return 'Client reference must be at least 2 characters';
-    }
+    // Client Ref is optional, no validation needed
     return null;
 };
 
@@ -41,78 +36,69 @@ export const validateTaxNumber = (taxNumber: string): string | null => {
     if (!taxNumber || !taxNumber.trim()) {
         return 'Tax number is required';
     }
-    if (!/^[0-9]+$/.test(taxNumber.trim())) {
-        return 'Tax number must contain only numbers';
-    }
+   
     return null;
 };
 
 export const validateCroNumber = (croNumber?: string): string | null => {
-    if (croNumber && croNumber.trim() && !/^[0-9]+$/.test(croNumber.trim())) {
+    // CRO Number is optional, only validate format if provided
+    if (croNumber && croNumber.trim() && croNumber.trim() !== 'N/A' && !/^[0-9]+$/.test(croNumber.trim())) {
         return 'CRO number must contain only numbers';
     }
     return null;
 };
 
 export const validateAddress = (address: string): string | null => {
-    if (!address || !address.trim()) {
-        return 'Address is required';
-    }
-    if (address.trim().length < 10) {
-        return 'Please provide a complete address (at least 10 characters)';
-    }
+    // Address is optional, no validation needed
     return null;
 };
 
 export const validateContactName = (contactName: string): string | null => {
-    if (!contactName || !contactName.trim()) {
-        return 'Contact name is required';
-    }
-    if (contactName.trim().length < 2) {
-        return 'Contact name must be at least 2 characters';
-    }
+    // Contact Name is optional, no validation needed
     return null;
 };
 
 export const validateEmail = (email: string): string | null => {
     if (!email || !email.trim()) {
-        return 'Email address is required';
+        return 'Email is required';
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    // Email is optional, only validate format if provided
+    if (email && email.trim() && email.trim() !== 'N/A' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
         return 'Please enter a valid email address';
     }
     return null;
 };
 
 export const validatePhone = (phone: string): string | null => {
-    if (!phone || !phone.trim()) {
-        return 'Phone number is required';
-    }
-    if (!/^[\+]?[0-9\s\-\(\)]{10,}$/.test(phone.trim())) {
+    // Phone is optional, only validate format if provided
+    if (phone && phone.trim() && phone.trim() !== 'N/A' && !/^[\+]?[0-9\s\-\(\)]{10,}$/.test(phone.trim())) {
         return 'Please enter a valid phone number';
     }
     return null;
 };
 
 export const validateOnboardedDate = (onboardedDate: Date): string | null => {
-    if (!onboardedDate || isNaN(onboardedDate.getTime())) {
-        return 'Onboarded date is required';
-    }
-    if (onboardedDate > new Date()) {
+    // Onboarded Date is optional, only validate if provided
+    if (onboardedDate && !isNaN(onboardedDate.getTime()) && onboardedDate > new Date()) {
         return 'Onboarded date cannot be in the future';
     }
     return null;
 };
 
+// Helper function to convert empty values to "N/A"
+export const convertEmptyToNA = (value: string | undefined | null): string => {
+    if (!value || value.trim() === '') {
+        return 'N/A';
+    }
+    return value.trim();
+};
+
 export const validateClientForm = (formData: ClientData): ValidationResult => {
     const errors: Partial<Record<keyof ClientData, string>> = {};
 
-    // Validate each field
-    const clientRefError = validateClientRef(formData.clientRef);
-    if (clientRefError) errors.clientRef = clientRefError;
-
+    // Only validate required fields: name, businessTypeId, taxNumber
     const clientNameError = validateClientName(formData.name);
-    if (clientNameError) errors.clientName = clientNameError;
+    if (clientNameError) errors.name = clientNameError;
 
     const businessTypeError = validateBusinessType(formData.businessTypeId);
     if (businessTypeError) errors.businessTypeId = businessTypeError;
@@ -120,14 +106,9 @@ export const validateClientForm = (formData: ClientData): ValidationResult => {
     const taxNumberError = validateTaxNumber(formData.taxNumber);
     if (taxNumberError) errors.taxNumber = taxNumberError;
 
+    // Validate optional fields only if they have values
     const croNumberError = validateCroNumber(formData.croNumber);
     if (croNumberError) errors.croNumber = croNumberError;
-
-    const addressError = validateAddress(formData.address);
-    if (addressError) errors.address = addressError;
-
-    const contactNameError = validateContactName(formData.contactName);
-    if (contactNameError) errors.contactName = contactNameError;
 
     const emailError = validateEmail(formData.email);
     if (emailError) errors.email = emailError;
@@ -164,8 +145,8 @@ export const validateSingleField = (field: keyof ClientData, value: any): string
             return validateEmail(value);
         case 'phone':
             return validatePhone(value);
-        case 'onboardedDate':
-            return validateOnboardedDate(value);
+        // case 'onboardedDate':
+        //     return validateOnboardedDate(value);
         default:
             return null;
     }

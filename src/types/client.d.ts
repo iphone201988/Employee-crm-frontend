@@ -19,6 +19,8 @@ interface IAddClient {
     dialogOpen: boolean;
     setDialogOpen: (open: boolean) => void;
     onClientAdd?: (client: ClientData) => void;
+    editMode?: boolean;
+    clientToEdit?: ClientData & { _id?: string };
 }
 
 

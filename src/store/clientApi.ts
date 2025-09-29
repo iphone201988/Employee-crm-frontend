@@ -85,6 +85,13 @@ export const clientApi = createApi({
             }),
             providesTags: (result, error, clientId) => [{ type: 'Client', id: clientId }],
         }),
+        deleteClient: builder.mutation<void, string>({
+            query: (clientId) => ({
+                url: `/${clientId}`,
+                method: 'DELETE',
+            }),
+            invalidatesTags: ['Client'],
+        }),
     }),
 });
 
@@ -95,6 +102,7 @@ export const {
     useGetClientServicesQuery,
     useUpdateClientServicesMutation,
     useUpdateClientMutation,
-    useGetClientQuery
+    useGetClientQuery,
+    useDeleteClientMutation
 } = clientApi;
 

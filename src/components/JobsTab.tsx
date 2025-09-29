@@ -569,7 +569,7 @@ const JobsTab = () => {
                                         <TableCell>
                                             <ClientNameLink clientName={job.clientId.name} ciientId={job.clientId._id} />
                                         </TableCell>
-                                        <TableCell>{job.jobTypeId.name}</TableCell>
+                                        <TableCell>{job?.jobTypeId?.name}</TableCell>
                                         <TableCell>
                                             <Badge variant="outline" className={statusColors[job.status]}>
                                                 {formatTitle(job.status)}

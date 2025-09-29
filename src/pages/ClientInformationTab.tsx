@@ -51,8 +51,31 @@ const ClientInformationTab = () => {
   const [showClientDetailsDialog, setShowClientDetailsDialog] = useState(false);
   const [showClientServiceLogDialog, setShowClientServiceLogDialog] = useState(false);
   const [selectedClientForDetails, setSelectedClientForDetails] = useState<ClientInfo | null>(null);
+  const [showEditClientDialog, setShowEditClientDialog] = useState(false);
+  const [clientToEdit, setClientToEdit] = useState<ClientInfo | null>(null);
   const [getTabAccess, { data: currentTabsUsers }] = useLazyGetTabAccessQuery()
   const isTabVisible = (tabId: string) => visibleTabs.some(tab => tab.id === tabId)
+
+  // Helper function to convert ClientInfo to ClientData format
+  const convertClientInfoToClientData = (clientInfo: ClientInfo): ClientData & { _id: string } => {
+    return {
+      _id: clientInfo._id,
+      clientRef: clientInfo.clientRef,
+      name: clientInfo.name,
+      businessTypeId: clientInfo.businessTypeId?._id || '',
+      taxNumber: clientInfo.taxNumber,
+      croNumber: clientInfo.croNumber,
+      address: clientInfo.address,
+      contactName: clientInfo.contactName,
+      email: clientInfo.email,
+      emailNote: clientInfo.emailNote,
+      phone: clientInfo.phone,
+      phoneNote: clientInfo.phoneNote,
+      onboardedDate: new Date(clientInfo.onboardedDate),
+      amlCompliant: clientInfo.amlCompliant,
+      audit: clientInfo.audit,
+    };
+  };
 
 
   useEffect(() => {
@@ -442,8 +465,8 @@ const ClientInformationTab = () => {
                             <Eye className="w-4 h-4" />
                           </Button> */}
                           <Button variant="ghost" size="icon" onClick={() => {
-                            setSelectedClientForDetails(client);
-                            setShowClientServiceLogDialog(true);
+                            setClientToEdit(client);
+                            setShowEditClientDialog(true);
                           }} >
                             <Edit2 className="w-4 h-4" />
                           </Button>
@@ -564,6 +587,21 @@ const ClientInformationTab = () => {
         />
       )}
       <AddClient dialogOpen={addClient} setDialogOpen={setAddClient} />
+      
+      {/* Edit Client Dialog */}
+      {clientToEdit && (
+        <AddClient 
+          dialogOpen={showEditClientDialog} 
+          setDialogOpen={setShowEditClientDialog}
+          editMode={true}
+          clientToEdit={convertClientInfoToClientData(clientToEdit)}
+          onClientAdd={() => {
+            // Refresh the client list after edit
+            setShowEditClientDialog(false);
+            setClientToEdit(null);
+          }}
+        />
+      )}
     </div>
   );
 };
