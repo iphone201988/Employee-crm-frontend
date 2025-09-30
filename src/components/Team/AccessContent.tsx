@@ -8,7 +8,6 @@ import { getProfileImage, getUserInitials } from '@/utils/profiles';
 import { AccessTeamMember, transformToAccess } from '@/types/teamMemberTypes';
 import { useGetAllTeamMembersQuery, useUpdateTeamMembersMutation } from '@/store/teamApi';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-
 const systemFeatures = {
   'Time': {
     features: [
@@ -62,17 +61,13 @@ const systemFeatures = {
   'Settings': {
     features: [
       { key: 'general', label: 'General' },
-      { key: 'invoicing', label: 'Invoicing' },
-      { key: 'tags', label: 'Tags' }
-    ]
-  },
-  'Import/Export': {
-    features: [
+      { key: 'tags', label: 'Tags' },
       { key: 'clientImport', label: 'Client Import' },
       { key: 'timeLogsImport', label: 'Time Logs Import' },
+      { key: 'jobImport', label: 'Job Import' },
       { key: 'integrations', label: 'Integrations' }
     ]
-  }
+  },
 };
 
 interface AccessContentProps {
@@ -211,6 +206,7 @@ const AccessContent: React.FC<AccessContentProps> = ({ onUnsavedChangesChange })
         clientImport: member.featureAccess.clientImport,
         timeLogsImport: member.featureAccess.timeLogsImport,
         integrations: member.featureAccess.integrations,
+        jobImport: member.featureAccess.jobImport,
       }));
 
       await updateTeamMembers({ featureAccess: featureAccessUpdates }).unwrap();

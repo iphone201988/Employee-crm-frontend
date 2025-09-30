@@ -63,17 +63,13 @@ const systemFeatures = {
   'Settings': {
     features: [
       { key: 'general', label: 'General' },
-      { key: 'invoicing', label: 'Invoicing' },
-      { key: 'tags', label: 'Tags' }
-    ]
-  },
-  'Import/Export': {
-    features: [
+      { key: 'tags', label: 'Tags' },
       { key: 'clientImport', label: 'Client Import' },
       { key: 'timeLogsImport', label: 'Time Logs Import' },
+      { key: 'jobImport', label: 'Job Import' },
       { key: 'integrations', label: 'Integrations' }
     ]
-  }
+  },
 };
 
 const UserPermissions = (companyData:any) => {

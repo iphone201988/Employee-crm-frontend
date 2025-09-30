@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowUpDown, Search, FileText, ChevronLeft, ChevronRight, Eye, Edit2, Trash2 } from 'lucide-react';
+import { ArrowUpDown, Search, FileText, ChevronLeft, ChevronRight, Eye, Edit2, Trash2, Delete } from 'lucide-react';
 import { DashboardCard, DashboardGrid } from "@/components/ui/dashboard-card";
 import { Switch } from "@/components/ui/switch";
 import ClientsTab from '@/components/ClientsTab';
@@ -21,7 +21,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@radix
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useLazyGetTabAccessQuery } from '@/store/authApi';
 import Avatars from '@/components/Avatars';
-
+import { useDeleteClientMutation } from '@/store/clientApi';
+import { toast } from 'sonner';
 const tabs = [
   {
     id: 'clientList',
@@ -40,7 +41,7 @@ const ClientInformationTab = () => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const { visibleTabs, isError } = usePermissionTabs(tabs);
-
+  const [deleteClient, { isLoading: isDeleting }] = useDeleteClientMutation();
   const { data: clientsData, isLoading, error } = useGetClientsQuery({ page, limit });
 
   const clientInfo = clientsData?.data?.clients || [];
@@ -188,11 +189,20 @@ const ClientInformationTab = () => {
     }));
   };
 
+  const deleteClientById = async (client: any) => {
+    try {
+      await deleteClient(client._id);
+      toast.success('Job deleted successfully!');
+    } catch (error) {
+      console.error('Error deleting job:', error);
+    }
+  };
+
   return (
     <div className="space-y-6 p-6">
       <div className="mb-6">
 
-      <Avatars activeTab={activeTab} title={"Clients"} />
+        <Avatars activeTab={activeTab} title={"Clients"} />
 
         {/* Tabs */}
         <CustomTabs tabs={visibleTabs} activeTab={activeTab} setActiveTab={setActiveTab} />
@@ -470,6 +480,9 @@ const ClientInformationTab = () => {
                           }} >
                             <Edit2 className="w-4 h-4" />
                           </Button>
+                          <Button variant="ghost" size="icon" onClick={() => deleteClientById(client)} className="text-red-500 hover:text-red-700">
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
                           {/* <Button variant="ghost" size="icon" onClick={() => deleteJobById(job)} className="text-red-500 hover:text-red-700">
                             <Trash2 className="w-4 h-4" />
                           </Button> */}
@@ -587,11 +600,11 @@ const ClientInformationTab = () => {
         />
       )}
       <AddClient dialogOpen={addClient} setDialogOpen={setAddClient} />
-      
+
       {/* Edit Client Dialog */}
       {clientToEdit && (
-        <AddClient 
-          dialogOpen={showEditClientDialog} 
+        <AddClient
+          dialogOpen={showEditClientDialog}
           setDialogOpen={setShowEditClientDialog}
           editMode={true}
           clientToEdit={convertClientInfoToClientData(clientToEdit)}

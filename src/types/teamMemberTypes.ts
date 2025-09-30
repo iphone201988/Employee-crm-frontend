@@ -63,6 +63,7 @@ export interface AccessTeamMember extends BaseTeamMember {
     clientImport: boolean;
     timeLogsImport: boolean;
     integrations: boolean;
+    jobImport: boolean;
   };
 }
 
@@ -126,5 +127,6 @@ export const transformToAccess = (apiMember: ApiTeamMember): AccessTeamMember =>
     clientImport: (apiMember.featureAccess as any)?.clientImport || false,
     timeLogsImport: (apiMember.featureAccess as any)?.timeLogsImport || false,
     integrations: (apiMember.featureAccess as any)?.integrations || false,
+    jobImport: (apiMember.featureAccess as any)?.jobImport || false,
   }
 });

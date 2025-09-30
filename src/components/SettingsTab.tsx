@@ -14,6 +14,8 @@ import { useLazyGetTabAccessQuery, useGetCurrentUserQuery } from '@/store/authAp
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@radix-ui/react-tooltip';
 import Avatars from './Avatars';
+import UserPermissions from './UserPermissions';
+import { usePermissionTabs } from '@/hooks/usePermissionTabs';
 
 interface SettingsTabProps {
   autoApproveTimesheets: boolean;
@@ -25,6 +27,7 @@ const allTabs = [
   { id: 'general', label: 'General' },
   { id: 'tags', label: 'Categories' },
   { id: 'clientImport', label: 'Client Import' },
+  { id: 'jobImport', label: 'Job Import' },
   { id: 'timeLogsImport', label: 'Time Logs Import' },
   { id: 'integrations', label: 'Integrations' }
 ];
@@ -46,16 +49,16 @@ const SettingsTab = ({
   const [isDepartmentDialogOpen, setIsDepartmentDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<{ type: string; id: string } | null>(null);
-
+  const { visibleTabs, isLoading } = usePermissionTabs(allTabs);
   const { data: currentUserData } = useGetCurrentUserQuery<any>();
   const [getTabAccess, { data: currentTabsUsers }] = useLazyGetTabAccessQuery();
 
   // Conditionally filter the tabs based on the user's role
-  const visibleTabs = useMemo(() => {
+  // const visibleTabs = useMemo(() => {
 
-    return allTabs;
+  //   return allTabs;
 
-  }, [currentUserData]);
+  // }, [currentUserData]);
 
   // Conditionally fetch categories only if the user is a superAdmin
   const { data: categories, isLoading: isLoadingCategories, isError } = useGetAllCategorieasQuery("all");
@@ -181,7 +184,7 @@ const SettingsTab = ({
   return (
     <div className="space-y-6 p-6">
       <div className="mb-6">
-      <Avatars activeTab={activeTab} title={"Settings"} />
+        <Avatars activeTab={activeTab} title={"Settings"} />
 
         <CustomTabs tabs={visibleTabs} activeTab={activeTab} setActiveTab={setActiveTab} />
       </div>
@@ -216,11 +219,11 @@ const SettingsTab = ({
           {isError && <div className="text-center p-4 text-red-500">Failed to load categories.</div>}
           {!isLoadingCategories && !isError && categories && (
             <div className="space-y-6">
-              {renderCategoryCard('Services', 'service', categories?.data?.services ?? [], isServiceDialogOpen, setIsServiceDialogOpen, newService, setNewService)}
-              {renderCategoryCard('Time Tags', 'time', categories?.data?.times ?? [], isTimeDialogOpen, setIsTimeDialogOpen, newTimeTag, setNewTimeTag)}
               {renderCategoryCard('Business Types', 'bussiness', categories?.data?.bussiness ?? [], isBusinessDialogOpen, setIsBusinessDialogOpen, newBusinessType, setNewBusinessType)}
-              {renderCategoryCard('Job Types', 'job', categories?.data?.jobs ?? [], isJobDialogOpen, setIsJobDialogOpen, newJobType, setNewJobType)}
               {renderCategoryCard('Departments', 'department', categories?.data?.departments ?? [], isDepartmentDialogOpen, setIsDepartmentDialogOpen, newDepartment, setNewDepartment)}
+              {renderCategoryCard('Job Types', 'job', categories?.data?.jobs ?? [], isJobDialogOpen, setIsJobDialogOpen, newJobType, setNewJobType)}
+              {renderCategoryCard('Services', 'service', categories?.data?.services ?? [], isServiceDialogOpen, setIsServiceDialogOpen, newService, setNewService)}
+              {renderCategoryCard('Time Purpose ', 'time', categories?.data?.times ?? [], isTimeDialogOpen, setIsTimeDialogOpen, newTimeTag, setNewTimeTag)}
             </div>
           )}
         </div>
@@ -248,6 +251,15 @@ const SettingsTab = ({
           <CardContent className="py-8">
             <div className="text-center text-muted-foreground">
               Client Import functionality coming soon.
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      {activeTab === "jobImport" && (
+        <Card>
+          <CardContent className="py-8">
+            <div className="text-center text-muted-foreground">
+              job Import functionality coming soon.
             </div>
           </CardContent>
         </Card>
@@ -300,6 +312,12 @@ const SettingsTab = ({
           </CardContent>
         </Card>
       )}
+      {
+        activeTab === '' && (
+          <div>YOU HAVE NO ACCESS</div>
+        )
+      }
+
     </div>
   );
 };
