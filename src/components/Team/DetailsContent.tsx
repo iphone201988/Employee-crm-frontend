@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Plus, ChevronLeft, ChevronRight, Search, Edit2, ArrowUpDown } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Search, Edit2, ArrowUpDown, Settings, MoreVertical } from 'lucide-react';
 import { getProfileImage, getUserInitials } from '@/utils/profiles';
 import AddTeamMemberDialog from '../AddTeamMemberDialog';
 import { useGetAllCategorieasQuery } from "@/store/categoryApi";
@@ -19,8 +19,8 @@ import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { useDebounce } from 'use-debounce';
 import AddBusinessAccount from '../AddBusinessAccount';
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
-// --- Reusable Time Conversion Utilities ---
 
 /**
  * Converts a time string (HH:mm:ss or HH:mm) to total seconds.
@@ -69,7 +69,7 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
   const [isAddMemberDialogOpen, setIsAddMemberDialogOpen] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [detailsCapacities, setDetailsCapacities] = useState<{ [key: string]: { [key: string]: number } }>({});
-  
+
   // State for search and filter
   const [searchTerm, setSearchTerm] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('all');
@@ -81,7 +81,7 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
 
   // Refs
   const detailsCapacitiesRef = useRef(detailsCapacities);
-  
+
   // --- RTK Query Hooks ---
   const { data: teamData, isLoading, isError, isFetching } = useGetAllTeamMembersQuery({
     page,
@@ -89,15 +89,15 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
     search: debouncedSearchTerm,
     departmentType: departmentFilter === 'all' ? '' : departmentFilter,
   });
-  
+
   const [updateTeamMembers, { isLoading: isUpdating }] = useUpdateTeamMembersMutation();
   const [sendInvite, { isLoading: isSendingInvite }] = useSendInviteToTeamMemberMutation();
   const { data: categoriesData, isLoading: isLoadingCategories } = useGetAllCategorieasQuery('department');
-  
+
   // --- Data Extraction ---
   const teamMembers = teamData?.data?.teamMembers || [];
   const pagination = teamData?.data?.pagination;
-  
+
   const mainDepartments: { _id: string; name: string }[] = useMemo(() => {
     const departmentList = categoriesData?.data?.departments || categoriesData?.data;
     return Array.isArray(departmentList) ? departmentList : [];
@@ -141,18 +141,18 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
   useEffect(() => {
     detailsCapacitiesRef.current = detailsCapacities;
   }, [detailsCapacities]);
-  
+
   // --- Handlers ---
   const handleEditMember = (member: TeamMember) => {
     setEditingMember(member);
     setIsAddMemberDialogOpen(true);
   };
-  
+
   const handleAddMember = () => {
     setEditingMember(null);
     setIsAddMemberDialogOpen(true);
   };
-  
+
   const handleSendInvite = (member: TeamMember) => {
     setSelectedMemberForInvite(member);
     setIsInviteDialogOpen(true);
@@ -174,19 +174,19 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
       setIsInviteDialogOpen(false);
     }
   };
-  
+
   const handleCapacityChange = (memberId: string, day: keyof TeamMember['workSchedule'], timeValue: string) => {
     const numSeconds = timeToSeconds(timeValue);
     const originalMember = teamMembers.find(m => m._id === memberId);
     if (!originalMember) return;
-    
+
     const originalValueInSeconds = originalMember.workSchedule[day];
 
     setDetailsCapacities(prev => {
-        const newCaps = { ...prev };
-        if (!newCaps[memberId]) newCaps[memberId] = {};
-        newCaps[memberId][day] = numSeconds;
-        return newCaps;
+      const newCaps = { ...prev };
+      if (!newCaps[memberId]) newCaps[memberId] = {};
+      newCaps[memberId][day] = numSeconds;
+      return newCaps;
     });
 
     const hasChangesNow = Object.keys(detailsCapacitiesRef.current).length > 0 || numSeconds !== originalValueInSeconds;
@@ -195,7 +195,7 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
       onUnsavedChangesChange(hasChangesNow, handleSaveUpdates, handleDiscardChanges, 'teamList');
     }
   };
-  
+
   const getCapacityValue = (member: TeamMember, day: keyof TeamMember['workSchedule']) => {
     const seconds = detailsCapacities[member._id]?.[day] ?? member.workSchedule[day];
     return secondsToTime(seconds);
@@ -278,8 +278,8 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
             <Table>
               <TableHeader>
                 <TableRow className="h-12">
-                  <TableHead className="w-[200px] cursor-pointer hover:bg-muted/50" onClick={() => handleSort('name')}>
-                    <div className="flex items-center gap-2">Team Member <ArrowUpDown className="h-4 w-4 text-muted-foreground" /></div>
+                  <TableHead className="w-[400px] cursor-pointer hover:bg-muted/50" onClick={() => handleSort('name')}>
+                    <div className="w-[250px] flex items-center gap-2">Team Member <ArrowUpDown className="h-4 w-4 text-muted-foreground" /></div>
                   </TableHead>
                   <TableHead className="w-[120px] cursor-pointer hover:bg-muted/50" onClick={() => handleSort('department')}>
                     <div className="flex items-center gap-2">Department <ArrowUpDown className="h-4 w-4 text-muted-foreground" /></div>
@@ -287,15 +287,15 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
                   <TableHead className="w-[250px] cursor-pointer hover:bg-muted/50" onClick={() => handleSort('email')}>
                     <div className="flex items-center gap-2">Email Address <ArrowUpDown className="h-4 w-4 text-muted-foreground" /></div>
                   </TableHead>
-                  <TableHead className="min-w-[110px] text-center">Mon</TableHead>
-                  <TableHead className="min-w-[110px] text-center">Tue</TableHead>
-                  <TableHead className="min-w-[110px] text-center">Wed</TableHead>
-                  <TableHead className="min-w-[110px] text-center">Thu</TableHead>
-                  <TableHead className="min-w-[110px] text-center">Fri</TableHead>
-                  <TableHead className="min-w-[110px] text-center">Sat</TableHead>
-                  <TableHead className="min-w-[110px] text-center">Sun</TableHead>
+                  <TableHead className="min-w-[10px] text-center">Mon</TableHead>
+                  <TableHead className="min-w-[10px] text-center">Tue</TableHead>
+                  <TableHead className="min-w-[10px] text-center">Wed</TableHead>
+                  <TableHead className="min-w-[10px] text-center">Thu</TableHead>
+                  <TableHead className="min-w-[10px] text-center">Fri</TableHead>
+                  <TableHead className="min-w-[10px] text-center">Sat</TableHead>
+                  <TableHead className="min-w-[10px] text-center">Sun</TableHead>
                   <TableHead className="w-[150px] text-center">Invite</TableHead>
-                  <TableHead className="w-[100px] text-center">Actions</TableHead>
+                  <TableHead className="w-[100px] text-center"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -327,7 +327,7 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
                             placeholder="HH:mm:ss"
                             value={getCapacityValue(member, day)}
                             onChange={e => handleCapacityChange(member._id, day, e.target.value)}
-                            className="w-[100px] h-8 text-sm text-center"
+                            className="w-[80px] h-8 text-sm text-center"
                           />
                         </TableCell>
                       ))}
@@ -337,11 +337,25 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
                         </Button>
                       </TableCell>
                       <TableCell className="text-center">
-                        <div className="flex gap-1 justify-center">
+                        {/* <div className="flex gap-1 justify-center">
                           <Button variant="ghost" size="icon" onClick={() => handleEditMember(member)}>
-                            <Edit2 className="w-4 h-4" />
+                            <Settings className="w-4 h-4" />
                           </Button>
-                        </div>
+                        </div> */}
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <Settings className="w-4 h-4" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-40">
+                            <div className="grid gap-2">
+                              <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => handleEditMember(member)}>
+                                <Edit2 className="mr-2 h-4 w-4" /> Edit
+                              </Button>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
                       </TableCell>
                     </TableRow>
                   ))
@@ -351,43 +365,43 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
           </div>
         </CardContent>
       </Card>
-      
+
       {/* Pagination Controls */}
       {pagination && pagination.totalPages > 0 && (
         <div className="space-y-4 mt-6">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-600">Show:</span>
-                    <select value={limit} onChange={(e) => setLimit(Number(e.target.value))} className="border border-gray-300 rounded px-2 py-1 text-sm" disabled={isLoadingData}>
-                        <option value={5}>5 per page</option>
-                        <option value={10}>10 per page</option>
-                        <option value={20}>20 per page</option>
-                        <option value={50}>50 per page</option>
-                    </select>
-                </div>
-                <div className="text-sm text-gray-500">
-                    Showing {pagination.total > 0 ? ((page - 1) * limit) + 1 : 0} to {Math.min(page * limit, pagination.total)} of {pagination.total} team members
-                </div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">Show:</span>
+              <select value={limit} onChange={(e) => setLimit(Number(e.target.value))} className="border border-gray-300 rounded px-2 py-1 text-sm" disabled={isLoadingData}>
+                <option value={5}>5 per page</option>
+                <option value={10}>10 per page</option>
+                <option value={20}>20 per page</option>
+                <option value={50}>50 per page</option>
+              </select>
             </div>
-            {pagination.totalPages > 1 && (
+            <div className="text-sm text-gray-500">
+              Showing {pagination.total > 0 ? ((page - 1) * limit) + 1 : 0} to {Math.min(page * limit, pagination.total)} of {pagination.total} team members
+            </div>
+          </div>
+          {pagination.totalPages > 1 && (
             <div className="flex justify-center items-center gap-2">
-                <Button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1 || isLoadingData} variant="outline" size="sm">
-                    <ChevronLeft className="h-4 w-4" /> Previous
-                </Button>
-                <Button onClick={() => setPage(p => p + 1)} disabled={page >= pagination.totalPages || isLoadingData} variant="outline" size="sm">
-                    Next <ChevronRight className="h-4 w-4" />
-                </Button>
+              <Button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1 || isLoadingData} variant="outline" size="sm">
+                <ChevronLeft className="h-4 w-4" /> Previous
+              </Button>
+              <Button onClick={() => setPage(p => p + 1)} disabled={page >= pagination.totalPages || isLoadingData} variant="outline" size="sm">
+                Next <ChevronRight className="h-4 w-4" />
+              </Button>
             </div>
-            )}
+          )}
         </div>
       )}
-      
+
       <AddTeamMemberDialog
         open={isAddMemberDialogOpen}
         onOpenChange={setIsAddMemberDialogOpen}
         memberToEdit={editingMember}
       />
-      
+
       <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Send Invite</DialogTitle></DialogHeader>

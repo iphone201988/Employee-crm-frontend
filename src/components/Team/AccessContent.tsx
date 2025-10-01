@@ -31,9 +31,9 @@ const systemFeatures = {
       { key: 'clientBreakdown', label: 'Client Breakdown' }
     ]
   },
-  'Services': {
+  'Jobs': {
     features: [
-      { key: 'services', label: 'Services' },
+      { key: 'services', label: 'Job Types' },
       { key: 'jobTemplates', label: 'Job Templates' },
       { key: 'jobBuilder', label: 'Job Builder' },
       { key: 'jobList', label: 'Job List' }
@@ -50,7 +50,7 @@ const systemFeatures = {
       { key: 'reports', label: 'Reports' }
     ]
   },
-  'Team Management': {
+  'Team': {
     features: [
       { key: 'teamList', label: 'Team List' },
       { key: 'rates', label: 'Rates' },
@@ -271,7 +271,7 @@ const AccessContent: React.FC<AccessContentProps> = ({ onUnsavedChangesChange })
               <TableHeader>
                 <TableRow>
                   <TableHead className="sticky left-0 bg-white z-10 border-r w-[250px] cursor-pointer hover:bg-muted/50">
-                    Team Member
+                    <div className="w-[250px] flex items-center gap-2">Team Member </div>
                   </TableHead>
                   {Object.entries(systemFeatures).map(([category, { features }]) => (
                     <TableHead key={category} className="sticky left-0 bg-white z-10 border-r w-[250px] cursor-pointer hover:bg-muted/50">
@@ -293,22 +293,31 @@ const AccessContent: React.FC<AccessContentProps> = ({ onUnsavedChangesChange })
                 {teamMembers.map((member) => (
                   <TableRow key={member.id}>
                     <TableCell className="p-4 border-r">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={import.meta.env.VITE_BACKEND_BASE_URL + member.avatarUrl || getProfileImage(member.name)} alt={member.name} />
-                          <AvatarFallback>{getUserInitials(member.name)}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <div className="text-base font-medium">{member.name}</div>
-                          <div className="text-xs text-gray-500">{member.department}</div>
+                      <div className="flex items-center justify-between gap-3">
+                        {/* Left side (Avatar + Info) */}
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage
+                              src={import.meta.env.VITE_BACKEND_BASE_URL + member.avatarUrl || getProfileImage(member.name)}
+                              alt={member.name}
+                            />
+                            <AvatarFallback>{getUserInitials(member.name)}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <div className="text-base font-medium">{member.name}</div>
+                            <div className="text-xs text-gray-500">{member.department}</div>
+                          </div>
                         </div>
+
+                        {/* Right side (Checkbox) */}
                         <Checkbox
                           checked={Object.values(member.featureAccess).every(value => value)}
                           onCheckedChange={() => handleSelectAllForMember(member.id)}
-                          className="h-4 w-4"
+                          className="h-4 w-4 mr-2"
                         />
                       </div>
                     </TableCell>
+
                     {Object.entries(systemFeatures).map(([category, { features }]) => (
                       <TableCell key={category} className="p-4 border-r">
                         <div className="space-y-2">

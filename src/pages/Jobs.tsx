@@ -15,7 +15,7 @@ import Avatars from '@/components/Avatars';
 const tabs = [
   {
     id: 'services',
-    label: 'Services'
+    label: 'Job Types'
   },
   {
     id: 'jobTemplates',

@@ -15,7 +15,7 @@ import Avatars from '@/components/Avatars';
 const tabs = [
     {
         id: 'teamList',
-        label: 'Details'
+        label: 'Team List'
     },
     {
         id: 'rates',
@@ -23,7 +23,7 @@ const tabs = [
     },
     {
         id: 'permissions',
-        label: 'Approvals'
+        label: 'Permissions'
     },
     {
         id: 'access',
@@ -121,7 +121,7 @@ const TeamTab = () => {
         <div className="space-y-6 p-6">
             <div className="mb-6">
 
-            <Avatars activeTab={activeTab} title={"Teams"} />
+            <Avatars activeTab={activeTab} title={"Team"} />
 
                 {/* Tabs */}
                 <CustomTabs
