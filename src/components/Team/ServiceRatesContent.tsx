@@ -19,7 +19,7 @@ interface ServiceType {
 }
 
 interface ServiceFee {
-    serviceId: string;
+    jobId: string;
     fee: number;
     _id: string;
 }
@@ -37,8 +37,8 @@ interface ServiceRatesTeamMember {
 const transformToServiceRates = (member: any, serviceTypes: ServiceType[]): ServiceRatesTeamMember => {
     const rates: { [key: string]: number | 'N/A' } = {};
     serviceTypes.forEach(serviceType => {
-        const serviceFee = member.serviceFees?.find((fee: ServiceFee) => fee.serviceId === serviceType._id);
-        rates[serviceType.key] = serviceFee ? serviceFee.fee : 'N/A';
+        const jobFee = member.jobFees?.find((fee: ServiceFee) => fee.jobId === serviceType._id);
+        rates[serviceType.key] = jobFee ? jobFee.fee : 'N/A';
     });
 
     return {
@@ -67,12 +67,12 @@ export const ServiceRatesContent: React.FC<ServiceRatesContentProps> = ({ onUnsa
     const [page, setPage] = useState(1);
     const [limit, setLimit] = useState(10);
 
-    const { data: categoriesData, isLoading: isLoadingCategories } = useGetAllCategorieasQuery('service');
+    const { data: categoriesData, isLoading: isLoadingCategories } = useGetAllCategorieasQuery('job');
     const { data: teamData, isLoading: isLoadingTeam, isFetching: isFetchingTeam, refetch } = useGetAllTeamMembersQuery({ page, limit });
     const [updateTeamMembers, { isLoading: isUpdating }] = useUpdateTeamMembersMutation();
 
     const mainServiceTypes: ServiceType[] = useMemo(() => {
-        const serviceList = categoriesData?.data?.services || [];
+        const serviceList = categoriesData?.data?.jobs || [];
         return Array.isArray(serviceList) ? serviceList.map((service: any) => ({
             _id: service._id,
             name: service.name,
@@ -129,18 +129,18 @@ export const ServiceRatesContent: React.FC<ServiceRatesContentProps> = ({ onUnsa
         const rateUpdates = teamMembers
             .filter(member => changedMemberIds.includes(member.id))
             .map(member => {
-                const serviceFees = mainServiceTypes
+                const jobFees = mainServiceTypes
                     .map(serviceType => {
                         const rate = member.rates[serviceType.key];
-                        return rate !== 'N/A' ? { serviceId: serviceType._id, fee: Number(rate) } : null;
+                        return rate !== 'N/A' ? { jobId: serviceType._id, fee: Number(rate) } : null;
                     })
-                    .filter(fee => fee !== null) as { serviceId: string; fee: number }[];
+                    .filter(fee => fee !== null) as { jobId: string; fee: number }[];
 
                 return {
                     userId: member.id,
                     hourlyRate: member.hourlyRate,
                     billableRate: member.defaultRate,
-                    serviceFees,
+                    jobFees,
                 };
             });
 

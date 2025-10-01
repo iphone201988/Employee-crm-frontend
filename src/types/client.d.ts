@@ -163,7 +163,7 @@ interface ServiceBreakdown {
 }
 
 interface UpdateClientServicesRequest {
-    clientServices: ClientServiceUpdate[];
+    clientJobCategories: ClientServiceUpdate[];
 }
 
  interface IClient {

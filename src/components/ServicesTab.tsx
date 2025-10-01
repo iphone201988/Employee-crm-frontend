@@ -9,10 +9,10 @@ import { DashboardCard, DashboardGrid } from "@/components/ui/dashboard-card";
 import { Switch } from "@/components/ui/switch";
 import ClientNameLink from './ClientNameLink';
 import ServiceChangesLogDialog from './ServiceChangesLogDialog';
+// --- Using the existing RTK Query hook names as requested ---
 import { useGetClientServicesQuery, useUpdateClientServicesMutation } from '@/store/clientApi';
 import { toast } from 'sonner';
 import { useDebounce } from 'use-debounce';
-
 
 const ServicesTab = () => {
     const [page, setPage] = useState(1);
@@ -21,14 +21,12 @@ const ServicesTab = () => {
     const [businessTypeFilter, setBusinessTypeFilter] = useState('all');
     const [debouncedSearchTerm] = useDebounce(searchTerm, 500);
 
-
-    const [servicesLocked, setServicesLocked] = useState(true);
+    const [jobCategoriesLocked, setJobCategoriesLocked] = useState(true);
     const [showServiceLog, setShowServiceLog] = useState(false);
 
+    const [pendingChanges, setPendingChanges] = useState<{ [clientId: string]: { [jobCategoryId: string]: boolean } }>({});
 
-    const [pendingChanges, setPendingChanges] = useState<{ [clientId: string]: { [serviceId: string]: boolean } }>({});
-
-
+    // --- Using useGetClientServicesQuery as requested ---
     const { data: clientServicesData, isLoading, isError, isFetching }: any = useGetClientServicesQuery({
         page,
         limit,
@@ -36,110 +34,103 @@ const ServicesTab = () => {
         businessType: businessTypeFilter === 'all' ? undefined : businessTypeFilter,
     });
 
-
+    // --- Using useUpdateClientServicesMutation as requested ---
     const [updateClientServices, { isLoading: isUpdating }] = useUpdateClientServicesMutation();
 
-
-    const { clients, services, pagination, breakdown, filteredCounts } = useMemo(() => {
+    // The internal logic is updated to handle the new API response structure (clients, jobCategories, etc.)
+    const { clients, jobCategories, pagination, breakdown, filteredCounts } = useMemo(() => {
         const clients = clientServicesData?.data || [];
-        const services = clientServicesData?.breakdown || [];
+        const jobCategories = clientServicesData?.breakdown || [];
         const pagination = clientServicesData?.pagination;
         const breakdown = clientServicesData?.breakdown || [];
         const filteredCounts = clientServicesData?.filteredCounts || [];
-        return { clients, services, pagination, breakdown, filteredCounts };
+        return { clients, jobCategories, pagination, breakdown, filteredCounts };
     }, [clientServicesData]);
-
 
     useEffect(() => {
         setPendingChanges({});
     }, [clientServicesData]);
 
-
-    const handleServiceChange = (clientId: string, serviceId: string, isEnabled: boolean) => {
-        if (servicesLocked) return;
-
+    const handleJobCategoryChange = (clientId: string, jobCategoryId: string, isEnabled: boolean) => {
+        if (jobCategoriesLocked) return;
 
         setPendingChanges(prev => {
             const clientChanges = { ...(prev[clientId] || {}) };
-            clientChanges[serviceId] = isEnabled;
+            clientChanges[jobCategoryId] = isEnabled;
             return { ...prev, [clientId]: clientChanges };
         });
     };
 
-    const isServiceChecked = (client: any, serviceId: string) => {
-        if (pendingChanges[client._id] && pendingChanges[client._id][serviceId] !== undefined) {
-            return pendingChanges[client._id][serviceId];
+    const isJobCategoryChecked = (client: any, jobCategoryId: string) => {
+        if (pendingChanges[client._id] && pendingChanges[client._id][jobCategoryId] !== undefined) {
+            return pendingChanges[client._id][jobCategoryId];
         }
-
-
-        return !!client[serviceId.toLowerCase().replace(/\s/g, '')] || !!client[serviceId];
+        return !!client[jobCategoryId];
     };
 
-
     const handleSaveChanges = async () => {
-        const changesToSubmit = Object.entries(pendingChanges).map(([clientId, serviceChanges]) => {
+        const changesToSubmit = Object.entries(pendingChanges).map(([clientId, jobCategoryChanges]) => {
             const originalClient = clients.find(c => c._id === clientId);
             if (!originalClient) return null;
 
-
-            const currentServices = new Set<string>(
-                services.filter(s => isServiceChecked({ ...originalClient, ...serviceChanges }, s.serviceId)).map(s => s.serviceId)
+            const enabledJobCategoryIds = new Set<string>(
+                jobCategories
+                    .filter(jc => isJobCategoryChecked({ ...originalClient, ...jobCategoryChanges }, jc.jobCategoryId))
+                    .map(jc => jc.jobCategoryId)
             );
-
-
+            
+            // NOTE: The payload key is updated to 'jobCategoryIds' to match the new data model.
+            // If your mutation still expects the old 'servicesTds' key, you should change 'jobCategoryIds' back to 'servicesTds'.
             return {
                 clientId,
-                servicesTds: Array.from(currentServices),
+                jobCategoriesIds: Array.from(enabledJobCategoryIds),
             };
         }).filter(Boolean);
-
 
         if (changesToSubmit.length === 0) {
             toast.info("No changes to save.");
             return;
         }
 
-
         try {
-            await updateClientServices({ clientServices: changesToSubmit as any }).unwrap();
-            toast.success("Client services updated successfully!");
+            // --- Calling the existing updateClientServices mutation ---
+            // The payload key 'clientServices' is kept from the original code.
+            await updateClientServices({ clientJobCategories: changesToSubmit as any }).unwrap();
+            toast.success("Client job categories updated successfully!");
             setPendingChanges({});
-            setServicesLocked(true);
+            setJobCategoriesLocked(true);
         } catch (error) {
-            toast.error("Failed to update services. Please try again.");
+            toast.error("Failed to update job categories. Please try again.");
         }
     };
 
-
-
-    const getFilteredServiceCount = (serviceId: string) => {
-        const service = filteredCounts.find(s => s.serviceId === serviceId);
-        return service ? service.count : 0;
+    const getFilteredJobCategoryCount = (jobCategoryId: string) => {
+        const jobCategory = filteredCounts.find(jc => jc.jobCategoryId === jobCategoryId);
+        return jobCategory ? jobCategory.count : 0;
     };
-    const topServices = useMemo(() => {
+
+    const topJobCategories = useMemo(() => {
         return [...breakdown]
             .sort((a, b) => b.count - a.count)
             .slice(0, 4);
     }, [breakdown]);
 
-
     return (
         <div className="space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                {topServices.map(service => (
-                    <Card key={service.serviceId} className="h-full">
+                {topJobCategories.map(jobCategory => (
+                    <Card key={jobCategory.jobCategoryId} className="h-full">
                         <CardContent className="p-4">
                             <div className="text-2xl font-bold !text-[#381980]">
-                                {service.count}
+                                {jobCategory.count}
                             </div>
                             <p className="text-sm text-muted-foreground">
-                                {service.serviceName}
+                                {jobCategory.jobCategoryName}
                             </p>
                         </CardContent>
                     </Card>
                 ))}
             </div>
-
 
             <div className="flex items-center justify-between gap-4 bg-white p-4 rounded-lg shadow-sm">
                 <div className="flex-1 relative">
@@ -151,19 +142,15 @@ const ServicesTab = () => {
                         className="pl-10 bg-white"
                     />
                 </div>
-
                 <Select value={businessTypeFilter} onValueChange={setBusinessTypeFilter}>
                     <SelectTrigger className="w-56 bg-white">
                         <SelectValue placeholder="Filter by business type" />
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">All Business Types</SelectItem>
-
-
                     </SelectContent>
                 </Select>
             </div>
-
 
             <div className="flex justify-end items-center mb-4 gap-4">
                 {Object.keys(pendingChanges).length > 0 && (
@@ -172,14 +159,14 @@ const ServicesTab = () => {
                     </Button>
                 )}
                 <Button
-                    variant={servicesLocked ? "default" : "outline"}
-                    onClick={() => setServicesLocked(!servicesLocked)}
+                    variant={jobCategoriesLocked ? "default" : "outline"}
+                    onClick={() => setJobCategoriesLocked(!jobCategoriesLocked)}
                     className="flex items-center gap-2"
                 >
-                    🔒 {servicesLocked ? 'Unlock Services' : 'Lock Services'}
+                    {jobCategoriesLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+                    {jobCategoriesLocked ? 'Unlock to Edit' : 'Lock Changes'}
                 </Button>
             </div>
-
 
             <Card>
                 <CardContent className="p-0">
@@ -190,20 +177,20 @@ const ServicesTab = () => {
                                     <TableHead className="w-20 border-r font-medium sticky left-0 bg-white z-10">CLIENT REF</TableHead>
                                     <TableHead className="w-40 border-r font-medium sticky left-[81px] bg-white z-10">CLIENT NAME</TableHead>
                                     <TableHead className="w-32 border-r font-medium">TYPE</TableHead>
-                                    {services.map(service => (
-                                        <TableHead key={service.serviceId} className="w-24 border-r text-center font-medium">
-                                            {service.serviceName.toUpperCase()} ({getFilteredServiceCount(service.serviceId)})
+                                    {jobCategories.map(jobCategory => (
+                                        <TableHead key={jobCategory.jobCategoryId} className="w-24 border-r text-center font-medium">
+                                            {jobCategory.jobCategoryName.toUpperCase()} ({getFilteredJobCategoryCount(jobCategory.jobCategoryId)})
                                         </TableHead>
                                     ))}
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {isLoading ? (
-                                    <TableRow><TableCell colSpan={services.length + 3} className="text-center h-24">Loading clients...</TableCell></TableRow>
+                                    <TableRow><TableCell colSpan={jobCategories.length + 3} className="text-center h-24">Loading clients...</TableCell></TableRow>
                                 ) : isError ? (
-                                    <TableRow><TableCell colSpan={services.length + 3} className="text-center h-24 text-red-500">Failed to load data.</TableCell></TableRow>
+                                    <TableRow><TableCell colSpan={jobCategories.length + 3} className="text-center h-24 text-red-500">Failed to load data.</TableCell></TableRow>
                                 ) : clients.length === 0 ? (
-                                    <TableRow><TableCell colSpan={services.length + 3} className="text-center h-24">No clients found.</TableCell></TableRow>
+                                    <TableRow><TableCell colSpan={jobCategories.length + 3} className="text-center h-24">No clients found.</TableCell></TableRow>
                                 ) : (
                                     clients.map((client) => (
                                         <TableRow key={client._id} className="h-12">
@@ -212,12 +199,12 @@ const ServicesTab = () => {
                                                 <ClientNameLink name={client.name} ciientId={client._id} />
                                             </TableCell>
                                             <TableCell className="p-4 text-sm border-r">{client.businessType}</TableCell>
-                                            {services.map(service => (
-                                                <TableCell key={service.serviceId} className="p-2 border-r text-center">
+                                            {jobCategories.map(jobCategory => (
+                                                <TableCell key={jobCategory.jobCategoryId} className="p-2 border-r text-center">
                                                     <Switch
-                                                        checked={isServiceChecked(client, service.serviceId)}
-                                                        onCheckedChange={(checked) => handleServiceChange(client._id, service.serviceId, checked)}
-                                                        disabled={servicesLocked || isUpdating}
+                                                        checked={isJobCategoryChecked(client, jobCategory.jobCategoryId)}
+                                                        onCheckedChange={(checked) => handleJobCategoryChange(client._id, jobCategory.jobCategoryId, checked)}
+                                                        disabled={jobCategoriesLocked || isUpdating}
                                                     />
                                                 </TableCell>
                                             ))}
@@ -247,7 +234,6 @@ const ServicesTab = () => {
                                 <option value={50}>50 per page</option>
                             </select>
                         </div>
-
                         <div className="text-sm text-gray-500">
                             Showing {((page - 1) * limit) + 1} to {Math.min(page * limit, pagination.totalClients)} of {pagination.totalClients} clients
                         </div>
@@ -264,7 +250,6 @@ const ServicesTab = () => {
                                 <ChevronLeft className="h-4 w-4" />
                                 Previous
                             </Button>
-
                             <div className="flex items-center gap-1">
                                 {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
                                     let pageNum;
@@ -277,7 +262,6 @@ const ServicesTab = () => {
                                     } else {
                                         pageNum = page - 2 + i;
                                     }
-
                                     return (
                                         <Button
                                             key={pageNum}
@@ -292,7 +276,6 @@ const ServicesTab = () => {
                                     );
                                 })}
                             </div>
-
                             <Button
                                 onClick={() => setPage(p => p + 1)}
                                 disabled={page >= pagination.totalPages || isLoading || isFetching}
@@ -307,7 +290,6 @@ const ServicesTab = () => {
                 </div>
             )}
 
-
             <ServiceChangesLogDialog
                 open={showServiceLog}
                 onOpenChange={setShowServiceLog}
@@ -315,6 +297,5 @@ const ServicesTab = () => {
         </div>
     );
 };
-
 
 export default ServicesTab;

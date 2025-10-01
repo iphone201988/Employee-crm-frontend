@@ -11,16 +11,17 @@ import CustomTabs from './Tabs';
 import { useGetAllCategorieasQuery, useAddCategoryMutation, useDeleteCategoryMutation } from '@/store/categoryApi';
 import { toast } from 'sonner';
 import { useLazyGetTabAccessQuery, useGetCurrentUserQuery } from '@/store/authApi';
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@radix-ui/react-tooltip';
 import Avatars from './Avatars';
-import UserPermissions from './UserPermissions';
 import { usePermissionTabs } from '@/hooks/usePermissionTabs';
+
+
 
 interface SettingsTabProps {
   autoApproveTimesheets: boolean;
   onAutoApproveChange: (enabled: boolean) => void;
 }
+
+
 
 // Define all possible tabs in a constant
 const allTabs = [
@@ -31,6 +32,8 @@ const allTabs = [
   { id: 'timeLogsImport', label: 'Time Logs Import' },
   { id: 'integrations', label: 'Integrations' }
 ];
+
+
 
 const SettingsTab = ({
   autoApproveTimesheets,
@@ -48,42 +51,41 @@ const SettingsTab = ({
   const [isJobDialogOpen, setIsJobDialogOpen] = useState(false);
   const [isDepartmentDialogOpen, setIsDepartmentDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isCannotDeletePopupOpen, setIsCannotDeletePopupOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<{ type: string; id: string } | null>(null);
   const { visibleTabs, isLoading } = usePermissionTabs(allTabs);
   const { data: currentUserData } = useGetCurrentUserQuery<any>();
   const [getTabAccess, { data: currentTabsUsers }] = useLazyGetTabAccessQuery();
 
-  // Conditionally filter the tabs based on the user's role
-  // const visibleTabs = useMemo(() => {
 
-  //   return allTabs;
 
-  // }, [currentUserData]);
-
-  // Conditionally fetch categories only if the user is a superAdmin
   const { data: categories, isLoading: isLoadingCategories, isError } = useGetAllCategorieasQuery("all");
-
   const [addCategory, { isLoading: isAdding }] = useAddCategoryMutation();
   const [deleteCategory, { isLoading: isDeleting }] = useDeleteCategoryMutation();
 
-  // Effect to set the active tab correctly when visible tabs change
+
+
   useEffect(() => {
     if (visibleTabs.length > 0 && !visibleTabs.some(tab => tab.id === activeTab)) {
       setActiveTab(visibleTabs[0].id);
     }
   }, [visibleTabs, activeTab]);
 
-  // Effect to fetch access data for the active tab
+
+
   useEffect(() => {
     if (activeTab) {
       getTabAccess(activeTab).unwrap().catch(err => console.error("Failed to get tab access:", err));
     }
   }, [activeTab, getTabAccess]);
 
+
+
   const handleAddNewCategory = async (type: 'service' | 'department' | 'time' | 'bussiness' | 'job') => {
     let name = '';
     let resetInput: () => void;
     let closeDialog: (isOpen: boolean) => void;
+
 
     switch (type) {
       case 'service':
@@ -113,7 +115,9 @@ const SettingsTab = ({
         break;
     }
 
+
     if (!name.trim()) return;
+
 
     try {
       await addCategory({ type, name }).unwrap();
@@ -126,13 +130,20 @@ const SettingsTab = ({
     }
   };
 
-  const openDeleteConfirmation = (type: string, id: string) => {
-    setCategoryToDelete({ type, id });
-    setIsDeleteDialogOpen(true);
+
+  const openDeleteConfirmation = (type: string, id: string, count: number) => {
+    if (count > 0) {
+      setIsCannotDeletePopupOpen(true);
+    } else {
+      setCategoryToDelete({ type, id });
+      setIsDeleteDialogOpen(true);
+    }
   };
+
 
   const confirmDelete = async () => {
     if (!categoryToDelete) return;
+
 
     try {
       await deleteCategory(categoryToDelete).unwrap();
@@ -147,47 +158,79 @@ const SettingsTab = ({
     }
   };
 
+  // Sorts categories alphabetically, placing "other" at the end
+  const sortCategoriesByName = (items: { name: string }[]) => {
+    const itemsCopy = [...items];
+    itemsCopy.sort((a, b) => {
+      if (a.name.toLowerCase() === 'other') return 1;
+      if (b.name.toLowerCase() === 'other') return -1;
+      return a.name.localeCompare(b.name);
+    });
+    return itemsCopy;
+  };
+
+
   const renderCategoryCard = (
     title: string,
     categoryType: 'service' | 'department' | 'time' | 'bussiness' | 'job',
-    items: { _id: string; name: string }[],
+    items: { _id: string; name: string; count: number }[],
     dialogOpen: boolean,
     setDialogOpen: (open: boolean) => void,
     newValue: string,
     setNewValue: (value: string) => void
-  ) => (
-    <Card>
-      <CardHeader>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <CardTitle>{title} ({items.length})</CardTitle>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild><Button size="sm" className="w-full sm:w-auto"><Plus className="h-4 w-4 mr-2" />Add {title.slice(0, -1)}</Button></DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>Add {title.slice(0, -1)}</DialogTitle></DialogHeader>
-              <Input placeholder={`Enter ${title.toLowerCase().slice(0, -1)} name`} value={newValue} onChange={(e) => setNewValue(e.target.value)} />
-              <Button onClick={() => handleAddNewCategory(categoryType)} disabled={isAdding} className="w-full">{isAdding ? 'Adding...' : `Add ${title.slice(0, -1)}`}</Button>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </CardHeader>
-      <CardContent className="flex flex-wrap gap-2">
-        {items.map((item: any) => (
-          <Badge key={item._id} variant="secondary" className="bg-blue-100 text-blue-800 border-blue-200">
-            <span className='mr-2 font-semibold '>{item.count}</span>{item.name}
-            <button onClick={() => openDeleteConfirmation(categoryType, item._id)} disabled={isDeleting} className="ml-2 cursor-pointer"><X size={14} /></button>
-          </Badge>
-        ))}
-      </CardContent>
-    </Card>
-  );
+  ) => {
+    const sortedItems = sortCategoriesByName(items);
+    return (
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <CardTitle>{title} ({items.length})</CardTitle>
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild><Button size="sm" className="w-full sm:w-auto"><Plus className="h-4 w-4 mr-2" />Add {title.slice(0, -1)}</Button></DialogTrigger>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Add {title.slice(0, -1)}</DialogTitle></DialogHeader>
+                <Input placeholder={`Enter ${title.toLowerCase().slice(0, -1)} name`} value={newValue} onChange={(e) => setNewValue(e.target.value)} />
+                <Button onClick={() => handleAddNewCategory(categoryType)} disabled={isAdding} className="w-full">{isAdding ? 'Adding...' : `Add ${title.slice(0, -1)}`}</Button>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-2">
+          {sortedItems.map((item: any) => (
+            <Badge
+              key={item._id}
+              variant="secondary"
+              className={`border ${item.count === 0
+                  ? "bg-gray-200 text-gray-700 border-gray-400"
+                  : "bg-blue-100 text-blue-800 border-blue-200"
+                }`}
+            >
+              {item.name}
+              <span className="mr-2 font-semibold">
+                &nbsp;({item.count})
+              </span>
+              <button
+                onClick={() => openDeleteConfirmation(categoryType, item._id, item.count)}
+                disabled={isDeleting}
+                className="ml-2 cursor-pointer"
+              >
+                <X size={14} />
+              </button>
+            </Badge>
+          ))}
+        </CardContent>
+      </Card>
+    );
+  }
+
 
   return (
     <div className="space-y-6 p-6">
       <div className="mb-6">
         <Avatars activeTab={activeTab} title={"Settings"} />
-
         <CustomTabs tabs={visibleTabs} activeTab={activeTab} setActiveTab={setActiveTab} />
       </div>
+
 
       {activeTab === "general" && (
         <Card>
@@ -213,6 +256,7 @@ const SettingsTab = ({
         </Card>
       )}
 
+
       {activeTab === "tags" && (
         <div className='space-y-6 pt-6'>
           {isLoadingCategories && <div className="text-center p-4">Loading...</div>}
@@ -228,6 +272,7 @@ const SettingsTab = ({
           )}
         </div>
       )}
+
 
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
@@ -245,81 +290,99 @@ const SettingsTab = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      <Dialog open={isCannotDeletePopupOpen} onOpenChange={setIsCannotDeletePopupOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className='text-red-500'>Cannot Delete Category</DialogTitle>
+            <DialogDescription>
+              You can't delete this category because it contains items.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setIsCannotDeletePopupOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
 
       {activeTab === "clientImport" && (
-        <Card>
-          <CardContent className="py-8">
-            <div className="text-center text-muted-foreground">
-              Client Import functionality coming soon.
-            </div>
-          </CardContent>
-        </Card>
-      )}
-      {activeTab === "jobImport" && (
-        <Card>
-          <CardContent className="py-8">
-            <div className="text-center text-muted-foreground">
-              job Import functionality coming soon.
-            </div>
-          </CardContent>
-        </Card>
-      )}
+          <Card>
+            <CardContent className="py-8">
+              <div className="text-center text-muted-foreground">
+                Client Import functionality coming soon.
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        {activeTab === "jobImport" && (
+          <Card>
+            <CardContent className="py-8">
+              <div className="text-center text-muted-foreground">
+                job Import functionality coming soon.
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-      {activeTab === "timeLogsImport" && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Time Logs Import</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center py-8 text-muted-foreground">
-              Time Logs Import functionality coming soon.
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
-      {activeTab === "integrations" && (
-        <Card>
-          <CardContent className="space-y-6 p-6">
-            <Card className="pt-6">
-              <CardHeader>
-                <CardTitle>QuickBooks Integration</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4 p-6">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="space-y-0.5">
-                    <Label className="text-base">Connect to QuickBooks</Label>
-                    <p className="text-sm text-muted-foreground">Sync data with QuickBooks for seamless accounting.</p>
-                  </div>
-                  <Button variant="outline" className="w-full sm:w-auto">Connect</Button>
-                </div>
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="space-y-0.5">
-                    <Label className="text-base">Auto-sync invoices</Label>
-                    <p className="text-sm text-muted-foreground">Automatically sync new invoices to QuickBooks.</p>
-                  </div>
-                  <Switch className="self-start sm:self-center" />
-                </div>
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="space-y-0.5">
-                    <Label className="text-base">Sync time entries</Label>
-                    <p className="text-sm text-muted-foreground">Sync time tracking data to QuickBooks.</p>
-                  </div>
-                  <Switch className="self-start sm:self-center" />
-                </div>
-              </CardContent>
-            </Card>
-          </CardContent>
-        </Card>
-      )}
-      {
-        activeTab === '' && (
-          <div>YOU HAVE NO ACCESS</div>
-        )
-      }
+        {activeTab === "timeLogsImport" && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Time Logs Import</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8 text-muted-foreground">
+                Time Logs Import functionality coming soon.
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
+
+        {activeTab === "integrations" && (
+          <Card>
+            <CardContent className="space-y-6 p-6">
+              <Card className="pt-6">
+                <CardHeader>
+                  <CardTitle>QuickBooks Integration</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4 p-6">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="text-base">Connect to QuickBooks</Label>
+                      <p className="text-sm text-muted-foreground">Sync data with QuickBooks for seamless accounting.</p>
+                    </div>
+                    <Button variant="outline" className="w-full sm:w-auto">Connect</Button>
+                  </div>
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="text-base">Auto-sync invoices</Label>
+                      <p className="text-sm text-muted-foreground">Automatically sync new invoices to QuickBooks.</p>
+                    </div>
+                    <Switch className="self-start sm:self-center" />
+                  </div>
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="text-base">Sync time entries</Label>
+                      <p className="text-sm text-muted-foreground">Sync time tracking data to QuickBooks.</p>
+                    </div>
+                    <Switch className="self-start sm:self-center" />
+                  </div>
+                </CardContent>
+              </Card>
+            </CardContent>
+          </Card>
+        )}
+        {
+          activeTab === '' && (
+            <div>YOU HAVE NO ACCESS</div>
+          )
+        }
     </div>
   );
 };
 
+
 export default SettingsTab;
+
