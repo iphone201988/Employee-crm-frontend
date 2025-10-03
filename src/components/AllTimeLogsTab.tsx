@@ -671,16 +671,20 @@ const AllTimeLogsTab = () => {
                   ) : (
                     <>
                       <TableHead>
-                        <ChevronDown className="h-4 w-4" />
+                       <div className="bg-[#381980] text-white h-4 w-4 flex items-center justify-center rounded-sm" >
+                         <ChevronDown className="h-4 w-4" />
+                       </div>
                       </TableHead>
                       <TableHead className="p-3 text-foreground h-12 text-[#381980]">Date</TableHead>
                       <TableHead className="p-3 text-foreground h-12 text-[#381980]">
-                        {viewMode === 'clients' ? 'Client / Job' :
+                        {viewMode === 'clients' ? 'Client Ref.' :
                           viewMode === 'jobTypes' ? 'Job Type / Client' :
                             viewMode === 'jobNames' ? 'Job Name / Client' :
                               viewMode === 'teamMembers' ? 'Team Member / Client' :
                                 'Entry Details'}
                       </TableHead>
+                      <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">Client Name</TableHead>
+                      <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">Job Name</TableHead>
                     </>
 
                   )}
@@ -746,29 +750,44 @@ const AllTimeLogsTab = () => {
                       >
                         <TableCell className="p-4 text-foreground text-sm">
                           {expandedClients.has(groupName) ? (
-                            <ChevronDown className="h-4 w-4" />
+                           <div className="bg-[#381980] text-white h-4 w-4 flex items-center justify-center rounded-sm" >
+                         <ChevronDown className="h-4 w-4" />
+                       </div>
                           ) : (
-                            <ChevronRight className="h-4 w-4" />
+                           <div className="bg-[#381980] text-white h-4 w-4 flex items-center justify-center rounded-sm" >
+                         <ChevronRight className="h-4 w-4" />
+                       </div>
                           )}
 
                         </TableCell>
-                        <TableCell className="p-4 text-foreground text-sm">01/03/2025</TableCell>
+                        <TableCell className="p-4 text-foreground text-sm"></TableCell>
                         <TableCell className="p-4 text-foreground text-sm">
                           <div className="flex items-center gap-2">
-                            {groupName}
+                            A-45
+                          </div>
+                        </TableCell>
+                        <TableCell className="p-4 text-foreground text-sm">
+                          <div className="flex items-center gap-2 underline whitespace-nowrap">
+                            Acme Consulting (5)
                           </div>
                         </TableCell>
                         {visibleColumns.teamMember && <TableCell className="p-4"></TableCell>}
                         {visibleColumns.jobType && <TableCell className="p-4"></TableCell>}
                         {visibleColumns.description && <TableCell className="p-4"></TableCell>}
-                        {visibleColumns.amount && (
-                          <TableCell className="p-4 text-right font-semibold">
-                            {formatCurrency(Object.values(subGroups).flat().reduce((sum, log) => sum + log.amount, 0))}
-                          </TableCell>
-                        )}
+                        {visibleColumns.amount && (<TableCell className="p-4 text-left font-semibold"></TableCell>)}
                         {visibleColumns.billable && <TableCell className="p-4"></TableCell>}
                         {visibleColumns.status && <TableCell className="p-4"></TableCell>}
+                       <TableCell className="p-4 text-left">
+                                  <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold text-center">€100.00</div>
+                                </TableCell>
                         <TableCell className="p-4"></TableCell>
+                           <TableCell className="p-4 text-left">
+                                  <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold text-center">€100.00</div>
+                                </TableCell>
+                        <TableCell className="p-4"></TableCell>
+                        <TableCell className="p-4">
+                                <div className="text-right text-red-50"><Settings className='text-[#381980] ml-auto' size={16}/> </div>
+                              </TableCell>
 
                       </TableRow>
                     )}
@@ -779,21 +798,51 @@ const AllTimeLogsTab = () => {
                         <React.Fragment key={`${groupName}-${subGroupName}`}>
                           {viewMode !== 'flat' && (
                             <TableRow className="border-b border-border bg-muted/20 h-12">
-                              <TableCell className="p-4 pl-12 font-semibold text-foreground">
-                                📋 {subGroupName}
+                                <TableCell className="p-4">
                               </TableCell>
-                              {visibleColumns.teamMember && <TableCell className="p-4"></TableCell>}
+                                <TableCell className="p-4">
+                                01/03/2025
+                              </TableCell>
+                              <TableCell className="p-4 text-left">A-45</TableCell>
+                              <TableCell className="p-4 text-left underline">Acme Consulting</TableCell>
+                              <TableCell className="p-4 text-left underline whitespace-nowrap">Annual Returns (2024)</TableCell>
+                              <TableCell className="p-4 text-left  whitespace-nowrap">Annual Returns</TableCell>
+                              <TableCell className="p-4 text-left  whitespace-nowrap">Team name</TableCell>
+                              <TableCell className="p-4 text-left  whitespace-nowrap">Description</TableCell>
+                              <TableCell className="p-4 text-left  whitespace-nowrap">
+                                 <Badge variant="secondary" className="bg-[#EBF6ED] text-[#38A24B] border border-[#38A24B] whitespace-nowrap">Client Work</Badge>
+                                {/* <Badge variant="secondary" className="bg-[#FEF8E5] text-[#F6BC00] border border-[#F6BC00] whitespace-nowrap">Admin</Badge>
+                          <Badge variant="secondary" className="bg-[#E5F2F8] text-[#007CB8] border border-[#007CB8] whitespace-nowrap">Training</Badge>
+                          <Badge variant="secondary" className="bg-[#F5F5F5] text-[#999999] border border-[#999999] whitespace-nowrap">Other</Badge> */}
+                              </TableCell>
+                              <TableCell className="p-4 text-left  whitespace-nowrap">
+                                 <Badge variant="secondary" className="bg-[#EBF6ED] text-[#38A24B] border border-[#38A24B] whitespace-nowrap  rounded-full !p-[4px]"><Check size={14} /></Badge>
+                              </TableCell>
+                                <TableCell className="p-4 text-left">
+                                  <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold">01:30:00</div>
+                                </TableCell>
+                                <TableCell className="p-4 text-left">
+                                  <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold text-center">€100.00</div>
+                                </TableCell>
+                                <TableCell className="p-4 text-left "><div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold">
+                                  €100.00</div></TableCell>
+                                <TableCell className="p-4 text-left">
+                                  <Badge variant="secondary" className="bg-[#EBF6ED] text-[#38A24B] border border-[#38A24B] whitespace-nowrap">Paid</Badge>
+                                </TableCell>
+                              <TableCell className="p-4">
+                                <div className="text-right text-red-50"><Settings className='text-[#381980] ml-auto' size={16}/> </div>
+                              </TableCell>
+                              {/* <TableCell className="p-4 pl-12 font-semibold text-foreground">
+                                📋 {subGroupName}
+                              </TableCell> */}
+                              {/* {visibleColumns.teamMember && <TableCell className="p-4"></TableCell>}
                               {visibleColumns.jobType && <TableCell className="p-4"></TableCell>}
                               {visibleColumns.description && <TableCell className="p-4">sxazsas</TableCell>}
-                              {visibleColumns.amount && (
-                                <TableCell className="p-4 text-right font-semibold">
-                                  {formatCurrency(logs.reduce((sum, log) => sum + log.amount, 0))}
-                                </TableCell>
-                              )}
+                              
                               {visibleColumns.billable && <TableCell className="p-4"></TableCell>}
                               {visibleColumns.status && <TableCell className="p-4"></TableCell>}
                               <TableCell className="p-4"></TableCell>
-                              <TableCell className="p-4"></TableCell>
+                              <TableCell className="p-4"></TableCell> */}
                             </TableRow>
                           )}
 
@@ -857,7 +906,9 @@ const AllTimeLogsTab = () => {
                                   {getStatusBadge(log.status)}
                                 </TableCell>
                               )}
-                              <TableCell className="p-4">test sdfsdfd</TableCell>
+                              <TableCell className="p-4">
+                                <div className="text-right text-red-50"><Settings className='text-[#381980] ml-auto' size={16}/> </div>
+                              </TableCell>
                             </TableRow>
                           ))}
                         </React.Fragment>
