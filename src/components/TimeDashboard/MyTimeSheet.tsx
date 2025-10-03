@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Search, Filter, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, RotateCcw, RefreshCw, ArrowLeft, Plus, X, Trash2, Edit2 } from "lucide-react";
 import { StatusBadge, FilterBadge } from "@/components/StatusBadge";
 import { WeekNavigation } from "@/components/WeekNavigation";
@@ -10,260 +10,197 @@ import { Switch } from "@/components/ui/switch";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
 import { DashboardCard, DashboardGrid } from "@/components/ui/dashboard-card";
 import { Card, CardContent } from "../ui/card";
+import { useGetTimesheetQuery, useAddTimesheetMutation, useUpdateTimesheetMutation } from "@/store/timesheetApi";
+import { useGetCurrentUserQuery } from "@/store/authApi";
+import { 
+  formatHours, 
+  parseTimeInput, 
+  getCurrentWeekRange, 
+  convertTimeEntriesToRows, 
+  calculateTotals, 
+  convertRowsToTimeEntries,
+  getDailySummaryData,
+  minutesToHours
+} from "@/utils/timesheetUtils";
 
-const generateRandomTime = () => {
-    const hours = Math.floor(Math.random() * 10) + 30; // 30-39 hours
-    const minutes = Math.floor(Math.random() * 60);
-    return {
-        hours,
-        minutes,
-        total: hours + minutes / 60
-    };
-};
-const generateVariance = (capacity: number, logged: {
-    total: number;
-}) => {
-    const varianceTotal = capacity - logged.total;
-    const hours = Math.floor(Math.abs(varianceTotal));
-    const minutes = Math.floor((Math.abs(varianceTotal) - hours) * 60);
-    return {
-        hours,
-        minutes,
-        total: varianceTotal
-    };
-};
-const timesheetData = (() => {
-    const data = [{
-        id: 1,
-        name: "Niall Kelly",
-        department: "Tax",
-        capacity: 35.00,
-        logged: generateRandomTime(),
-        status: "approved" as const,
-        notes: 2,
-        submitted: "01/01/25",
-        avatar: "/lovable-uploads/faf9d4db-b73b-4771-9b8a-fbf1d0e1c69a.png"
-    }, {
-        id: 2,
-        name: "Mary Donavan",
-        department: "Payroll",
-        capacity: 35.00,
-        logged: generateRandomTime(),
-        status: "review" as const,
-        notes: 0,
-        submitted: "04/01/25",
-        avatar: "/lovable-uploads/4f26d575-4f3c-42d8-a83e-e7a97e2b7e70.png"
-    }, {
-        id: 3,
-        name: "Joanne Carthy",
-        department: "Tax",
-        capacity: 35.00,
-        logged: generateRandomTime(),
-        status: "rejected" as const,
-        notes: 0,
-        submitted: "29/02/25",
-        avatar: "/lovable-uploads/f713038f-661b-4859-829f-22567834d707.png"
-    }, {
-        id: 4,
-        name: "James Taylor",
-        department: "Admin",
-        capacity: 35.00,
-        logged: generateRandomTime(),
-        status: "review" as const,
-        notes: 1,
-        submitted: "04/01/25",
-        avatar: "/lovable-uploads/71cb7f14-f958-4960-a6ae-688e313603a5.png"
-    }, {
-        id: 5,
-        name: "Jennifer White",
-        department: "Tax",
-        capacity: 35.00,
-        logged: generateRandomTime(),
-        status: "approved" as const,
-        notes: 2,
-        submitted: "01/01/25",
-        avatar: "/lovable-uploads/3c214215-2945-4eb0-b253-52de50f12239.png"
-    }, {
-        id: 6,
-        name: "Jessica Hall",
-        department: "Management",
-        capacity: 35.00,
-        logged: generateRandomTime(),
-        status: "rejected" as const,
-        notes: 0,
-        submitted: "29/02/25",
-        avatar: "/lovable-uploads/c1b6c757-1457-46be-b74b-d870e28417ac.png"
-    }, {
-        id: 7,
-        name: "John Smith",
-        department: "Tax",
-        capacity: 35.00,
-        logged: generateRandomTime(),
-        status: "not-submitted" as const,
-        notes: 0,
-        submitted: "-",
-        avatar: "/lovable-uploads/69927594-4747-4d86-a60e-64c607e67d1f.png"
-    }, {
-        id: 8,
-        name: "Lisa Anderson",
-        department: "Audit",
-        capacity: 35.00,
-        logged: generateRandomTime(),
-        status: "approved" as const,
-        notes: 3,
-        submitted: "04/01/25",
-        avatar: "/lovable-uploads/229c8a34-da0e-4b64-bda9-444834d2242b.png"
-    }, {
-        id: 9,
-        name: "Michael Brown",
-        department: "Tax",
-        capacity: 35.00,
-        logged: generateRandomTime(),
-        status: "not-submitted" as const,
-        notes: 0,
-        submitted: "-",
-        avatar: "/lovable-uploads/c3af3651-3503-4a35-826d-dbf23695fd57.png"
-    }, {
-        id: 10,
-        name: "Sarah Wilson",
-        department: "Payroll",
-        capacity: 35.00,
-        logged: generateRandomTime(),
-        status: "approved" as const,
-        notes: 1,
-        submitted: "03/01/25",
-        avatar: "/lovable-uploads/f713038f-661b-4859-829f-22567834d707.png"
-    }, {
-        id: 11,
-        name: "David Johnson",
-        department: "Audit",
-        capacity: 35.00,
-        logged: generateRandomTime(),
-        status: "review" as const,
-        notes: 2,
-        submitted: "05/01/25",
-        avatar: "/lovable-uploads/229c8a34-da0e-4b64-bda9-444834d2242b.png"
-    }];
+// Types for timesheet rows
+interface TimesheetRow {
+  id: string;
+  ref: string;
+  client: string;
+  job: string;
+  category: string;
+  description: string;
+  billable: boolean;
+  rate: string;
+  hours: {
+    mon: number;
+    tue: number;
+    wed: number;
+    thu: number;
+    fri: number;
+    sat: number;
+    sun: number;
+  };
+}
 
-    // Calculate variance for each item
-    return data.map(item => ({
-        ...item,
-        variance: generateVariance(item.capacity, item.logged)
-    }));
-})();
-const getStatusCounts = (data: typeof timesheetData) => {
-    const approved = data.filter(item => item.status === 'approved').length;
-    const review = data.filter(item => item.status === 'review').length;
-    const rejected = data.filter(item => item.status === 'rejected').length;
-    const notSubmitted = data.filter(item => item.status === 'not-submitted').length;
-    return {
-        total: data.length,
-        forReview: review,
-        rejected: rejected,
-        approved: approved,
-        allTimesheets: data.length,
-        notSubmitted: notSubmitted
-    };
-};
-export const MyTimeSheet = () => {
+interface MyTimeSheetProps {
+  currentWeek?: { weekStart: string; weekEnd: string };
+  onWeekChange?: (weekStart: string, weekEnd: string) => void;
+}
+
+export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange }: MyTimeSheetProps = {}) => {
     const [hideWeekend, setHideWeekend] = useState(false);
-    const clients = ["John Kelly", "David Owens", "Jakob Rogers", "Mary Duffy"];
-    const jobs = ["VAT (01/01/2025 - 28/02/2025)", "Annual Returns - 2024", "Payroll - W5 2025", "Audit - 2024"];
-    const categories = ["Client Work", "Admin", "Training", "Meeting"];
-    const rates = ["€100.00", "€75.00", "€50.00", "€125.00"];
     const [timesheetSortField, setTimesheetSortField] = useState<'ref' | 'client' | 'job' | 'category' | 'description' | 'rate' | null>(null);
     const [timesheetSortDirection, setTimesheetSortDirection] = useState<'asc' | 'desc' | null>(null);
-    const [timesheetRows, setTimesheetRows] = useState([{
-        id: 1,
-        ref: "JOH-23",
-        client: "John Kelly",
-        job: "VAT (01/01/2025 - 28/02/2025)",
-        category: "Client Work",
-        description: "Get info on employees",
-        billable: true,
-        rate: "€100.00",
-        hours: {
-            mon: 0.15,
-            tue: 0,
-            wed: 0,
-            thu: 0,
-            fri: 0,
-            sat: 0,
-            sun: 0
+    const [timesheetRows, setTimesheetRows] = useState<TimesheetRow[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [hasChanges, setHasChanges] = useState(false);
+
+    // Use prop current week or fallback to default
+    const currentWeek =  getCurrentWeekRange();
+    //  console.log("currentWeek============", currentWeek);
+    // Get current user
+    const { data: currentUser } = useGetCurrentUserQuery();
+
+    // Get timesheet data for current week
+    const { 
+        data: timesheetData, 
+        isLoading: isTimesheetLoading, 
+        error: timesheetError,
+        refetch: refetchTimesheet 
+    } = useGetTimesheetQuery({
+        weekStart: currentWeek.weekStart,
+        weekEnd: currentWeek.weekEnd,
+    });
+
+    // Mutations
+    const [addTimesheet] = useAddTimesheetMutation();
+    const [updateTimesheet] = useUpdateTimesheetMutation();
+
+    // Extract data from API response
+    const timesheet = timesheetData?.data;
+    const dropdownOptions = timesheetData?.dropdoenOptionals;
+    const billableRate = timesheetData?.billableRate || 35;
+
+    // Convert API data to dropdown options
+    const clients = dropdownOptions?.clients || [];
+    const jobs = dropdownOptions?.jobs || [];
+    const categories = dropdownOptions?.jobCategories || [];
+    const rates = [`€${billableRate.toFixed(2)}`];
+
+    // Convert time entries to rows when data loads
+    useEffect(() => {
+        if (timesheet?.timeEntries && clients.length > 0 && jobs.length > 0 && categories.length > 0) {
+            const convertedRows = convertTimeEntriesToRows(
+                timesheet.timeEntries,
+                clients,
+                jobs,
+                categories
+            );
+            setTimesheetRows(convertedRows);
+            setHasChanges(false);
         }
-    }, {
-        id: 2,
-        ref: "DAY-22",
-        client: "David Owens",
-        job: "VAT (01/01/2025 - 28/02/2025)",
-        category: "Client Work",
-        description: "Phone call to discuss ac...",
-        billable: true,
-        rate: "€100.00",
-        hours: {
-            mon: 0.15,
-            tue: 0,
-            wed: 0,
-            thu: 0,
-            fri: 0,
-            sat: 0,
-            sun: 0
+    }, [timesheet?.timeEntries, clients, jobs, categories]);
+
+    // Handle week change - delegate to parent if provided
+    const handleWeekChange = (weekStart: string, weekEnd: string) => {
+        if (onWeekChange) {
+            onWeekChange(weekStart, weekEnd);
         }
-    }, {
-        id: 3,
-        ref: "JAK-21",
-        client: "Jakob Rogers",
-        job: "Annual Returns - 2024",
-        category: "Client Work",
-        description: "VAT calculations",
-        billable: true,
-        rate: "€100.00",
-        hours: {
-            mon: 1.00,
-            tue: 0,
-            wed: 0,
-            thu: 0,
-            fri: 0,
-            sat: 0,
-            sun: 0
+        setHasChanges(false);
+    };
+
+    // Save timesheet changes
+    const handleSaveChanges = async () => {
+        if (!timesheet || !clients.length || !jobs.length || !categories.length) return;
+        
+        setIsLoading(true);
+        try {
+            const timeEntries = convertRowsToTimeEntries(
+                timesheetRows,
+                clients,
+                jobs,
+                categories,
+                currentWeek.weekStart
+            );
+
+            if (timesheet._id) {
+                // Update existing timesheet
+                await updateTimesheet({
+                    timesheetId: timesheet._id,
+                    timeEntries,
+                }).unwrap();
+            } else {
+                // Create new timesheet
+                await addTimesheet({
+                    weekStart: currentWeek.weekStart,
+                    weekEnd: currentWeek.weekEnd,
+                    timeEntries,
+                }).unwrap();
+            }
+            
+            setHasChanges(false);
+            await refetchTimesheet();
+        } catch (error) {
+            console.error('Error saving timesheet:', error);
+            alert('Error saving timesheet. Please try again.');
+        } finally {
+            setIsLoading(false);
         }
-    }, {
-        id: 4,
-        ref: "MAR-24",
-        client: "Mary Duffy",
-        job: "Payroll - W5 2025",
-        category: "Client Work",
-        description: "Meeting with John",
-        billable: true,
-        rate: "€100.00",
-        hours: {
-            mon: 1.00,
-            tue: 0,
-            wed: 0,
-            thu: 0,
-            fri: 0,
-            sat: 0,
-            sun: 0
+    };
+
+    // Add new row
+    const handleAddRow = () => {
+        if (clients.length === 0 || jobs.length === 0 || categories.length === 0) {
+            alert('Please wait for data to load before adding a new row.');
+            return;
         }
-    }, {
-        id: 5,
-        ref: "DAV-18",
-        client: "David Owens",
-        job: "Audit - 2024",
-        category: "Client Work",
-        description: "Get info on employees",
-        billable: true,
-        rate: "€100.00",
-        hours: {
-            mon: 0,
-            tue: 1.00,
-            wed: 0,
-            thu: 0,
-            fri: 0,
-            sat: 0,
-            sun: 0
-        }
-    }]);
+
+        const newId = `temp-${Date.now()}`;
+        const generateClientRef = (clientName: string) => {
+            const firstThreeLetters = clientName.substring(0, 3).toUpperCase();
+            const year = new Date().getFullYear().toString().slice(-2);
+            return `${firstThreeLetters}-${year}`;
+        };
+
+        const newRow: TimesheetRow = {
+            id: newId,
+            ref: generateClientRef(clients[0].name),
+            client: clients[0].name,
+            job: jobs[0].name,
+            category: categories[0].name,
+            description: "",
+            billable: true,
+            rate: `€${billableRate.toFixed(2)}`,
+            hours: {
+                mon: 0,
+                tue: 0,
+                wed: 0,
+                thu: 0,
+                fri: 0,
+                sat: 0,
+                sun: 0
+            }
+        };
+
+        setTimesheetRows([...timesheetRows, newRow]);
+        setHasChanges(true);
+    };
+
+    // Delete row
+    const handleDeleteRow = (rowId: string) => {
+        setTimesheetRows(rows => rows.filter(r => r.id !== rowId));
+        setHasChanges(true);
+    };
+
+    // Update row data
+    const updateRow = (rowId: string, updates: Partial<TimesheetRow>) => {
+        setTimesheetRows(rows => 
+            rows.map(r => r.id === rowId ? { ...r, ...updates } : r)
+        );
+        setHasChanges(true);
+    };
     const handleTimesheetSort = (field: 'ref' | 'client' | 'job' | 'category' | 'description' | 'rate') => {
         if (timesheetSortField === field) {
             if (timesheetSortDirection === 'asc') {
@@ -286,87 +223,94 @@ export const MyTimeSheet = () => {
         if (timesheetSortDirection === 'desc') return <ArrowDown className="w-3 h-3" />;
         return <ArrowUpDown className="w-3 h-3 opacity-50" />;
     };
-    const calculateTotals = () => {
-        const billable = {
-            mon: 0,
-            tue: 0,
-            wed: 0,
-            thu: 0,
-            fri: 0,
-            sat: 0,
-            sun: 0,
-            total: 0
-        };
-        const nonBillable = {
-            mon: 0,
-            tue: 0,
-            wed: 0,
-            thu: 0,
-            fri: 0,
-            sat: 0,
-            sun: 0,
-            total: 0
-        };
-        const logged = {
-            mon: 0,
-            tue: 0,
-            wed: 0,
-            thu: 0,
-            fri: 0,
-            sat: 0,
-            sun: 0,
-            total: 0
-        };
-        timesheetRows.forEach(row => {
-            const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
-            days.forEach(day => {
-                const hours = row.hours[day] || 0;
-                if (row.billable) {
-                    billable[day] += hours;
-                } else {
-                    nonBillable[day] += hours;
-                }
-                logged[day] += hours;
-            });
-        });
+    // Calculate totals using memoized function
+    const totals = useMemo(() => calculateTotals(timesheetRows), [timesheetRows]);
 
-        // Calculate totals
-        billable.total = Object.values(billable).slice(0, -1).reduce((sum, val) => sum + val, 0);
-        nonBillable.total = Object.values(nonBillable).slice(0, -1).reduce((sum, val) => sum + val, 0);
-        logged.total = Object.values(logged).slice(0, -1).reduce((sum, val) => sum + val, 0);
+    // Get daily summary data from API
+    const dailySummary = useMemo(() => {
+        if (timesheet?.dailySummary) {
+            return getDailySummaryData(timesheet.dailySummary);
+        }
         return {
-            billable,
-            nonBillable,
-            logged
+            mon: { billable: 0, nonBillable: 0, logged: 0, capacity: 0, variance: 0 },
+            tue: { billable: 0, nonBillable: 0, logged: 0, capacity: 0, variance: 0 },
+            wed: { billable: 0, nonBillable: 0, logged: 0, capacity: 0, variance: 0 },
+            thu: { billable: 0, nonBillable: 0, logged: 0, capacity: 0, variance: 0 },
+            fri: { billable: 0, nonBillable: 0, logged: 0, capacity: 0, variance: 0 },
+            sat: { billable: 0, nonBillable: 0, logged: 0, capacity: 0, variance: 0 },
+            sun: { billable: 0, nonBillable: 0, logged: 0, capacity: 0, variance: 0 },
         };
-    };
-    const formatHours = (hours: number) => {
-        const h = Math.floor(hours);
-        const m = Math.round((hours - h) * 60);
-        return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-    };
-    const totals = calculateTotals();
+    }, [timesheet?.dailySummary]);
+
+    // Format week dates for display
+    const weekDisplay = useMemo(() => {
+        const startDate = new Date(currentWeek.weekStart);
+        const endDate = new Date(currentWeek.weekEnd);
+        const weekNumber = Math.ceil((startDate.getTime() - new Date(startDate.getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000));
+        
+        return {
+            start: startDate.toLocaleDateString('en-GB'),
+            end: endDate.toLocaleDateString('en-GB'),
+            weekNumber
+        };
+    }, [currentWeek]);
+
+    // Show loading state
+    if (isTimesheetLoading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                    <p className="text-muted-foreground">Loading timesheet data...</p>
+                </div>
+            </div>
+        );
+    }
+
+    // Show error state
+    if (timesheetError) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <div className="text-center">
+                    <p className="text-red-500 mb-4">Error loading timesheet data</p>
+                    <Button onClick={() => refetchTimesheet()}>Retry</Button>
+                </div>
+            </div>
+        );
+    }
     return (
         <div className="space-y-6">
             {/* Header with Profile and Actions */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 sm:p-6 bg-card rounded-lg border gap-4">
                 <div className="flex items-center gap-4">
                     <Avatar className="w-10 h-10 sm:w-12 sm:h-12">
-                        <AvatarImage src="/lovable-uploads/69927594-4747-4d86-a60e-64c607e67d1f.png" />
-                        <AvatarFallback>JS</AvatarFallback>
+                        <AvatarImage src={(currentUser as any)?.avatarUrl || "/lovable-uploads/69927594-4747-4d86-a60e-64c607e67d1f.png"} />
+                        <AvatarFallback>
+                            {currentUser?.name?.split(' ').map(n => n[0]).join('') || 'JS'}
+                        </AvatarFallback>
                     </Avatar>
                     <div>
-                        <h2 className="text-lg sm:text-xl font-semibold text-foreground">John Smith</h2>
+                        <h2 className="text-lg sm:text-xl font-semibold text-foreground">
+                            {currentUser?.name || 'John Smith'}
+                        </h2>
                     </div>
                 </div>
                 <div className="flex items-center justify-center flex-1">
-                    <p className="text-sm sm:text-base text-muted-foreground font-medium text-center sm:text-left">23/06/2025 to 29/06/2025 - Week 26</p>
+                    <p className="text-sm sm:text-base text-muted-foreground font-medium text-center sm:text-left">
+                        {weekDisplay.start} to {weekDisplay.end} - Week {weekDisplay.weekNumber}
+                    </p>
                 </div>
                 <div className="flex gap-2 w-full sm:w-auto">
-                    <Button variant="outline" className="text-green-600 border-green-600 hover:bg-green-50 flex-1 sm:flex-none text-sm" onClick={() => {
-                        alert('Timesheet submitted for approval!');
-                    }}>
-                        Submit for Approval
+                    <Button 
+                        variant="outline" 
+                        className="text-green-600 border-green-600 hover:bg-green-50 flex-1 sm:flex-none text-sm" 
+                        onClick={() => {
+                            alert('Timesheet submitted for approval!');
+                        }}
+                        disabled={timesheet?.status === 'submitted' || timesheet?.status === 'approved'}
+                    >
+                        {timesheet?.status === 'submitted' ? 'Submitted' : 
+                         timesheet?.status === 'approved' ? 'Approved' : 'Submit for Approval'}
                     </Button>
                 </div>
             </div>
@@ -482,10 +426,18 @@ export const MyTimeSheet = () => {
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
-                    <Button variant="outline" className="text-green-600 border-green-600 hover:bg-green-50 h-9 text-sm">
+                    <Button 
+                        variant="outline" 
+                        className="text-green-600 border-green-600 hover:bg-green-50 h-9 text-sm"
+                        disabled={timesheet?.status === 'approved' || timesheet?.status === 'rejected'}
+                    >
                         Approve
                     </Button>
-                    <Button variant="outline" className="text-red-600 border-red-600 hover:bg-red-50 h-9 text-sm">
+                    <Button 
+                        variant="outline" 
+                        className="text-red-600 border-red-600 hover:bg-red-50 h-9 text-sm"
+                        disabled={timesheet?.status === 'approved' || timesheet?.status === 'rejected'}
+                    >
                         Reject
                     </Button>
                 </div>
@@ -494,39 +446,33 @@ export const MyTimeSheet = () => {
                         <span className="text-sm text-muted-foreground">Hide Weekend</span>
                         <Switch checked={hideWeekend} onCheckedChange={setHideWeekend} />
                     </div>
-                    <Button variant="outline" className="flex items-center justify-center gap-2 text-primary border-primary hover:bg-primary/10 h-9 text-sm" onClick={() => {
-                        const newId = Math.max(...timesheetRows.map(r => r.id)) + 1;
-                        const generateClientRef = (clientName: string) => {
-                            const firstThreeLetters = clientName.substring(0, 3).toUpperCase();
-                            const year = new Date().getFullYear().toString().slice(-2);
-                            return `${firstThreeLetters}-${year}`;
-                        };
-                        setTimesheetRows([...timesheetRows, {
-                            id: newId,
-                            ref: generateClientRef(clients[0]),
-                            client: clients[0],
-                            job: jobs[0],
-                            category: categories[0],
-                            description: "",
-                            billable: true,
-                            rate: rates[0],
-                            hours: {
-                                mon: 0,
-                                tue: 0,
-                                wed: 0,
-                                thu: 0,
-                                fri: 0,
-                                sat: 0,
-                                sun: 0
-                            }
-                        }]);
-                    }}>
+                    <Button 
+                        variant="outline" 
+                        className="flex items-center justify-center gap-2 text-primary border-primary hover:bg-primary/10 h-9 text-sm" 
+                        onClick={handleAddRow}
+                        disabled={isLoading}
+                    >
                         <Plus className="w-4 h-4" />
                         New Row
                     </Button>
-                      <Button variant="outline" className="flex items-center justify-center gap-2 text-primary border-primary hover:bg-primary/10 h-9 text-sm">
-                       Save Changes
-                      </Button>
+                    <Button 
+                        variant="outline" 
+                        className="flex items-center justify-center gap-2 text-primary border-primary hover:bg-primary/10 h-9 text-sm"
+                        onClick={handleSaveChanges}
+                        disabled={!hasChanges || isLoading}
+                    >
+                        {isLoading ? (
+                            <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                                Saving...
+                            </>
+                        ) : (
+                            <>
+                                <RefreshCw className="w-4 h-4" />
+                                Save Changes
+                            </>
+                        )}
+                    </Button>
                 </div>
             </div>
 
@@ -614,19 +560,18 @@ export const MyTimeSheet = () => {
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent>
-                                            {clients.map(client => <DropdownMenuItem key={client} onClick={() => {
+                                            {clients.map(client => <DropdownMenuItem key={client._id} onClick={() => {
                                                 const generateClientRef = (clientName: string) => {
                                                     const firstThreeLetters = clientName.substring(0, 3).toUpperCase();
                                                     const year = new Date().getFullYear().toString().slice(-2);
                                                     return `${firstThreeLetters}-${year}`;
                                                 };
-                                                setTimesheetRows(rows => rows.map(r => r.id === row.id ? {
-                                                    ...r,
-                                                    client,
-                                                    ref: generateClientRef(client)
-                                                } : r));
+                                                updateRow(row.id, {
+                                                    client: client.name,
+                                                    ref: generateClientRef(client.name)
+                                                });
                                             }}>
-                                                {client}
+                                                {client.name}
                                             </DropdownMenuItem>)}
                                         </DropdownMenuContent>
                                     </DropdownMenu>
@@ -639,13 +584,12 @@ export const MyTimeSheet = () => {
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent>
-                                            {jobs.map(job => <DropdownMenuItem key={job} onClick={() => {
-                                                setTimesheetRows(rows => rows.map(r => r.id === row.id ? {
-                                                    ...r,
-                                                    job
-                                                } : r));
+                                            {jobs.map(job => <DropdownMenuItem key={job._id} onClick={() => {
+                                                updateRow(row.id, {
+                                                    job: job.name
+                                                });
                                             }}>
-                                                {job}
+                                                {job.name}
                                             </DropdownMenuItem>)}
                                         </DropdownMenuContent>
                                     </DropdownMenu>
@@ -660,31 +604,28 @@ export const MyTimeSheet = () => {
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent>
-                                            {categories.map(category => <DropdownMenuItem key={category} onClick={() => {
-                                                setTimesheetRows(rows => rows.map(r => r.id === row.id ? {
-                                                    ...r,
-                                                    category
-                                                } : r));
+                                            {categories.map(category => <DropdownMenuItem key={category._id} onClick={() => {
+                                                updateRow(row.id, {
+                                                    category: category.name
+                                                });
                                             }}>
-                                                {category}
+                                                {category.name}
                                             </DropdownMenuItem>)}
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </td>
                                 <td className="px-3 py-2 text-sm">
                                     <Input value={row.description} onChange={e => {
-                                        setTimesheetRows(rows => rows.map(r => r.id === row.id ? {
-                                            ...r,
+                                        updateRow(row.id, {
                                             description: e.target.value
-                                        } : r));
+                                        });
                                     }} className="border border-input p-1 h-8 bg-background text-sm rounded" placeholder="Add description..." />
                                 </td>
                                 <td className="px-3 py-2 text-center">
                                     <Switch checked={row.billable} onCheckedChange={checked => {
-                                        setTimesheetRows(rows => rows.map(r => r.id === row.id ? {
-                                            ...r,
+                                        updateRow(row.id, {
                                             billable: checked
-                                        } : r));
+                                        });
                                     }} />
                                 </td>
                                 <td className="px-3 py-2 text-sm">
@@ -696,10 +637,9 @@ export const MyTimeSheet = () => {
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent>
                                             {rates.map(rate => <DropdownMenuItem key={rate} onClick={() => {
-                                                setTimesheetRows(rows => rows.map(r => r.id === row.id ? {
-                                                    ...r,
+                                                updateRow(row.id, {
                                                     rate
-                                                } : r));
+                                                });
                                             }}>
                                                 {rate}
                                             </DropdownMenuItem>)}
@@ -709,237 +649,90 @@ export const MyTimeSheet = () => {
                                 <td className="px-3 py-2 text-center text-sm">
                                     <Input type="text" value={row.hours.mon === 0 ? "" : formatHours(row.hours.mon)} onChange={e => {
                                         const timeStr = e.target.value;
-                                        if (timeStr === "") {
-                                            setTimesheetRows(rows => rows.map(r => r.id === row.id ? {
-                                                ...r,
-                                                hours: {
-                                                    ...r.hours,
-                                                    mon: 0
-                                                }
-                                            } : r));
-                                        } else if (timeStr.match(/^\d{1,2}:\d{2}$/)) {
-                                            const [hours, minutes] = timeStr.split(':').map(Number);
-                                            const value = hours + minutes / 60;
-                                            setTimesheetRows(rows => rows.map(r => r.id === row.id ? {
-                                                ...r,
-                                                hours: {
-                                                    ...r.hours,
-                                                    mon: value
-                                                }
-                                            } : r));
-                                        } else if (timeStr.match(/^\d*\.?\d*$/)) {
-                                            const value = parseFloat(timeStr) || 0;
-                                            setTimesheetRows(rows => rows.map(r => r.id === row.id ? {
-                                                ...r,
-                                                hours: {
-                                                    ...r.hours,
-                                                    mon: value
-                                                }
-                                            } : r));
-                                        }
+                                        const value = parseTimeInput(timeStr);
+                                        updateRow(row.id, {
+                                            hours: {
+                                                ...row.hours,
+                                                mon: value
+                                            }
+                                        });
                                     }} placeholder="" className="w-16 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
                                 </td>
                                 <td className="px-3 py-2 text-center text-sm">
                                     <Input type="text" value={row.hours.tue === 0 ? "" : formatHours(row.hours.tue)} onChange={e => {
                                         const timeStr = e.target.value;
-                                        if (timeStr === "") {
-                                            setTimesheetRows(rows => rows.map(r => r.id === row.id ? {
-                                                ...r,
-                                                hours: {
-                                                    ...r.hours,
-                                                    tue: 0
-                                                }
-                                            } : r));
-                                        } else if (timeStr.match(/^\d{1,2}:\d{2}$/)) {
-                                            const [hours, minutes] = timeStr.split(':').map(Number);
-                                            const value = hours + minutes / 60;
-                                            setTimesheetRows(rows => rows.map(r => r.id === row.id ? {
-                                                ...r,
-                                                hours: {
-                                                    ...r.hours,
-                                                    tue: value
-                                                }
-                                            } : r));
-                                        } else if (timeStr.match(/^\d*\.?\d*$/)) {
-                                            const value = parseFloat(timeStr) || 0;
-                                            setTimesheetRows(rows => rows.map(r => r.id === row.id ? {
-                                                ...r,
-                                                hours: {
-                                                    ...r.hours,
-                                                    tue: value
-                                                }
-                                            } : r));
-                                        }
+                                        const value = parseTimeInput(timeStr);
+                                        updateRow(row.id, {
+                                            hours: {
+                                                ...row.hours,
+                                                tue: value
+                                            }
+                                        });
                                     }} placeholder="" className="w-16 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
                                 </td>
                                 <td className="px-3 py-2 text-center text-sm">
                                     <Input type="text" value={row.hours.wed === 0 ? "" : formatHours(row.hours.wed)} onChange={e => {
                                         const timeStr = e.target.value;
-                                        if (timeStr === "") {
-                                            setTimesheetRows(rows => rows.map(r => r.id === row.id ? {
-                                                ...r,
-                                                hours: {
-                                                    ...r.hours,
-                                                    wed: 0
-                                                }
-                                            } : r));
-                                        } else if (timeStr.match(/^\d{1,2}:\d{2}$/)) {
-                                            const [hours, minutes] = timeStr.split(':').map(Number);
-                                            const value = hours + minutes / 60;
-                                            setTimesheetRows(rows => rows.map(r => r.id === row.id ? {
-                                                ...r,
-                                                hours: {
-                                                    ...r.hours,
-                                                    wed: value
-                                                }
-                                            } : r));
-                                        } else if (timeStr.match(/^\d*\.?\d*$/)) {
-                                            const value = parseFloat(timeStr) || 0;
-                                            setTimesheetRows(rows => rows.map(r => r.id === row.id ? {
-                                                ...r,
-                                                hours: {
-                                                    ...r.hours,
-                                                    wed: value
-                                                }
-                                            } : r));
-                                        }
+                                        const value = parseTimeInput(timeStr);
+                                        updateRow(row.id, {
+                                            hours: {
+                                                ...row.hours,
+                                                wed: value
+                                            }
+                                        });
                                     }} placeholder="" className="w-16 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
                                 </td>
                                 <td className="px-3 py-2 text-center text-sm">
                                     <Input type="text" value={row.hours.thu === 0 ? "" : formatHours(row.hours.thu)} onChange={e => {
                                         const timeStr = e.target.value;
-                                        if (timeStr === "") {
-                                            setTimesheetRows(rows => rows.map(r => r.id === row.id ? {
-                                                ...r,
-                                                hours: {
-                                                    ...r.hours,
-                                                    thu: 0
-                                                }
-                                            } : r));
-                                        } else if (timeStr.match(/^\d{1,2}:\d{2}$/)) {
-                                            const [hours, minutes] = timeStr.split(':').map(Number);
-                                            const value = hours + minutes / 60;
-                                            setTimesheetRows(rows => rows.map(r => r.id === row.id ? {
-                                                ...r,
-                                                hours: {
-                                                    ...r.hours,
-                                                    thu: value
-                                                }
-                                            } : r));
-                                        } else if (timeStr.match(/^\d*\.?\d*$/)) {
-                                            const value = parseFloat(timeStr) || 0;
-                                            setTimesheetRows(rows => rows.map(r => r.id === row.id ? {
-                                                ...r,
-                                                hours: {
-                                                    ...r.hours,
-                                                    thu: value
-                                                }
-                                            } : r));
-                                        }
+                                        const value = parseTimeInput(timeStr);
+                                        updateRow(row.id, {
+                                            hours: {
+                                                ...row.hours,
+                                                thu: value
+                                            }
+                                        });
                                     }} placeholder="" className="w-16 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
                                 </td>
                                 <td className="px-3 py-2 text-center text-sm">
                                     <Input type="text" value={row.hours.fri === 0 ? "" : formatHours(row.hours.fri)} onChange={e => {
                                         const timeStr = e.target.value;
-                                        if (timeStr === "") {
-                                            setTimesheetRows(rows => rows.map(r => r.id === row.id ? {
-                                                ...r,
-                                                hours: {
-                                                    ...r.hours,
-                                                    fri: 0
-                                                }
-                                            } : r));
-                                        } else if (timeStr.match(/^\d{1,2}:\d{2}$/)) {
-                                            const [hours, minutes] = timeStr.split(':').map(Number);
-                                            const value = hours + minutes / 60;
-                                            setTimesheetRows(rows => rows.map(r => r.id === row.id ? {
-                                                ...r,
-                                                hours: {
-                                                    ...r.hours,
-                                                    fri: value
-                                                }
-                                            } : r));
-                                        } else if (timeStr.match(/^\d*\.?\d*$/)) {
-                                            const value = parseFloat(timeStr) || 0;
-                                            setTimesheetRows(rows => rows.map(r => r.id === row.id ? {
-                                                ...r,
-                                                hours: {
-                                                    ...r.hours,
-                                                    fri: value
-                                                }
-                                            } : r));
-                                        }
+                                        const value = parseTimeInput(timeStr);
+                                        updateRow(row.id, {
+                                            hours: {
+                                                ...row.hours,
+                                                fri: value
+                                            }
+                                        });
                                     }} placeholder="" className="w-16 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
                                 </td>
                                 {!hideWeekend && <td className="px-3 py-2 text-center text-sm">
                                     <Input type="text" value={row.hours.sat === 0 ? "" : formatHours(row.hours.sat)} onChange={e => {
                                         const timeStr = e.target.value;
-                                        if (timeStr === "") {
-                                            setTimesheetRows(rows => rows.map(r => r.id === row.id ? {
-                                                ...r,
-                                                hours: {
-                                                    ...r.hours,
-                                                    sat: 0
-                                                }
-                                            } : r));
-                                        } else if (timeStr.match(/^\d{1,2}:\d{2}$/)) {
-                                            const [hours, minutes] = timeStr.split(':').map(Number);
-                                            const value = hours + minutes / 60;
-                                            setTimesheetRows(rows => rows.map(r => r.id === row.id ? {
-                                                ...r,
-                                                hours: {
-                                                    ...r.hours,
-                                                    sat: value
-                                                }
-                                            } : r));
-                                        } else if (timeStr.match(/^\d*\.?\d*$/)) {
-                                            const value = parseFloat(timeStr) || 0;
-                                            setTimesheetRows(rows => rows.map(r => r.id === row.id ? {
-                                                ...r,
-                                                hours: {
-                                                    ...r.hours,
-                                                    sat: value
-                                                }
-                                            } : r));
-                                        }
+                                        const value = parseTimeInput(timeStr);
+                                        updateRow(row.id, {
+                                            hours: {
+                                                ...row.hours,
+                                                sat: value
+                                            }
+                                        });
                                     }} placeholder="" className="w-16 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
                                 </td>}
                                 {!hideWeekend && <td className="px-3 py-2 text-center text-sm">
                                     <Input type="text" value={row.hours.sun === 0 ? "" : formatHours(row.hours.sun)} onChange={e => {
                                         const timeStr = e.target.value;
-                                        if (timeStr === "") {
-                                            setTimesheetRows(rows => rows.map(r => r.id === row.id ? {
-                                                ...r,
-                                                hours: {
-                                                    ...r.hours,
-                                                    sun: 0
-                                                }
-                                            } : r));
-                                        } else if (timeStr.match(/^\d{1,2}:\d{2}$/)) {
-                                            const [hours, minutes] = timeStr.split(':').map(Number);
-                                            const value = hours + minutes / 60;
-                                            setTimesheetRows(rows => rows.map(r => r.id === row.id ? {
-                                                ...r,
-                                                hours: {
-                                                    ...r.hours,
-                                                    sun: value
-                                                }
-                                            } : r));
-                                        } else if (timeStr.match(/^\d*\.?\d*$/)) {
-                                            const value = parseFloat(timeStr) || 0;
-                                            setTimesheetRows(rows => rows.map(r => r.id === row.id ? {
-                                                ...r,
-                                                hours: {
-                                                    ...r.hours,
-                                                    sun: value
-                                                }
-                                            } : r));
-                                        }
+                                        const value = parseTimeInput(timeStr);
+                                        updateRow(row.id, {
+                                            hours: {
+                                                ...row.hours,
+                                                sun: value
+                                            }
+                                        });
                                     }} placeholder="" className="w-16 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
                                 </td>}
                                 <td className="px-3 py-2 text-right">
                                     <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700" onClick={() => {
-                                        setTimesheetRows(rows => rows.filter(r => r.id !== row.id));
+                                        handleDeleteRow(row.id);
                                     }}>
                                         <Trash2 className="w-4 h-4" />
                                     </Button>
@@ -950,57 +743,57 @@ export const MyTimeSheet = () => {
                         <tbody className="border-t-2 border-border">
                             <tr className="bg-blue-50">
                                 <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right">BILLABLE</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.billable.mon)}</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.billable.tue)}</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.billable.wed)}</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.billable.thu)}</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.billable.fri)}</td>
-                                {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.billable.sat)}</td>}
-                                {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.billable.sun)}</td>}
+                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.mon.billable)}</td>
+                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.tue.billable)}</td>
+                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.wed.billable)}</td>
+                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.thu.billable)}</td>
+                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.fri.billable)}</td>
+                                {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.sat.billable)}</td>}
+                                {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.sun.billable)}</td>}
                                 <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.billable.total)}</td>
                             </tr>
                             <tr className="bg-gray-50">
                                 <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right">NON BILLABLE</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.nonBillable.mon)}</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.nonBillable.tue)}</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.nonBillable.wed)}</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.nonBillable.thu)}</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.nonBillable.fri)}</td>
-                                {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.nonBillable.sat)}</td>}
-                                {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.nonBillable.sun)}</td>}
+                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.mon.nonBillable)}</td>
+                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.tue.nonBillable)}</td>
+                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.wed.nonBillable)}</td>
+                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.thu.nonBillable)}</td>
+                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.fri.nonBillable)}</td>
+                                {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.sat.nonBillable)}</td>}
+                                {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.sun.nonBillable)}</td>}
                                 <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.nonBillable.total)}</td>
                             </tr>
                             <tr className="bg-blue-50">
                                 <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right">LOGGED</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.logged.mon)}</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.logged.tue)}</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.logged.wed)}</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.logged.thu)}</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.logged.fri)}</td>
-                                {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.logged.sat)}</td>}
-                                {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.logged.sun)}</td>}
+                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.mon.logged)}</td>
+                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.tue.logged)}</td>
+                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.wed.logged)}</td>
+                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.thu.logged)}</td>
+                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.fri.logged)}</td>
+                                {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.sat.logged)}</td>}
+                                {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.sun.logged)}</td>}
                                 <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.logged.total)}</td>
                             </tr>
                             <tr className="bg-gray-100">
                                 <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right">CAPACITY</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">08:00</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">08:00</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">08:00</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">08:00</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">08:00</td>
-                                {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">00:00</td>}
-                                {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">00:00</td>}
-                                <td className="px-3 py-2 text-center text-sm font-normal">40:00</td>
+                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.mon.capacity)}</td>
+                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.tue.capacity)}</td>
+                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.wed.capacity)}</td>
+                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.thu.capacity)}</td>
+                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.fri.capacity)}</td>
+                                {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.sat.capacity)}</td>}
+                                {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.sun.capacity)}</td>}
+                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.logged.total > 0 ? totals.logged.total : 40)}</td>
                             </tr>
                             <tr className="bg-red-50">
                                 <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right">VARIANCE</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(8 - totals.logged.mon)}</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(8 - totals.logged.tue)}</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(8 - totals.logged.wed)}</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(8 - totals.logged.thu)}</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(8 - totals.logged.fri)}</td>
-                                {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(0 - totals.logged.sat)}</td>}
-                                {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(0 - totals.logged.sun)}</td>}
+                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.mon.variance)}</td>
+                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.tue.variance)}</td>
+                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.wed.variance)}</td>
+                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.thu.variance)}</td>
+                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.fri.variance)}</td>
+                                {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.sat.variance)}</td>}
+                                {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.sun.variance)}</td>}
                                 <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(40 - totals.logged.total)}</td>
                             </tr>
                         </tbody>

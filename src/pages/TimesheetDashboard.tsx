@@ -10,6 +10,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { DashboardCard, DashboardGrid } from "@/components/ui/dashboard-card";
 import { MyTimeSheet } from "@/components/TimeDashboard/MyTimeSheet";
 import CustomTabs from "@/components/Tabs";
+import { getCurrentWeekRange } from "@/utils/timesheetUtils";
 type SortField = 'name' | 'department' | 'capacity' | 'logged' | 'variance' | 'submitted';
 type SortDirection = 'asc' | 'desc' | null;
 import { usePermissionTabs } from "@/hooks/usePermissionTabs";
@@ -198,10 +199,18 @@ export function TimesheetDashboard() {
   const [hideWeekend, setHideWeekend] = useState(false);
   const [timesheetSortField, setTimesheetSortField] = useState<'ref' | 'client' | 'job' | 'category' | 'description' | 'rate' | null>(null);
   const [timesheetSortDirection, setTimesheetSortDirection] = useState<'asc' | 'desc' | null>(null);
+  
+  // Week navigation state
+  const [currentWeek, setCurrentWeek] = useState(() => getCurrentWeekRange());
+
+  // Week change handler
+  const handleWeekChange = (weekStart: string, weekEnd: string) => {
+    setCurrentWeek({ weekStart, weekEnd });
+  };
 
   const { data: clientNames } = useGetDropdownOptionsQuery('client');
 
-  console.log('clientNames=============', clientNames?.data?.clients);
+  // console.log('clientNames=============', clientNames?.data?.clients);
 
   const [timesheetRows, setTimesheetRows] = useState([{
     id: 1,
@@ -516,9 +525,9 @@ export function TimesheetDashboard() {
       <CustomTabs tabs={visibleTabs} activeTab={activeTab} setActiveTab={setActiveTab} />
     </div>
 
-    {/* Date Range Navigation - Only show in allTimesheets tab */}
-    {activeTab === "allTimesheets" && <div className="mb-3">
-      <WeekNavigation />
+    {/* Date Range Navigation - Show in allTimesheets and myTimesheet tabs */}
+    {(activeTab === "allTimesheets" || activeTab === "myTimesheet") && <div className="mb-3">
+      <WeekNavigation onWeekChange={handleWeekChange} />
     </div>}
 
     {activeTab === '' && <div>YOU HAVE NO ACCESS</div>}
@@ -769,7 +778,7 @@ export function TimesheetDashboard() {
 
     {/* My Timesheets Tab Content */}
     {activeTab === "myTimesheet" &&
-      <MyTimeSheet />}
+      <MyTimeSheet currentWeek={currentWeek} onWeekChange={handleWeekChange} />}
 
     {/* Time Logs Tab Content */}
     {activeTab === "timeLogs" && <AllTimeLogsTab />}

@@ -1,12 +1,17 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format, addDays, addWeeks, addMonths, addYears, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns";
 
 type DateRangeType = 'day' | 'week' | 'month' | 'year';
 
-export function WeekNavigation() {
-  const [currentDate, setCurrentDate] = useState(new Date());
+interface WeekNavigationProps {
+  onWeekChange?: (weekStart: string, weekEnd: string) => void;
+  initialDate?: Date;
+}
+
+export function WeekNavigation({ onWeekChange, initialDate }: WeekNavigationProps) {
+  const [currentDate, setCurrentDate] = useState(initialDate || new Date());
   const [rangeType, setRangeType] = useState<DateRangeType>('week');
 
   const getDateRange = (date: Date, type: DateRangeType) => {
@@ -44,6 +49,14 @@ export function WeekNavigation() {
     
     setCurrentDate(newDate);
   };
+
+  // Call onWeekChange when date changes
+  useEffect(() => {
+    if (onWeekChange && rangeType === 'week') {
+      const { start, end } = getDateRange(currentDate, rangeType);
+      onWeekChange(start.toISOString(), end.toISOString());
+    }
+  }, [currentDate, rangeType, onWeekChange]);
 
   const { start, end } = getDateRange(currentDate, rangeType);
   
