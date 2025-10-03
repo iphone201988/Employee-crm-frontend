@@ -524,6 +524,9 @@ export const MyTimeSheet = () => {
                         <Plus className="w-4 h-4" />
                         New Row
                     </Button>
+                      <Button variant="outline" className="flex items-center justify-center gap-2 text-primary border-primary hover:bg-primary/10 h-9 text-sm">
+                       Save Changes
+                      </Button>
                 </div>
             </div>
 

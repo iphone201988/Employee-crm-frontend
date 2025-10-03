@@ -17,6 +17,7 @@ import AllTimeLogsTab from "@/components/AllTimeLogsTab";
 import { Card, CardContent } from "@/components/ui/card";
 import { useGetTabAccessQuery, useLazyGetTabAccessQuery } from "@/store/authApi";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@radix-ui/react-tooltip";
+import { useGetDropdownOptionsQuery } from "@/store/teamApi";
 import Avatars from "@/components/Avatars";
 const generateRandomTime = () => {
   const hours = Math.floor(Math.random() * 10) + 30; // 30-39 hours
@@ -197,6 +198,10 @@ export function TimesheetDashboard() {
   const [hideWeekend, setHideWeekend] = useState(false);
   const [timesheetSortField, setTimesheetSortField] = useState<'ref' | 'client' | 'job' | 'category' | 'description' | 'rate' | null>(null);
   const [timesheetSortDirection, setTimesheetSortDirection] = useState<'asc' | 'desc' | null>(null);
+
+  const { data: clientNames } = useGetDropdownOptionsQuery('client');
+
+  console.log('clientNames=============', clientNames?.data?.clients);
 
   const [timesheetRows, setTimesheetRows] = useState([{
     id: 1,
