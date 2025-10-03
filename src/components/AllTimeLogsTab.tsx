@@ -748,6 +748,7 @@ const AllTimeLogsTab = () => {
                   {visibleColumns.billable && <TableCell className="p-4"></TableCell>}
                   {visibleColumns.status && <TableCell className="p-4"></TableCell>}
                   <TableCell className="p-4"></TableCell>
+                 
                 </TableRow>
               )}
 
@@ -762,7 +763,7 @@ const AllTimeLogsTab = () => {
                         </TableCell>
                         {visibleColumns.teamMember && <TableCell className="p-4"></TableCell>}
                         {visibleColumns.jobType && <TableCell className="p-4"></TableCell>}
-                        {visibleColumns.description && <TableCell className="p-4"></TableCell>}
+                        {visibleColumns.description && <TableCell className="p-4">sxazsas</TableCell>}
                         {visibleColumns.amount && (
                           <TableCell className="p-4 text-right font-semibold">
                             {formatCurrency(logs.reduce((sum, log) => sum + log.amount, 0))}
@@ -771,6 +772,7 @@ const AllTimeLogsTab = () => {
                         {visibleColumns.billable && <TableCell className="p-4"></TableCell>}
                         {visibleColumns.status && <TableCell className="p-4"></TableCell>}
                         <TableCell className="p-4"></TableCell>
+                        <TableCell className="p-4">asdwefrdsdefdsfsdf</TableCell>
                       </TableRow>
                     )}
 
@@ -817,7 +819,7 @@ const AllTimeLogsTab = () => {
                             {getStatusBadge(log.status)}
                           </TableCell>
                         )}
-                        <TableCell className="p-4"></TableCell>
+                        <TableCell className="p-4">test sdfsdfd</TableCell>
                       </TableRow>
                     ))}
                   </React.Fragment>
