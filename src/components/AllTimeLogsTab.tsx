@@ -12,7 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 
-import { Clock, Users, ChevronDown, ChevronRight, Settings, Download, FileText, Edit2, Search, RefreshCw, Move } from 'lucide-react';
+import { Clock, Users, ChevronDown, ChevronRight, Settings, Download, FileText, Edit2, Search, RefreshCw, Move, Plus, Trash2, Check } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { formatCurrency } from '@/lib/currency';
 import { getProfileImage, getUserInitials } from '@/utils/profiles';
@@ -444,7 +444,8 @@ const AllTimeLogsTab = () => {
   
 
       {/* View Switcher */}
-      <div className="flex items-center gap-3 mt-4 border border-[#381980] w-max p-[6px] rounded-sm pl-4">
+      <div className="flex  items-center justify-between">
+        <div className="flex items-center gap-3 mt-4 border border-[#381980] w-max p-[6px] rounded-sm pl-4">
         <p className='text-[#381980] font-semibold'>Group by:</p>
         <div className="flex gap-2">
         <Button
@@ -497,6 +498,8 @@ const AllTimeLogsTab = () => {
         </Button>
       </div>
 
+      </div>
+      <button className='bg-[#017DB9] text-white py-[8px] px-[12px] rounded-[4px] flex items-center gap-[4px]'><Plus size={18}/> Time Log</button>
       </div>
 
 
@@ -637,13 +640,13 @@ const AllTimeLogsTab = () => {
           />
         </div>
         <div className="space-y-2">
-           <Button variant="outline" className="bg-[#381980] w-[42px] rounded-sm text-primary-foreground p-2 hover:bg-primary/90">
+           <Button variant="outline" className="bg-[#381980] w-[42px] rounded-sm text-primary-foreground p-2 ">
           <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4" />
         </Button>
         </div>
         
       </div>
-      <p className='text-[#381980] font-semibold'>29 rows</p>
+      <button className='text-[#fff] font-semibold bg-[#381980] w-[42px] rounded-sm text-primary-foreground p-2 hover:bg-primary/90'><Trash2 /></button>
      </div>
 
 
@@ -659,9 +662,11 @@ const AllTimeLogsTab = () => {
           <TableRow className="border-b border-border bg-muted/50 text-[#381980]">
             {viewMode === 'flat' ? (
               <>
-                <TableHead className="p-3 text-foreground h-12 text-[#381980]">Client Ref.</TableHead>
-                <TableHead className="p-3 text-foreground h-12 text-[#381980]">Client Name</TableHead>
-                <TableHead className="p-3 text-foreground h-12 text-[#381980]">Job Name</TableHead>
+                <TableHead className="p-3 text-foreground h-12 text-[#381980]"><input type="checkbox" name="" id="" /></TableHead>
+                <TableHead className="p-3 text-foreground h-12 text-[#381980]">Date</TableHead>
+                <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">Client Ref.</TableHead>
+                <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">Client Name</TableHead>
+                <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">Job Name</TableHead>
               </>
             ) : (
               <TableHead className="p-3 text-foreground h-12 text-[#381980]">
@@ -672,26 +677,31 @@ const AllTimeLogsTab = () => {
                         'Entry Details'}
               </TableHead>
             )}
-            {visibleColumns.teamMember && <TableHead className="p-3 text-foreground h-12 text-[#381980]">Team Member</TableHead>}
-            {visibleColumns.jobType && <TableHead className="p-3 text-foreground h-12 text-[#381980]">Job Type</TableHead>}
+            {visibleColumns.jobType && <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">Job Type</TableHead>}
+            {visibleColumns.teamMember && <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">Team Name</TableHead>}
             {visibleColumns.description && <TableHead className="p-3 text-foreground h-12 text-[#381980]">Description</TableHead>}
-            {visibleColumns.amount && <TableHead className="p-3 text-foreground h-12 text-right text-[#381980]">Amount</TableHead>}
-            {visibleColumns.billable && <TableHead className="p-3 text-foreground h-12 text-center text-[#381980]">Billable</TableHead>}
-            {visibleColumns.status && <TableHead className="p-3 text-foreground h-12 text-center text-[#381980]">Status</TableHead>}
+            {visibleColumns.amount && <TableHead className="p-3 text-foreground h-12 text-left text-[#381980] whitespace-nowrap">Time Purpose</TableHead>}
+            {visibleColumns.billable && <TableHead className="p-3 text-foreground h-12 text-left text-[#381980]">Billable</TableHead>}
+            {visibleColumns.billable && <TableHead className="p-3 text-foreground h-12 text-left text-[#381980]">Duration</TableHead>}
+            {visibleColumns.amount && <TableHead className="p-3 text-foreground h-12 text-left text-[#381980] whitespace-nowrap">Billable Rate</TableHead>}
+            {visibleColumns.amount && <TableHead className="p-3 text-foreground h-12 text-left text-[#381980]">Amount</TableHead>}
+            {visibleColumns.status && <TableHead className="p-3 text-foreground h-12 text-left text-[#381980]">Status</TableHead>}
 
             {/* Column visibility toggle */}
             <TableHead className="p-3 text-foreground h-12 text-center">
               <Popover>
-                <PopoverTrigger asChild className='mr-[4px]'>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0 bg-white rounded-full">
-                    <Download className="h-4 w-4 bg-red" color='#381980' />
+                <div className="flex gap-[6px]">
+                  <PopoverTrigger asChild className='mr-[4px]'>
+                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0 bg-white rounded-full">
+                    <Download className="h-3 w-3 bg-red" color='#381980' />
                   </Button>
                 </PopoverTrigger>
-                <PopoverTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0 bg-white rounded-full">
-                    <Move className="h-4 w-4 bg-red" color='#381980'/>
+                <PopoverTrigger >
+                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0 bg-white rounded-full">
+                    <Move className="h-3 w-3 bg-red" color='#381980'/>
                   </Button>
                 </PopoverTrigger>
+                </div>
                 <PopoverContent className="w-64" align="end">
                   <div className="space-y-3">
                     <h4 className="font-medium text-sm">Show/Hide Columns</h4>
@@ -778,9 +788,13 @@ const AllTimeLogsTab = () => {
                       <TableRow key={log.id} className="border-b border-border hover:bg-muted/30 transition-colors h-12">
                         {viewMode === 'flat' ? (
                           <>
+                            <TableCell className="p-4"><input type="checkbox" name="" id="" /></TableCell>
+                            <TableCell className="p-4 text-muted-foreground">01/03/2025</TableCell>
                             <TableCell className="p-4 text-muted-foreground">{log.clientRef}</TableCell>
-                            <TableCell className="p-4 text-muted-foreground">{log.clientName}</TableCell>
-                            <TableCell className="p-4 text-muted-foreground">{log.jobName}</TableCell>
+                            <TableCell className="p-4 text-muted-foreground underline whitespace-nowrap">Acme Consulting</TableCell>
+                            <TableCell className="p-4 text-muted-foreground underline whitespace-nowrap">{log.jobName}</TableCell>
+                             {visibleColumns.jobType && <TableCell className="p-4">{log.jobType}</TableCell>}
+
                           </>
                         ) : (
                           <TableCell className="p-4 text-muted-foreground pl-16">{log.description}</TableCell>
@@ -800,24 +814,40 @@ const AllTimeLogsTab = () => {
                             </div>
                           </TableCell>
                         )}
-                        {visibleColumns.jobType && <TableCell className="p-4">{log.jobType}</TableCell>}
-                        {visibleColumns.description && <TableCell className="p-4">{log.description}</TableCell>}
+                        {/* {visibleColumns.jobType && <TableCell className="p-4">{log.jobType}</TableCell>} */}
+                        {visibleColumns.description && <TableCell className="p-4 whitespace-nowrap">{log.description}</TableCell>}
+                        {visibleColumns.description && <TableCell className="p-4">
+                          <Badge variant="secondary" className="bg-[#EBF6ED] text-[#38A24B] border border-[#38A24B] whitespace-nowrap">Client Work</Badge>
+                          {/* <Badge variant="secondary" className="bg-[#FEF8E5] text-[#F6BC00] border border-[#F6BC00] whitespace-nowrap">Admin</Badge>
+                          <Badge variant="secondary" className="bg-[#E5F2F8] text-[#007CB8] border border-[#007CB8] whitespace-nowrap">Training</Badge>
+                          <Badge variant="secondary" className="bg-[#F5F5F5] text-[#999999] border border-[#999999] whitespace-nowrap">Other</Badge> */}
+                          </TableCell>}
+                          {visibleColumns.description && <TableCell className="p-4">
+                          <Badge variant="secondary" className="bg-[#EBF6ED] text-[#38A24B] border border-[#38A24B] whitespace-nowrap  rounded-full !p-[4px]"><Check size={14}/></Badge>
+                          </TableCell>}
                         {visibleColumns.amount && (
-                          <TableCell className="p-4 text-right">{formatCurrency(log.amount)}</TableCell>
-                        )}
-                        {visibleColumns.billable && (
-                          <TableCell className="p-4 text-center">
-                            <Badge variant={log.billable ? "default" : "secondary"}>
-                              {log.billable ? "Yes" : "No"}
-                            </Badge>
+                          <TableCell className="p-4 text-left">
+                            <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold">01:30:00</div>
                           </TableCell>
                         )}
                         {visibleColumns.status && (
-                          <TableCell className="p-4 text-center">
+                          <TableCell className="p-4 text-left">                           
+                            <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold text-center">€100.00</div>
+                          </TableCell>
+                        )}
+                        {visibleColumns.amount && (
+                          <TableCell className="p-4 text-left "><div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold">
+                            {formatCurrency(log.amount)}</div></TableCell>
+                        )}
+                        {visibleColumns.status && (
+                          <TableCell className="p-4 text-left">
                             {getStatusBadge(log.status)}
                           </TableCell>
                         )}
-                        <TableCell className="p-4"></TableCell>
+                        <TableCell className="p-4 text-right">
+                            <Settings className='ml-auto text-[#381980] cursor-pointer' size={16}/>
+                          </TableCell>
+
                       </TableRow>
                     ))}
                   </React.Fragment>

@@ -57,6 +57,13 @@ const Avatars = ({ activeTab, title }: AvatarsProps) => {
           </TooltipProvider>
         </div>
       </div>
+      <select name="" id="" className="bg-[#017DB9] text-white p-[8px] rounded-[4px]">
+        <option value="">Create</option>
+        <option value="">Time Log</option>
+        <option value="">Client</option>
+        <option value="">Job</option>
+        <option value="">Expense</option>
+      </select>
     </div>
   );
 };
