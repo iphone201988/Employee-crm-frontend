@@ -199,7 +199,7 @@ export function TimesheetDashboard() {
   const [hideWeekend, setHideWeekend] = useState(false);
   const [timesheetSortField, setTimesheetSortField] = useState<'ref' | 'client' | 'job' | 'category' | 'description' | 'rate' | null>(null);
   const [timesheetSortDirection, setTimesheetSortDirection] = useState<'asc' | 'desc' | null>(null);
-  
+
   // Week navigation state
   const [currentWeek, setCurrentWeek] = useState(() => getCurrentWeekRange());
 
@@ -208,7 +208,8 @@ export function TimesheetDashboard() {
     setCurrentWeek({ weekStart, weekEnd });
   };
 
-  const { data: clientNames } = useGetDropdownOptionsQuery('client');
+  // Fetch all filter dropdown options (teams, departments, etc.)
+  const { data: allFilterOptions } = useGetDropdownOptionsQuery('all');
 
   // console.log('clientNames=============', clientNames?.data?.clients);
 
@@ -317,7 +318,9 @@ export function TimesheetDashboard() {
   // const { data: currentTabsUsers }: any = useGetTabAccessQuery(activeTab);
   const statusCounts = getStatusCounts(timesheetData);
   useEffect(() => {
+    console.log('TimesheetDashboard: useEffect triggered with visibleTabs:', visibleTabs.length, 'activeTab:', activeTab);
     if (visibleTabs.length > 0 && !visibleTabs.some(tab => tab.id === activeTab)) {
+      console.log('TimesheetDashboard: Setting activeTab to first visible tab:', visibleTabs[0].id);
       setActiveTab(visibleTabs[0].id);
     }
     getTabAccess(activeTab).unwrap();
@@ -438,8 +441,14 @@ export function TimesheetDashboard() {
   // Pagination
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
   const paginatedData = filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-  const departments = Array.from(new Set(timesheetData.map(item => item.department)));
+  // Dynamic filter sources
+  const teamOptions = allFilterOptions?.data?.teams || [];
+  const departmentOptions = allFilterOptions?.data?.departments || [];
   const statuses = ["approved", "review", "rejected", "not-submitted"];
+
+  // Keep current name-based filters for display, but track IDs to be used with future APIs
+  const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([]);
+  const [selectedDepartmentIds, setSelectedDepartmentIds] = useState<string[]>([]);
   const formatTime = (timeObj: any) => {
     return `${timeObj.hours.toString().padStart(2, '0')}:${timeObj.minutes.toString().padStart(2, '0')}`;
   };
@@ -526,9 +535,9 @@ export function TimesheetDashboard() {
     </div>
 
     {/* Date Range Navigation - Show in allTimesheets and myTimesheet tabs */}
-    {(activeTab === "allTimesheets" || activeTab === "myTimesheet") && <div className="mb-3">
+    {/* {(activeTab === "allTimesheets" || activeTab === "myTimesheet") && <div className="mb-3">
       <WeekNavigation onWeekChange={handleWeekChange} />
-    </div>}
+    </div>} */}
 
     {activeTab === '' && <div>YOU HAVE NO ACCESS</div>}
 
@@ -611,11 +620,32 @@ export function TimesheetDashboard() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" className="bg-white text-xs sm:text-sm">
-          <span className="hidden sm:inline">Team Name</span>
-          <span className="sm:hidden">Team</span>
-          <ChevronDown className="ml-1 sm:ml-2 w-3 h-3 sm:w-4 sm:h-4" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="bg-white text-xs sm:text-sm">
+              <span className="hidden sm:inline">Team Name</span>
+              <span className="sm:hidden">Team</span>
+              <ChevronDown className="ml-1 sm:ml-2 w-3 h-3 sm:w-4 sm:h-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            {(teamOptions as any[]).map((t) => (
+              <DropdownMenuCheckboxItem
+                key={t._id}
+                checked={selectedTeamIds.includes(t._id)}
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    setSelectedTeamIds([...selectedTeamIds, t._id]);
+                  } else {
+                    setSelectedTeamIds(selectedTeamIds.filter(id => id !== t._id));
+                  }
+                }}
+              >
+                {t.name}
+              </DropdownMenuCheckboxItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -626,15 +656,23 @@ export function TimesheetDashboard() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent>
-            {departments.map(dept => <DropdownMenuCheckboxItem key={dept} checked={selectedDepartments.includes(dept)} onCheckedChange={checked => {
-              if (checked) {
-                setSelectedDepartments([...selectedDepartments, dept]);
-              } else {
-                setSelectedDepartments(selectedDepartments.filter(d => d !== dept));
-              }
-            }}>
-              {dept}
-            </DropdownMenuCheckboxItem>)}
+            {(departmentOptions as any[]).map((dept) => (
+              <DropdownMenuCheckboxItem
+                key={dept._id}
+                checked={selectedDepartmentIds.includes(dept._id)}
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    setSelectedDepartmentIds([...selectedDepartmentIds, dept._id]);
+                    setSelectedDepartments([...selectedDepartments, dept.name]);
+                  } else {
+                    setSelectedDepartmentIds(selectedDepartmentIds.filter(id => id !== dept._id));
+                    setSelectedDepartments(selectedDepartments.filter(d => d !== dept.name));
+                  }
+                }}
+              >
+                {dept.name}
+              </DropdownMenuCheckboxItem>
+            ))}
           </DropdownMenuContent>
         </DropdownMenu>
 
@@ -719,7 +757,7 @@ export function TimesheetDashboard() {
                 <td className="px-2 sm:px-4 py-2">
                   <div className="flex items-center gap-2 sm:gap-3">
                     <Avatar className="w-6 h-6 sm:w-8 sm:h-8 flex-shrink-0">
-                      <AvatarImage src={item.avatar} />
+                      <AvatarImage src={import.meta.env.VITE_API_URL + "/" + item.avatar} />
                       <AvatarFallback className="text-xs">{item.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
                     </Avatar>
                     <span className="text-sm sm:text-base text-foreground truncate">{item.name}</span>
@@ -777,8 +815,12 @@ export function TimesheetDashboard() {
     </>}
 
     {/* My Timesheets Tab Content */}
-    {activeTab === "myTimesheet" &&
-      <MyTimeSheet currentWeek={currentWeek} onWeekChange={handleWeekChange} />}
+    {activeTab === "myTimesheet" && (
+      <>
+        {/* {console.log('TimesheetDashboard: Rendering MyTimeSheet with activeTab:', activeTab, 'currentWeek:', currentWeek)} */}
+        <MyTimeSheet currentWeek={currentWeek} onWeekChange={handleWeekChange} />
+      </>
+    )}
 
     {/* Time Logs Tab Content */}
     {activeTab === "timeLogs" && <AllTimeLogsTab />}

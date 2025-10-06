@@ -1,20 +1,53 @@
 import { TimeEntry, DailySummary } from '@/store/timesheetApi';
 
-// Convert minutes to hours (decimal format)
+// Convert seconds to hours (decimal format)
+export const secondsToHours = (seconds: number): number => {
+  return seconds / 3600;
+};
+
+// Convert hours to seconds
+export const hoursToSeconds = (hours: number): number => {
+  return Math.round(hours * 3600);
+};
+
+// Convert minutes to hours (decimal format) - keeping for backward compatibility
 export const minutesToHours = (minutes: number): number => {
   return minutes / 60;
 };
 
-// Convert hours to minutes
+// Convert hours to minutes - keeping for backward compatibility
 export const hoursToMinutes = (hours: number): number => {
   return Math.round(hours * 60);
 };
 
-// Format hours for display (e.g., 8.5 -> "08:30")
+// Convert seconds to time string (HH:mm:ss format) - same as DetailsContent.tsx
+export const secondsToTime = (seconds: number): string => {
+  if (isNaN(seconds) || seconds < 0) return '00:00:00';
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+};
+
+// Convert time string (HH:mm:ss or HH:mm) to total seconds - same as DetailsContent.tsx
+export const timeToSeconds = (timeStr: string): number => {
+  if (!timeStr) return 0;
+  const parts = timeStr.split(':').map(Number);
+  if (parts.some(isNaN)) return 0;
+  const [hours = 0, minutes = 0, seconds = 0] = parts;
+  return (hours * 3600) + (minutes * 60) + seconds;
+};
+
+// Format hours for display (e.g., 8.5 -> "08:30") - keeping for backward compatibility
 export const formatHours = (hours: number): string => {
   const h = Math.floor(hours);
   const m = Math.round((hours - h) * 60);
   return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+};
+
+// Format seconds for display (e.g., 30600 -> "08:30:00")
+export const formatSeconds = (seconds: number): string => {
+  return secondsToTime(seconds);
 };
 
 // Parse time input (supports both "8:30" and "8.5" formats)
@@ -37,40 +70,48 @@ export const parseTimeInput = (input: string): number => {
 
 // Get week start and end dates for a given date
 export const getWeekRange = (date: Date): { weekStart: string; weekEnd: string } => {
-  const current = new Date(date);
+  // Always calculate based on UTC day
+  const utcYear = date.getUTCFullYear();
+  const utcMonth = date.getUTCMonth();
+  const utcDate = date.getUTCDate();
+  const currentUTCDate = new Date(Date.UTC(utcYear, utcMonth, utcDate));
+  const day = currentUTCDate.getUTCDay(); // 0 (Sun) to 6 (Sat)
+  const diffToMonday = day === 0 ? -6 : 1 - day;
 
-  // getUTCDay(): 0 (Sun), 1 (Mon), ... 6 (Sat)
-  const day = current.getUTCDay();
+  const weekStart = new Date(Date.UTC(utcYear, utcMonth, utcDate + diffToMonday));
+  const weekEnd = new Date(Date.UTC(weekStart.getUTCFullYear(), weekStart.getUTCMonth(), weekStart.getUTCDate() + 6, 23, 59, 59, 999));
 
-  // Calculate diff to Monday (UTC)
-  const diffToMonday = (day === 0 ? -6 : 1 - day);
-
-  // Week start (Monday 00:00 UTC)
-  const weekStart = new Date(Date.UTC(
-    current.getUTCFullYear(),
-    current.getUTCMonth(),
-    current.getUTCDate() + diffToMonday,
-    0, 0, 0, 0
-  ));
-
-  // Week end (Sunday 23:59:59.999 UTC)
-  const weekEnd = new Date(Date.UTC(
-    weekStart.getUTCFullYear(),
-    weekStart.getUTCMonth(),
-    weekStart.getUTCDate() + 6,
-    23, 59, 59, 999
-  ));
+  // Custom ISO formatter that keeps "calendar date" same everywhere
+  const formatFixedISO = (d: Date) =>
+    `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}T${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}:${String(d.getUTCSeconds()).padStart(2, "0")}.${String(d.getUTCMilliseconds()).padStart(3, "0")}Z`;
 
   return {
-    weekStart: weekStart.toISOString(),
-    weekEnd: weekEnd.toISOString(),
+    weekStart: formatFixedISO(weekStart),
+    weekEnd: formatFixedISO(weekEnd),
   };
 };
 
 
-// Get current week range
+
+
+// Get current week range - memoized to prevent unnecessary recalculations
+let cachedWeekRange: { weekStart: string; weekEnd: string } | null = null;
+let lastCacheTime = 0;
+const CACHE_DURATION = 60000; // 1 minute cache
+
 export const getCurrentWeekRange = (): { weekStart: string; weekEnd: string } => {
-  return getWeekRange(new Date());
+  const now = Date.now();
+  
+  // Return cached result if it's still valid (within 1 minute)
+  if (cachedWeekRange && (now - lastCacheTime) < CACHE_DURATION) {
+    return cachedWeekRange;
+  }
+  
+  // Calculate new week range
+  cachedWeekRange = getWeekRange(new Date());
+  lastCacheTime = now;
+  
+  return cachedWeekRange;
 };
 
 // Convert time entries to timesheet rows format
@@ -118,7 +159,7 @@ export const convertTimeEntriesToRows = (
     entry.logs.forEach((log) => {
       const logDate = new Date(log.date);
       const dayOfWeek = logDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
-      const hoursValue = minutesToHours(log.duration);
+      const hoursValue = secondsToHours(log.duration); // Convert seconds to hours
       
       switch (dayOfWeek) {
         case 0: hours.sun = hoursValue; break;
@@ -254,7 +295,7 @@ export const convertRowsToTimeEntries = (
         logDate.setDate(weekStartDate.getDate() + index);
         logs.push({
           date: logDate.toISOString(),
-          duration: hoursToMinutes(hours),
+          duration: hoursToSeconds(hours), // Convert hours to seconds
         });
       }
     });
@@ -274,6 +315,7 @@ export const convertRowsToTimeEntries = (
 
 // Get daily summary data for display
 export const getDailySummaryData = (dailySummary: DailySummary[]) => {
+  console.log("dailySummary============", dailySummary);
   const summary = {
     mon: { billable: 0, nonBillable: 0, logged: 0, capacity: 0, variance: 0 },
     tue: { billable: 0, nonBillable: 0, logged: 0, capacity: 0, variance: 0 },
@@ -289,11 +331,11 @@ export const getDailySummaryData = (dailySummary: DailySummary[]) => {
     const dayOfWeek = date.getDay();
     
     const dayData = {
-      billable: minutesToHours(day.billable),
-      nonBillable: minutesToHours(day.nonBillable),
-      logged: minutesToHours(day.totalLogged),
-      capacity: minutesToHours(day.capacity),
-      variance: minutesToHours(day.variance),
+      billable: secondsToHours(day.billable),
+      nonBillable: secondsToHours(day.nonBillable),
+      logged: secondsToHours(day.totalLogged),
+      capacity: secondsToHours(day.capacity),
+      variance: secondsToHours(day.variance),
     };
     
     switch (dayOfWeek) {
@@ -308,4 +350,48 @@ export const getDailySummaryData = (dailySummary: DailySummary[]) => {
   });
   
   return summary;
+};
+
+// Get week day names and dates dynamically based on weekStart and weekEnd
+export const getWeekDays = (weekStart: string, weekEnd: string) => {
+  // Treat provided weekStart as Monday (backend sends Monday start)
+  const monday = new Date(weekStart);
+  // Normalize to UTC-based arithmetic to avoid TZ shifts
+  const mondayUTC = new Date(Date.UTC(
+    monday.getUTCFullYear(),
+    monday.getUTCMonth(),
+    monday.getUTCDate()
+  ));
+
+  const result: { key: string; label: string; date: number; fullDate: Date }[] = [];
+  const keys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
+  const labels = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'] as const;
+
+  // Build mapping so that:
+  // index 1..5 => Mon..Fri (monday + 0..4)
+  // index 6 => Sat (monday + 5)
+  // index 0 => Sun (monday + 6)
+  const indexToOffset: Record<number, number> = {
+    0: 6, // Sunday at the end of the week
+    1: 0,
+    2: 1,
+    3: 2,
+    4: 3,
+    5: 4,
+    6: 5,
+  };
+
+  for (let i = 0; i < 7; i++) {
+    const offset = indexToOffset[i];
+    const d = new Date(mondayUTC);
+    d.setUTCDate(mondayUTC.getUTCDate() + offset);
+    result.push({
+      key: keys[i],
+      label: labels[i],
+      date: d.getUTCDate(),
+      fullDate: d,
+    });
+  }
+
+  return result;
 };

@@ -2,7 +2,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { Search, Filter, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, RotateCcw, RefreshCw, ArrowLeft, Plus, X, Trash2, Edit2 } from "lucide-react";
 import { StatusBadge, FilterBadge } from "@/components/StatusBadge";
-import { WeekNavigation } from "@/components/WeekNavigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -10,17 +9,23 @@ import { Switch } from "@/components/ui/switch";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
 import { DashboardCard, DashboardGrid } from "@/components/ui/dashboard-card";
 import { Card, CardContent } from "../ui/card";
-import { useGetTimesheetQuery, useAddTimesheetMutation, useUpdateTimesheetMutation } from "@/store/timesheetApi";
+import { useGetTimesheetQuery, useAddTimesheetMutation } from "@/store/timesheetApi";
+import { toast } from "sonner";
 import { useGetCurrentUserQuery } from "@/store/authApi";
 import { 
   formatHours, 
+  formatSeconds,
+  secondsToTime,
+  timeToSeconds,
+  hoursToSeconds,
   parseTimeInput, 
   getCurrentWeekRange, 
   convertTimeEntriesToRows, 
   calculateTotals, 
   convertRowsToTimeEntries,
   getDailySummaryData,
-  minutesToHours
+  getWeekDays,
+  secondsToHours
 } from "@/utils/timesheetUtils";
 
 // Types for timesheet rows
@@ -50,6 +55,14 @@ interface MyTimeSheetProps {
 }
 
 export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange }: MyTimeSheetProps = {}) => {
+    // Debug component mount/unmount
+    useEffect(() => {
+        console.log('MyTimeSheet: Component mounted');
+        return () => {
+            console.log('MyTimeSheet: Component unmounted');
+        };
+    }, []);
+
     const [hideWeekend, setHideWeekend] = useState(false);
     const [timesheetSortField, setTimesheetSortField] = useState<'ref' | 'client' | 'job' | 'category' | 'description' | 'rate' | null>(null);
     const [timesheetSortDirection, setTimesheetSortDirection] = useState<'asc' | 'desc' | null>(null);
@@ -57,31 +70,42 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange }: MyTi
     const [isLoading, setIsLoading] = useState(false);
     const [hasChanges, setHasChanges] = useState(false);
 
-    // Use prop current week or fallback to default
-    const currentWeek =  getCurrentWeekRange();
-    //  console.log("currentWeek============", currentWeek);
-    // Get current user
+    // Track current week for query and navigation
+    const [currentWeek, setCurrentWeek] = useState(() => propCurrentWeek ?? getCurrentWeekRange());
+    
+    // Memoize query parameters to prevent unnecessary re-queries
+    const queryParams = useMemo(() => ({
+        weekStart: currentWeek.weekStart,
+        weekEnd: currentWeek.weekEnd,
+    }), [currentWeek.weekStart, currentWeek.weekEnd]);
+
     const { data: currentUser } = useGetCurrentUserQuery();
 
-    // Get timesheet data for current week
     const { 
         data: timesheetData, 
         isLoading: isTimesheetLoading, 
         error: timesheetError,
         refetch: refetchTimesheet 
-    } = useGetTimesheetQuery({
-        weekStart: currentWeek.weekStart,
-        weekEnd: currentWeek.weekEnd,
-    });
+    } = useGetTimesheetQuery(queryParams);
+
+    useEffect(() => {
+        console.log('MyTimeSheet: useGetTimesheetQuery called with:', {
+            weekStart: queryParams.weekStart,
+            weekEnd: queryParams.weekEnd,
+            isLoading: isTimesheetLoading,
+            hasData: !!timesheetData
+        });
+    }, [queryParams.weekStart, queryParams.weekEnd, isTimesheetLoading, timesheetData]);
 
     // Mutations
     const [addTimesheet] = useAddTimesheetMutation();
-    const [updateTimesheet] = useUpdateTimesheetMutation();
 
     // Extract data from API response
     const timesheet = timesheetData?.data;
     const dropdownOptions = timesheetData?.dropdoenOptionals;
     const billableRate = timesheetData?.billableRate || 35;
+    const userDisplayName = (timesheetData as any)?.name;
+    const userAvatarUrl = (timesheetData as any)?.avatarUrl;
 
     // Convert API data to dropdown options
     const clients = dropdownOptions?.clients || [];
@@ -103,6 +127,15 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange }: MyTi
         }
     }, [timesheet?.timeEntries, clients, jobs, categories]);
 
+    // When no data comes back for the selected week, clear the table rows
+    useEffect(() => {
+        const noEntries = !isTimesheetLoading && (!timesheet || !timesheet.timeEntries || timesheet.timeEntries.length === 0);
+        if (noEntries) {
+            setTimesheetRows([]);
+            setHasChanges(false);
+        }
+    }, [isTimesheetLoading, timesheet?.timeEntries, currentWeek.weekStart, currentWeek.weekEnd]);
+
     // Handle week change - delegate to parent if provided
     const handleWeekChange = (weekStart: string, weekEnd: string) => {
         if (onWeekChange) {
@@ -111,34 +144,79 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange }: MyTi
         setHasChanges(false);
     };
 
+    // Build full payload for API (times, summaries, totals in seconds)
+    const buildPayload = () => {
+        if (!clients.length || !jobs.length || !categories.length) return null;
+        const timeEntries = convertRowsToTimeEntries(
+            timesheetRows,
+            clients,
+            jobs,
+            categories,
+            currentWeek.weekStart
+        );
+        
+        // Precompute totals and build dailySummary aligned by offset from weekStart
+        const totals = calculateTotals(timesheetRows);
+        const dayKeys = ['mon','tue','wed','thu','fri','sat','sun'] as const;
+        const dailySummary = dayKeys.map((key, offset) => {
+            const cap = hoursToSeconds(8);
+            const total = hoursToSeconds((totals.logged as any)[key] || 0);
+            const bill = hoursToSeconds((totals.billable as any)[key] || 0);
+            const nonBill = hoursToSeconds((totals.nonBillable as any)[key] || 0);
+            const dateObj = new Date(currentWeek.weekStart);
+            dateObj.setDate(new Date(currentWeek.weekStart).getDate() + offset);
+            return {
+                date: dateObj.toISOString(),
+                billable: bill,
+                nonBillable: nonBill,
+                totalLogged: total,
+                capacity: cap,
+                variance: cap - total,
+            };
+        });
+
+        const payload = {
+            weekStart: currentWeek.weekStart,
+            weekEnd: currentWeek.weekEnd,
+            status: 'draft' as const,
+            timeEntries,
+            dailySummary,
+            totalBillable: hoursToSeconds(totals.billable.total),
+            totalNonBillable: hoursToSeconds(totals.nonBillable.total),
+            totalLogged: hoursToSeconds(totals.logged.total),
+            totalCapacity: hoursToSeconds(40),
+            totalVariance: hoursToSeconds(40 - totals.logged.total),
+        };
+        return payload;
+    };
+
     // Save timesheet changes
     const handleSaveChanges = async () => {
         if (!timesheet || !clients.length || !jobs.length || !categories.length) return;
         
         setIsLoading(true);
         try {
-            const timeEntries = convertRowsToTimeEntries(
-                timesheetRows,
-                clients,
-                jobs,
-                categories,
-                currentWeek.weekStart
-            );
-
-            if (timesheet._id) {
-                // Update existing timesheet
-                await updateTimesheet({
-                    timesheetId: timesheet._id,
-                    timeEntries,
-                }).unwrap();
-            } else {
-                // Create new timesheet
-                await addTimesheet({
-                    weekStart: currentWeek.weekStart,
-                    weekEnd: currentWeek.weekEnd,
-                    timeEntries,
-                }).unwrap();
+            // Validate each row has at least one non-zero hour
+            const hasEmptyRow = timesheetRows.some(row => {
+                const hrs = row.hours;
+                return (
+                    (!hrs.mon || hrs.mon <= 0) &&
+                    (!hrs.tue || hrs.tue <= 0) &&
+                    (!hrs.wed || hrs.wed <= 0) &&
+                    (!hrs.thu || hrs.thu <= 0) &&
+                    (!hrs.fri || hrs.fri <= 0) &&
+                    (!hrs.sat || hrs.sat <= 0) &&
+                    (!hrs.sun || hrs.sun <= 0)
+                );
+            });
+            if (timesheetRows.length > 0 && hasEmptyRow) {
+                alert('Please add some hours in the timesheet for each row before saving.');
+                return;
             }
+
+            const payload = buildPayload();
+            if (!payload) throw new Error('Unable to build payload');
+            await addTimesheet(payload).unwrap();
             
             setHasChanges(false);
             await refetchTimesheet();
@@ -196,9 +274,32 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange }: MyTi
 
     // Update row data
     const updateRow = (rowId: string, updates: Partial<TimesheetRow>) => {
-        setTimesheetRows(rows => 
-            rows.map(r => r.id === rowId ? { ...r, ...updates } : r)
-        );
+        // Capacity enforcement: 8 hours per day (across all rows)
+        const MAX_HOURS_PER_DAY = 8;
+        const dayKeys: Array<keyof TimesheetRow['hours']> = ['mon','tue','wed','thu','fri','sat','sun'];
+
+        if (updates.hours) {
+            // Determine which day(s) are being updated
+            const targetDays = dayKeys.filter(k => updates.hours && typeof updates.hours[k] === 'number');
+
+            // Build next rows tentatively
+            const nextRows = timesheetRows.map(r => r.id === rowId ? { ...r, hours: { ...r.hours, ...(updates.hours as any) } } : r);
+
+            // For each affected day, compute total and validate
+            for (const day of targetDays) {
+                const totalForDay = nextRows.reduce((sum, r) => sum + (r.hours[day] || 0), 0);
+                if (totalForDay > MAX_HOURS_PER_DAY) {
+                    toast.error(`You cannot log more than ${MAX_HOURS_PER_DAY}:00 hours in a single day.`);
+                    return; // Block the update
+                }
+            }
+
+            setTimesheetRows(nextRows);
+            setHasChanges(true);
+            return;
+        }
+
+        setTimesheetRows(rows => rows.map(r => r.id === rowId ? { ...r, ...updates } : r));
         setHasChanges(true);
     };
     const handleTimesheetSort = (field: 'ref' | 'client' | 'job' | 'category' | 'description' | 'rate') => {
@@ -226,6 +327,32 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange }: MyTi
     // Calculate totals using memoized function
     const totals = useMemo(() => calculateTotals(timesheetRows), [timesheetRows]);
 
+    // Get week days dynamically
+    const weekDays = useMemo(() => {
+        if (timesheet?.weekStart && timesheet?.weekEnd) {
+            return getWeekDays(timesheet.weekStart, timesheet.weekEnd);
+        }
+        return getWeekDays(currentWeek.weekStart, currentWeek.weekEnd);
+    }, [timesheet?.weekStart, timesheet?.weekEnd, currentWeek]);
+
+    // Get totals from API response (in seconds) or fallback to calculated totals
+    const apiTotals = useMemo(() => {
+        if (timesheet) {
+            return {
+                billable: secondsToHours(timesheet.totalBillable),
+                nonBillable: secondsToHours(timesheet.totalNonBillable),
+                logged: secondsToHours(timesheet.totalLogged),
+                variance: secondsToHours(timesheet.totalVariance)
+            };
+        }
+        return {
+            billable: totals.billable.total,
+            nonBillable: totals.nonBillable.total,
+            logged: totals.logged.total,
+            variance: 40 - totals.logged.total
+        };
+    }, [timesheet, totals]);
+
     // Get daily summary data from API
     const dailySummary = useMemo(() => {
         if (timesheet?.dailySummary) {
@@ -241,6 +368,42 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange }: MyTi
             sun: { billable: 0, nonBillable: 0, logged: 0, capacity: 0, variance: 0 },
         };
     }, [timesheet?.dailySummary]);
+
+    // Helpers for week navigation
+    const addDaysUTC = (iso: string, days: number) => {
+        const d = new Date(iso);
+        const dUTC = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+        dUTC.setUTCDate(dUTC.getUTCDate() + days);
+        return dUTC.toISOString().split('T')[0] + 'T00:00:00.000Z';
+    };
+
+    const getWeekRangeFromStart = (weekStartISO: string) => {
+        const start = new Date(weekStartISO);
+        const startUTC = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()));
+        const endUTC = new Date(Date.UTC(startUTC.getUTCFullYear(), startUTC.getUTCMonth(), startUTC.getUTCDate() + 6, 23, 59, 59, 999));
+        return { weekStart: startUTC.toISOString(), weekEnd: endUTC.toISOString() };
+    };
+
+    const thisWeek = getCurrentWeekRange();
+    const canGoNextWeek = useMemo(() => {
+        return new Date(currentWeek.weekStart).getTime() < new Date(thisWeek.weekStart).getTime();
+    }, [currentWeek.weekStart, thisWeek.weekStart]);
+
+    const goPrevWeek = () => {
+        const prevStart = addDaysUTC(currentWeek.weekStart, -7);
+        const range = getWeekRangeFromStart(prevStart);
+        setCurrentWeek(range);
+        onWeekChange?.(range.weekStart, range.weekEnd);
+    };
+
+    const goNextWeek = () => {
+        if (!canGoNextWeek) return;
+        const nextStart = addDaysUTC(currentWeek.weekStart, 7);
+        const range = getWeekRangeFromStart(nextStart);
+        if (new Date(range.weekStart).getTime() > new Date(thisWeek.weekStart).getTime()) return;
+        setCurrentWeek(range);
+        onWeekChange?.(range.weekStart, range.weekEnd);
+    };
 
     // Format week dates for display
     const weekDisplay = useMemo(() => {
@@ -284,21 +447,40 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange }: MyTi
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 sm:p-6 bg-card rounded-lg border gap-4">
                 <div className="flex items-center gap-4">
                     <Avatar className="w-10 h-10 sm:w-12 sm:h-12">
-                        <AvatarImage src={(currentUser as any)?.avatarUrl || "/lovable-uploads/69927594-4747-4d86-a60e-64c607e67d1f.png"} />
+                        <AvatarImage src={userAvatarUrl || (currentUser as any)?.avatarUrl || "/lovable-uploads/69927594-4747-4d86-a60e-64c607e67d1f.png"} />
                         <AvatarFallback>
-                            {currentUser?.name?.split(' ').map(n => n[0]).join('') || 'JS'}
+                            {(userDisplayName || currentUser?.name || 'JS')?.split(' ').map((n: string) => n[0]).join('')}
                         </AvatarFallback>
                     </Avatar>
                     <div>
                         <h2 className="text-lg sm:text-xl font-semibold text-foreground">
-                            {currentUser?.name || 'John Smith'}
+                            {userDisplayName || currentUser?.name || 'John Smith'}
                         </h2>
                     </div>
                 </div>
-                <div className="flex items-center justify-center flex-1">
-                    <p className="text-sm sm:text-base text-muted-foreground font-medium text-center sm:text-left">
+                <div className="flex items-center justify-center flex-1 gap-2">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-8 px-2"
+                        onClick={goPrevWeek}
+                    >
+                        <ChevronLeft className="w-4 h-4" />
+                    </Button>
+                    <p className="text-sm sm:text-base text-muted-foreground font-medium text-center sm:text-left min-w-[220px]">
                         {weekDisplay.start} to {weekDisplay.end} - Week {weekDisplay.weekNumber}
                     </p>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-8 px-2"
+                        onClick={goNextWeek}
+                        disabled={!canGoNextWeek}
+                    >
+                        <ChevronRight className="w-4 h-4" />
+                    </Button>
                 </div>
                 <div className="flex gap-2 w-full sm:w-auto">
                     <Button 
@@ -371,10 +553,10 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange }: MyTi
                     <CardContent className="p-4">
                         <div className="flex items-baseline gap-2">
                             <div className="text-2xl font-bold !text-[#381980]">
-                                {formatHours(totals.billable.total)}
+                                {formatSeconds(timesheet?.totalBillable || 0)}
                             </div>
                             <div className="text-xs sm:text-sm text-muted-foreground">
-                                ({totals.logged.total > 0 ? (totals.billable.total / totals.logged.total * 100).toFixed(1) : 0}%)
+                                ({apiTotals.logged > 0 ? (apiTotals.billable / apiTotals.logged * 100).toFixed(1) : 0}%)
                             </div>
                         </div>
                         <p className="text-sm text-muted-foreground">Billable</p>
@@ -384,10 +566,10 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange }: MyTi
                     <CardContent className="p-4">
                         <div className="flex items-baseline gap-2">
                             <div className="text-2xl font-bold !text-[#381980]">
-                                {formatHours(totals.nonBillable.total)}
+                                {formatSeconds(timesheet?.totalNonBillable || 0)}
                             </div>
                             <div className="text-xs sm:text-sm text-muted-foreground">
-                                ({totals.logged.total > 0 ? (totals.nonBillable.total / totals.logged.total * 100).toFixed(1) : 0}%)
+                                ({apiTotals.logged > 0 ? (apiTotals.nonBillable / apiTotals.logged * 100).toFixed(1) : 0}%)
                             </div>
                         </div>
                         <p className="text-sm text-muted-foreground">Non-Billable</p>
@@ -397,10 +579,10 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange }: MyTi
                     <CardContent className="p-4">
                         <div className="flex items-baseline gap-2">
                             <div className="text-2xl font-bold !text-[#381980]">
-                                {formatHours(totals.logged.total)}
+                                {formatSeconds(timesheet?.totalLogged || 0)}
                             </div>
                             <div className="text-xs sm:text-sm text-muted-foreground">
-                                ({(totals.logged.total / 40 * 100).toFixed(1)}%)
+                                ({(apiTotals.logged / 40 * 100).toFixed(1)}%)
                             </div>
                         </div>
                         <p className="text-sm text-muted-foreground">Total Logged</p>
@@ -410,10 +592,10 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange }: MyTi
                     <CardContent className="p-4">
                         <div className="flex items-baseline gap-2">
                             <div className="text-2xl font-bold !text-[#381980]">
-                                {formatHours(40 - totals.logged.total)}
+                                {formatSeconds(timesheet?.totalVariance || 0)}
                             </div>
                             <div className="text-xs sm:text-sm text-muted-foreground">
-                                ({((40 - totals.logged.total) / 40 * 100).toFixed(1)}%)
+                                ({((apiTotals.variance) / 40 * 100).toFixed(1)}%)
                             </div>
                         </div>
                         <p className="text-sm text-muted-foreground">Variance</p>
@@ -524,13 +706,21 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange }: MyTi
                                         {getTimesheetSortIcon('rate')}
                                     </button>
                                 </th>
-                                <th className="text-center px-1 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-12 sm:w-16">MON 23</th>
-                                <th className="text-center px-1 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-12 sm:w-16">TUE 24</th>
-                                <th className="text-center px-1 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-12 sm:w-16">WED 25</th>
-                                <th className="text-center px-1 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-12 sm:w-16">THU 26</th>
-                                <th className="text-center px-1 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-12 sm:w-16">FRI 27</th>
-                                {!hideWeekend && <th className="text-center px-1 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-12 sm:w-16">SAT 28</th>}
-                                {!hideWeekend && <th className="text-center px-1 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-12 sm:w-16">SUN 29</th>}
+                                {weekDays.slice(1, 6).map((day, index) => (
+                                    <th key={day.key} className="text-center px-1 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-12 sm:w-16">
+                                        {day.label} {day.date}
+                                    </th>
+                                ))}
+                                {!hideWeekend && weekDays.slice(6).map((day, index) => (
+                                    <th key={day.key} className="text-center px-1 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-12 sm:w-16">
+                                        {day.label} {day.date}
+                                    </th>
+                                ))}
+                                {!hideWeekend && weekDays.slice(0, 1).map((day, index) => (
+                                    <th key={day.key} className="text-center px-1 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-12 sm:w-16">
+                                        {day.label} {day.date}
+                                    </th>
+                                ))}
                                 <th className="text-right px-1 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-8 sm:w-12"></th>
                             </tr>
                         </thead>
@@ -629,106 +819,91 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange }: MyTi
                                     }} />
                                 </td>
                                 <td className="px-3 py-2 text-sm">
-                                    {row.billable ? <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="sm" className="text-left p-0 h-8 font-normal">
-                                                {row.rate} <ChevronDown className="ml-1 w-3 h-3" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent>
-                                            {rates.map(rate => <DropdownMenuItem key={rate} onClick={() => {
-                                                updateRow(row.id, {
-                                                    rate
-                                                });
-                                            }}>
-                                                {rate}
-                                            </DropdownMenuItem>)}
-                                        </DropdownMenuContent>
-                                    </DropdownMenu> : null}
+                                    {billableRate ? <span className="text-sm">{'€'+billableRate}</span> : null}
                                 </td>
                                 <td className="px-3 py-2 text-center text-sm">
-                                    <Input type="text" value={row.hours.mon === 0 ? "" : formatHours(row.hours.mon)} onChange={e => {
+                                    <Input type="text" value={row.hours.mon === 0 ? "" : secondsToTime(hoursToSeconds(row.hours.mon))} onChange={e => {
                                         const timeStr = e.target.value;
-                                        const value = parseTimeInput(timeStr);
+                                        const value = timeToSeconds(timeStr) / 3600; // Convert seconds to hours
                                         updateRow(row.id, {
                                             hours: {
                                                 ...row.hours,
                                                 mon: value
                                             }
                                         });
-                                    }} placeholder="" className="w-16 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
+                                    }} placeholder="HH:mm:ss" className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
                                 </td>
                                 <td className="px-3 py-2 text-center text-sm">
-                                    <Input type="text" value={row.hours.tue === 0 ? "" : formatHours(row.hours.tue)} onChange={e => {
+                                    <Input type="text" value={row.hours.tue === 0 ? "" : secondsToTime(hoursToSeconds(row.hours.tue))} onChange={e => {
                                         const timeStr = e.target.value;
-                                        const value = parseTimeInput(timeStr);
+                                        const value = timeToSeconds(timeStr) / 3600;
                                         updateRow(row.id, {
                                             hours: {
                                                 ...row.hours,
                                                 tue: value
                                             }
                                         });
-                                    }} placeholder="" className="w-16 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
+                                    }} placeholder="HH:mm:ss" className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
                                 </td>
                                 <td className="px-3 py-2 text-center text-sm">
-                                    <Input type="text" value={row.hours.wed === 0 ? "" : formatHours(row.hours.wed)} onChange={e => {
+                                    <Input type="text" value={row.hours.wed === 0 ? "" : secondsToTime(hoursToSeconds(row.hours.wed))} onChange={e => {
                                         const timeStr = e.target.value;
-                                        const value = parseTimeInput(timeStr);
+                                        const value = timeToSeconds(timeStr) / 3600;
                                         updateRow(row.id, {
                                             hours: {
                                                 ...row.hours,
                                                 wed: value
                                             }
                                         });
-                                    }} placeholder="" className="w-16 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
+                                    }} placeholder="HH:mm:ss" className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
                                 </td>
                                 <td className="px-3 py-2 text-center text-sm">
-                                    <Input type="text" value={row.hours.thu === 0 ? "" : formatHours(row.hours.thu)} onChange={e => {
+                                    <Input type="text" value={row.hours.thu === 0 ? "" : secondsToTime(hoursToSeconds(row.hours.thu))} onChange={e => {
                                         const timeStr = e.target.value;
-                                        const value = parseTimeInput(timeStr);
+                                        const value = timeToSeconds(timeStr) / 3600;
                                         updateRow(row.id, {
                                             hours: {
                                                 ...row.hours,
                                                 thu: value
                                             }
                                         });
-                                    }} placeholder="" className="w-16 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
+                                    }} placeholder="HH:mm:ss" className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
                                 </td>
                                 <td className="px-3 py-2 text-center text-sm">
-                                    <Input type="text" value={row.hours.fri === 0 ? "" : formatHours(row.hours.fri)} onChange={e => {
+                                    <Input type="text" value={row.hours.fri === 0 ? "" : secondsToTime(hoursToSeconds(row.hours.fri))} onChange={e => {
                                         const timeStr = e.target.value;
-                                        const value = parseTimeInput(timeStr);
+                                        const value = timeToSeconds(timeStr) / 3600;
                                         updateRow(row.id, {
                                             hours: {
                                                 ...row.hours,
                                                 fri: value
                                             }
                                         });
-                                    }} placeholder="" className="w-16 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
+                                    }} placeholder="HH:mm:ss" className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
                                 </td>
                                 {!hideWeekend && <td className="px-3 py-2 text-center text-sm">
-                                    <Input type="text" value={row.hours.sat === 0 ? "" : formatHours(row.hours.sat)} onChange={e => {
+                                    <Input type="text" value={row.hours.sat === 0 ? "" : secondsToTime(hoursToSeconds(row.hours.sat))} onChange={e => {
                                         const timeStr = e.target.value;
-                                        const value = parseTimeInput(timeStr);
+                                        const value = timeToSeconds(timeStr) / 3600;
                                         updateRow(row.id, {
                                             hours: {
                                                 ...row.hours,
                                                 sat: value
                                             }
                                         });
-                                    }} placeholder="" className="w-16 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
+                                    }} placeholder="HH:mm:ss" className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
                                 </td>}
                                 {!hideWeekend && <td className="px-3 py-2 text-center text-sm">
-                                    <Input type="text" value={row.hours.sun === 0 ? "" : formatHours(row.hours.sun)} onChange={e => {
+                                    <Input type="text" value={row.hours.sun === 0 ? "" : secondsToTime(hoursToSeconds(row.hours.sun))} onChange={e => {
                                         const timeStr = e.target.value;
-                                        const value = parseTimeInput(timeStr);
+                                        const value = timeToSeconds(timeStr) / 3600;
                                         updateRow(row.id, {
                                             hours: {
                                                 ...row.hours,
                                                 sun: value
                                             }
                                         });
-                                    }} placeholder="" className="w-16 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
+                                    }} placeholder="HH:mm:ss" className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
                                 </td>}
                                 <td className="px-3 py-2 text-right">
                                     <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700" onClick={() => {
@@ -743,58 +918,98 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange }: MyTi
                         <tbody className="border-t-2 border-border">
                             <tr className="bg-blue-50">
                                 <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right">BILLABLE</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.mon.billable)}</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.tue.billable)}</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.wed.billable)}</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.thu.billable)}</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.fri.billable)}</td>
-                                {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.sat.billable)}</td>}
-                                {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.sun.billable)}</td>}
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.billable.total)}</td>
+                                {weekDays.slice(1, 6).map((day, index) => (
+                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal">
+                                        {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].billable))}
+                                    </td>
+                                ))}
+                                {!hideWeekend && weekDays.slice(6).map((day, index) => (
+                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal">
+                                        {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].billable))}
+                                    </td>
+                                ))}
+                                {!hideWeekend && weekDays.slice(0, 1).map((day, index) => (
+                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal">
+                                        {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].billable))}
+                                    </td>
+                                ))}
+                                <td className="px-3 py-2 text-center text-sm font-normal">{formatSeconds(timesheet?.totalBillable || 0)}</td>
                             </tr>
                             <tr className="bg-gray-50">
                                 <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right">NON BILLABLE</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.mon.nonBillable)}</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.tue.nonBillable)}</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.wed.nonBillable)}</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.thu.nonBillable)}</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.fri.nonBillable)}</td>
-                                {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.sat.nonBillable)}</td>}
-                                {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.sun.nonBillable)}</td>}
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.nonBillable.total)}</td>
+                                {weekDays.slice(1, 6).map((day, index) => (
+                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal">
+                                        {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].nonBillable))}
+                                    </td>
+                                ))}
+                                {!hideWeekend && weekDays.slice(6).map((day, index) => (
+                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal">
+                                        {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].nonBillable))}
+                                    </td>
+                                ))}
+                                {!hideWeekend && weekDays.slice(0, 1).map((day, index) => (
+                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal">
+                                        {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].nonBillable))}
+                                    </td>
+                                ))}
+                                <td className="px-3 py-2 text-center text-sm font-normal">{formatSeconds(timesheet?.totalNonBillable || 0)}</td>
                             </tr>
                             <tr className="bg-blue-50">
                                 <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right">LOGGED</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.mon.logged)}</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.tue.logged)}</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.wed.logged)}</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.thu.logged)}</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.fri.logged)}</td>
-                                {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.sat.logged)}</td>}
-                                {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.sun.logged)}</td>}
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.logged.total)}</td>
+                                {weekDays.slice(1, 6).map((day, index) => (
+                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal">
+                                        {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].logged))}
+                                    </td>
+                                ))}
+                                {!hideWeekend && weekDays.slice(6).map((day, index) => (
+                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal">
+                                        {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].logged))}
+                                    </td>
+                                ))}
+                                {!hideWeekend && weekDays.slice(0, 1).map((day, index) => (
+                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal">
+                                        {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].logged))}
+                                    </td>
+                                ))}
+                                <td className="px-3 py-2 text-center text-sm font-normal">{formatSeconds(timesheet?.totalLogged || 0)}</td>
                             </tr>
                             <tr className="bg-gray-100">
                                 <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right">CAPACITY</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.mon.capacity)}</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.tue.capacity)}</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.wed.capacity)}</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.thu.capacity)}</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.fri.capacity)}</td>
-                                {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.sat.capacity)}</td>}
-                                {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.sun.capacity)}</td>}
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(totals.logged.total > 0 ? totals.logged.total : 40)}</td>
+                                {weekDays.slice(1, 6).map((day, index) => (
+                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal">
+                                        {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].capacity))}
+                                    </td>
+                                ))}
+                                {!hideWeekend && weekDays.slice(6).map((day, index) => (
+                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal">
+                                        {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].capacity))}
+                                    </td>
+                                ))}
+                                {!hideWeekend && weekDays.slice(0, 1).map((day, index) => (
+                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal">
+                                        {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].capacity))}
+                                    </td>
+                                ))}
+                                <td className="px-3 py-2 text-center text-sm font-normal">{formatSeconds(timesheet?.totalCapacity || 0)}</td>
                             </tr>
                             <tr className="bg-red-50">
                                 <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right">VARIANCE</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.mon.variance)}</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.tue.variance)}</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.wed.variance)}</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.thu.variance)}</td>
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.fri.variance)}</td>
-                                {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.sat.variance)}</td>}
-                                {!hideWeekend && <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(dailySummary.sun.variance)}</td>}
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatHours(40 - totals.logged.total)}</td>
+                                {weekDays.slice(1, 6).map((day, index) => (
+                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal">
+                                        {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].variance))}
+                                    </td>
+                                ))}
+                                {!hideWeekend && weekDays.slice(6).map((day, index) => (
+                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal">
+                                        {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].variance))}
+                                    </td>
+                                ))}
+                                {!hideWeekend && weekDays.slice(0, 1).map((day, index) => (
+                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal">
+                                        {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].variance))}
+                                    </td>
+                                ))}
+                                <td className="px-3 py-2 text-center text-sm font-normal">{formatSeconds(timesheet?.totalVariance || 0)}</td>
                             </tr>
                         </tbody>
                     </table>

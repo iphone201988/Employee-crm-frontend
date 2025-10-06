@@ -77,6 +77,10 @@ export interface GetTimesheetResponse {
   data: TimesheetData;
   dropdoenOptionals: DropdownOptionals;
   billableRate: number;
+  // Additional metadata sometimes returned by backend
+  name?: string;
+  avatarUrl?: string;
+  rate?: number;
 }
 
 export interface GetTimesheetRequest {
@@ -88,6 +92,7 @@ export interface GetTimesheetRequest {
 export interface AddTimesheetRequest {
   weekStart: string;
   weekEnd: string;
+  status: TimesheetData['status'];
   timeEntries: Array<{
     clientId: string;
     jobId: string;
@@ -100,24 +105,22 @@ export interface AddTimesheetRequest {
       duration: number; // in minutes
     }>;
   }>;
+  dailySummary: Array<{
+    date: string;
+    billable: number;
+    nonBillable: number;
+    totalLogged: number;
+    capacity: number;
+    variance: number;
+  }>;
+  totalBillable: number;
+  totalNonBillable: number;
+  totalLogged: number;
+  totalCapacity: number;
+  totalVariance: number;
 }
 
-export interface UpdateTimesheetRequest {
-  timesheetId: string;
-  timeEntries: Array<{
-    _id?: string;
-    clientId: string;
-    jobId: string;
-    timeCategoryId: string;
-    description: string;
-    isbillable: boolean;
-    rate?: number;
-    logs: Array<{
-      date: string;
-      duration: number; // in minutes
-    }>;
-  }>;
-}
+// Removed UpdateTimesheetRequest as update endpoint is no longer supported
 
 export const timesheetApi = createApi({
   reducerPath: 'timesheetApi',
@@ -138,9 +141,9 @@ export const timesheetApi = createApi({
       query: ({ weekStart, weekEnd, userId }) => ({
         url: '/',
         params: { 
-          // Ensure UTC ISO format
+          // Use weekEnd as-is since it's already in ISO format from getCurrentWeekRange
           weekStart: weekStart, 
-          weekEnd: new Date(weekEnd).toISOString(), 
+          weekEnd: weekEnd, 
           userId 
         },
       }),
@@ -163,17 +166,7 @@ export const timesheetApi = createApi({
       invalidatesTags: ['Timesheet'],
     }),
     
-    updateTimesheet: builder.mutation<{ success: boolean; message: string; data: any }, UpdateTimesheetRequest>({
-      query: ({ timesheetId, timeEntries }) => ({
-        url: `/update/${timesheetId}`,
-        method: 'PUT',
-        body: { timeEntries },
-      }),
-      invalidatesTags: (result, error, { timesheetId }) => [
-        { type: 'Timesheet', id: timesheetId },
-        'TimeEntry',
-      ],
-    }),
+    // updateTimesheet endpoint removed
   }),
 });
 
@@ -181,5 +174,4 @@ export const {
   useGetTimesheetQuery,
   useLazyGetTimesheetQuery,
   useAddTimesheetMutation,
-  useUpdateTimesheetMutation,
 } = timesheetApi;
