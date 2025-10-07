@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Search, Filter, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, RotateCcw, RefreshCw, ArrowLeft, Plus, X, Trash2, Edit2 } from "lucide-react";
 import { StatusBadge, FilterBadge } from "@/components/StatusBadge";
 import { WeekNavigation } from "@/components/WeekNavigation";
@@ -10,6 +10,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { DashboardCard, DashboardGrid } from "@/components/ui/dashboard-card";
 import { MyTimeSheet } from "@/components/TimeDashboard/MyTimeSheet";
 import CustomTabs from "@/components/Tabs";
+import { getCurrentWeekRange } from "@/utils/timesheetUtils";
 type SortField = 'name' | 'department' | 'capacity' | 'logged' | 'variance' | 'submitted';
 type SortDirection = 'asc' | 'desc' | null;
 import { usePermissionTabs } from "@/hooks/usePermissionTabs";
@@ -19,159 +20,56 @@ import { useGetTabAccessQuery, useLazyGetTabAccessQuery } from "@/store/authApi"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@radix-ui/react-tooltip";
 import { useGetDropdownOptionsQuery } from "@/store/teamApi";
 import Avatars from "@/components/Avatars";
-const generateRandomTime = () => {
-  const hours = Math.floor(Math.random() * 10) + 30; // 30-39 hours
-  const minutes = Math.floor(Math.random() * 60);
-  return {
-    hours,
-    minutes,
-    total: hours + minutes / 60
-  };
+type ApiTimesheet = {
+  _id: string;
+  userId: string;
+  weekStart: string;
+  weekEnd: string;
+  status: string;
+  totalBillable: number;
+  totalNonBillable: number;
+  totalLogged: number;
+  totalCapacity: number;
+  totalVariance: number;
+  user?: { _id: string; name: string; email: string; departmentId?: string };
+  submissionStatus?: string;
+  entriesCount?: number;
 };
-const generateVariance = (capacity: number, logged: {
-  total: number;
-}) => {
-  const varianceTotal = capacity - logged.total;
-  const hours = Math.floor(Math.abs(varianceTotal));
-  const minutes = Math.floor((Math.abs(varianceTotal) - hours) * 60);
-  return {
-    hours,
-    minutes,
-    total: varianceTotal
-  };
-};
-const timesheetData = (() => {
-  const data = [{
-    id: 1,
-    name: "Niall Kelly",
-    department: "Tax",
-    capacity: 35.00,
-    logged: generateRandomTime(),
-    status: "approved" as const,
-    notes: 2,
-    submitted: "01/01/25",
-    avatar: "/lovable-uploads/faf9d4db-b73b-4771-9b8a-fbf1d0e1c69a.png"
-  }, {
-    id: 2,
-    name: "Mary Donavan",
-    department: "Payroll",
-    capacity: 35.00,
-    logged: generateRandomTime(),
-    status: "review" as const,
-    notes: 0,
-    submitted: "04/01/25",
-    avatar: "/lovable-uploads/4f26d575-4f3c-42d8-a83e-e7a97e2b7e70.png"
-  }, {
-    id: 3,
-    name: "Joanne Carthy",
-    department: "Tax",
-    capacity: 35.00,
-    logged: generateRandomTime(),
-    status: "rejected" as const,
-    notes: 0,
-    submitted: "29/02/25",
-    avatar: "/lovable-uploads/f713038f-661b-4859-829f-22567834d707.png"
-  }, {
-    id: 4,
-    name: "James Taylor",
-    department: "Admin",
-    capacity: 35.00,
-    logged: generateRandomTime(),
-    status: "review" as const,
-    notes: 1,
-    submitted: "04/01/25",
-    avatar: "/lovable-uploads/71cb7f14-f958-4960-a6ae-688e313603a5.png"
-  }, {
-    id: 5,
-    name: "Jennifer White",
-    department: "Tax",
-    capacity: 35.00,
-    logged: generateRandomTime(),
-    status: "approved" as const,
-    notes: 2,
-    submitted: "01/01/25",
-    avatar: "/lovable-uploads/3c214215-2945-4eb0-b253-52de50f12239.png"
-  }, {
-    id: 6,
-    name: "Jessica Hall",
-    department: "Management",
-    capacity: 35.00,
-    logged: generateRandomTime(),
-    status: "rejected" as const,
-    notes: 0,
-    submitted: "29/02/25",
-    avatar: "/lovable-uploads/c1b6c757-1457-46be-b74b-d870e28417ac.png"
-  }, {
-    id: 7,
-    name: "John Smith",
-    department: "Tax",
-    capacity: 35.00,
-    logged: generateRandomTime(),
-    status: "not-submitted" as const,
-    notes: 0,
-    submitted: "-",
-    avatar: "/lovable-uploads/69927594-4747-4d86-a60e-64c607e67d1f.png"
-  }, {
-    id: 8,
-    name: "Lisa Anderson",
-    department: "Audit",
-    capacity: 35.00,
-    logged: generateRandomTime(),
-    status: "approved" as const,
-    notes: 3,
-    submitted: "04/01/25",
-    avatar: "/lovable-uploads/229c8a34-da0e-4b64-bda9-444834d2242b.png"
-  }, {
-    id: 9,
-    name: "Michael Brown",
-    department: "Tax",
-    capacity: 35.00,
-    logged: generateRandomTime(),
-    status: "not-submitted" as const,
-    notes: 0,
-    submitted: "-",
-    avatar: "/lovable-uploads/c3af3651-3503-4a35-826d-dbf23695fd57.png"
-  }, {
-    id: 10,
-    name: "Sarah Wilson",
-    department: "Payroll",
-    capacity: 35.00,
-    logged: generateRandomTime(),
-    status: "approved" as const,
-    notes: 1,
-    submitted: "03/01/25",
-    avatar: "/lovable-uploads/f713038f-661b-4859-829f-22567834d707.png"
-  }, {
-    id: 11,
-    name: "David Johnson",
-    department: "Audit",
-    capacity: 35.00,
-    logged: generateRandomTime(),
-    status: "review" as const,
-    notes: 2,
-    submitted: "05/01/25",
-    avatar: "/lovable-uploads/229c8a34-da0e-4b64-bda9-444834d2242b.png"
-  }];
 
-  // Calculate variance for each item
-  return data.map(item => ({
-    ...item,
-    variance: generateVariance(item.capacity, item.logged)
-  }));
-})();
-const getStatusCounts = (data: typeof timesheetData) => {
-  const approved = data.filter(item => item.status === 'approved').length;
-  const review = data.filter(item => item.status === 'review').length;
-  const rejected = data.filter(item => item.status === 'rejected').length;
-  const notSubmitted = data.filter(item => item.status === 'not-submitted').length;
-  return {
-    total: data.length,
-    forReview: review,
-    rejected: rejected,
-    approved: approved,
-    allTimesheets: data.length,
-    notSubmitted: notSubmitted
-  };
+type ApiResponse = {
+  success: boolean;
+  message: string;
+  data: ApiTimesheet[];
+  pagination?: { currentPage: number; totalPages: number; totalItems: number; limit: number };
+  summary?: { totalTeam: number; forReview: number; rejected: number; approved: number; draft: number; totalHours?: number; totalBillableHours?: number };
+};
+
+type TableItem = {
+  id: string;
+  name: string;
+  department: string;
+  capacitySec: number;
+  loggedSec: number;
+  varianceSec: number;
+  status: 'approved' | 'review' | 'rejected' | 'not-submitted';
+  notes: number;
+  submitted: string;
+  avatar?: string;
+};
+
+const normalizeSubmissionStatus = (status?: string): TableItem['status'] => {
+  const s = (status || '').toLowerCase();
+  if (s.includes('approved')) return 'approved';
+  if (s.includes('review')) return 'review';
+  if (s.includes('reject')) return 'rejected';
+  return 'not-submitted';
+};
+
+const formatSecondsToHHMM = (seconds: number) => {
+  const totalMinutes = Math.max(0, Math.floor(seconds / 60));
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
 };
 const tabs = [{
   id: "myTimesheet",
@@ -191,17 +89,30 @@ export function TimesheetDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
+  // Keep current name-based filters for display, but track IDs to be used with APIs
+  const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([]);
+  const [selectedDepartmentIds, setSelectedDepartmentIds] = useState<string[]>([]);
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  const [apiPagination, setApiPagination] = useState<{ currentPage: number; totalPages: number; totalItems: number; limit: number } | null>(null);
   const [hideWeekend, setHideWeekend] = useState(false);
   const [timesheetSortField, setTimesheetSortField] = useState<'ref' | 'client' | 'job' | 'category' | 'description' | 'rate' | null>(null);
   const [timesheetSortDirection, setTimesheetSortDirection] = useState<'asc' | 'desc' | null>(null);
 
-  const { data: clientNames } = useGetDropdownOptionsQuery('client');
+  // Week navigation state
+  const [currentWeek, setCurrentWeek] = useState(() => getCurrentWeekRange());
 
-  console.log('clientNames=============', clientNames?.data?.clients);
+  // Week change handler
+  const handleWeekChange = (weekStart: string, weekEnd: string) => {
+    setCurrentWeek({ weekStart, weekEnd });
+  };
+
+  // Fetch all filter dropdown options (teams, departments, etc.)
+  const { data: allFilterOptions } = useGetDropdownOptionsQuery('all');
+
+  // console.log('clientNames=============', clientNames?.data?.clients);
 
   const [timesheetRows, setTimesheetRows] = useState([{
     id: 1,
@@ -304,11 +215,114 @@ export function TimesheetDashboard() {
     getTabAccess(activeTab).unwrap();
   }, [])
 
-
+  
   // const { data: currentTabsUsers }: any = useGetTabAccessQuery(activeTab);
-  const statusCounts = getStatusCounts(timesheetData);
+  // Fetch all timesheets for the table
+  const [apiTimesheets, setApiTimesheets] = useState<ApiTimesheet[]>([]);
+  const [apiSummary, setApiSummary] = useState<ApiResponse['summary'] | undefined>();
+  const [isFetching, setIsFetching] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  const fetchTimesheets = useMemo(() => {
+    return async (page: number) => {
+      const controller = new AbortController();
+      try {
+        setIsFetching(true);
+        setFetchError(null);
+        const token = localStorage.getItem('userToken');
+        const params = new URLSearchParams();
+        params.set('page', String(page));
+        params.set('limit', String(itemsPerPage));
+        // filters
+        if (searchQuery) params.set('search', searchQuery);
+        // status preference: dropdown selection wins, else active tab badge
+        const statusFromDropdown = selectedStatuses[0];
+        const statusFromTab = activeFilter !== 'allTimesheets' ? activeFilter : '';
+        const statusKey = (statusFromDropdown || statusFromTab);
+        const statusLabelMap: Record<string, string> = {
+          'approved': 'Approved',
+          'review': 'For Review',
+          'rejected': 'Rejected',
+          'not-submitted': 'Not Submitted',
+        };
+        if (statusKey) params.set('status', statusLabelMap[statusKey] || statusKey);
+        if (currentWeek?.weekStart) params.set('weekStart', currentWeek.weekStart);
+        if (currentWeek?.weekEnd) params.set('weekEnd', currentWeek.weekEnd);
+        if (selectedTeamIds[0]) params.set('userId', selectedTeamIds[0]);
+        if (selectedDepartmentIds[0]) params.set('departmentId', selectedDepartmentIds[0]);
+
+        const url = `${import.meta.env.VITE_API_URL}/timesheet/all?${params.toString()}`;
+        const res = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'authorization': `Bearer ${token}` } : {}),
+            'ngrok-skip-browser-warning': '69420'
+          },
+          signal: controller.signal,
+        });
+        if (!res.ok) throw new Error(`Failed to fetch timesheets (${res.status})`);
+        const json: ApiResponse = await res.json();
+        setApiTimesheets(json?.data || []);
+        setApiSummary(json?.summary);
+        if (json?.pagination) setApiPagination(json.pagination);
+      } catch (e: any) {
+        if (e?.name !== 'AbortError') setFetchError(e?.message || 'Failed to fetch');
+      } finally {
+        setIsFetching(false);
+      }
+      return () => controller.abort();
+    };
+  }, [itemsPerPage, searchQuery, selectedStatuses, activeFilter, currentWeek?.weekStart, currentWeek?.weekEnd, selectedTeamIds, selectedDepartmentIds]);
+
   useEffect(() => {
+    fetchTimesheets(currentPage);
+  }, [fetchTimesheets, currentPage]);
+
+  // Build department map for display
+  const departmentOptions = allFilterOptions?.data?.departments || [];
+  const departmentMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    (departmentOptions as any[]).forEach((d: any) => { if (d?._id) map[d._id] = d?.name || ''; });
+    return map;
+  }, [departmentOptions]);
+
+  // Transform API -> table rows
+  const tableData = useMemo(() => {
+    return (apiTimesheets || []).map((t) => {
+      const name = t?.user?.name || '—';
+      const department = t?.user?.departmentId ? (departmentMap[t.user.departmentId] || '') : '';
+      const capacitySec = Number(t?.totalCapacity || 0);
+      const loggedSec = Number(t?.totalLogged || 0);
+      const varianceSec = Math.max(0, capacitySec - loggedSec);
+      const status = normalizeSubmissionStatus(t?.submissionStatus);
+      return {
+        id: t?._id,
+        name,
+        department,
+        capacitySec,
+        loggedSec,
+        varianceSec,
+        status,
+        notes: Number(t?.entriesCount || 0),
+        submitted: status === 'not-submitted' ? '-' : new Date(t?.weekEnd || Date.now()).toLocaleDateString(),
+        avatar: ''
+      } as const;
+    });
+  }, [apiTimesheets, departmentMap]);
+
+  const statusCounts = useMemo(() => {
+    const total = tableData.length;
+    const approved = apiSummary?.approved ?? tableData.filter(i => i.status === 'approved').length;
+    const forReview = apiSummary?.forReview ?? tableData.filter(i => i.status === 'review').length;
+    const rejected = apiSummary?.rejected ?? tableData.filter(i => i.status === 'rejected').length;
+    const notSubmitted = apiSummary?.draft ?? tableData.filter(i => i.status === 'not-submitted').length;
+    return { total, forReview, rejected, approved, allTimesheets: total, notSubmitted };
+  }, [tableData, apiSummary]);
+  useEffect(() => {
+    console.log('TimesheetDashboard: useEffect triggered with visibleTabs:', visibleTabs.length, 'activeTab:', activeTab);
     if (visibleTabs.length > 0 && !visibleTabs.some(tab => tab.id === activeTab)) {
+      console.log('TimesheetDashboard: Setting activeTab to first visible tab:', visibleTabs[0].id);
       setActiveTab(visibleTabs[0].id);
     }
     getTabAccess(activeTab).unwrap();
@@ -322,8 +336,7 @@ export function TimesheetDashboard() {
     setSortDirection(null);
     setCurrentPage(1);
     setActiveFilter("allTimesheets");
-    // In a real app, this would refetch data from the server
-    window.location.reload();
+    fetchTimesheets(1);
   };
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -370,48 +383,20 @@ export function TimesheetDashboard() {
     return <ArrowUpDown className="w-3 h-3 opacity-50" />;
   };
 
-  // Filter and sort data
-  const filteredData = timesheetData.filter(item => {
-    // Search filter
-    if (searchQuery && !item.name.toLowerCase().includes(searchQuery.toLowerCase())) {
-      return false;
-    }
-
-    // Department filter
-    if (selectedDepartments.length > 0 && !selectedDepartments.includes(item.department)) {
-      return false;
-    }
-
-    // Status filter
-    if (selectedStatuses.length > 0 && !selectedStatuses.includes(item.status)) {
-      return false;
-    }
-
-    // Badge filter
-    if (activeFilter === "not-submitted" && item.status !== "not-submitted") {
-      return false;
-    }
-    if (activeFilter === "review" && item.status !== "review") {
-      return false;
-    }
-    if (activeFilter === "rejected" && item.status !== "rejected") {
-      return false;
-    }
-    if (activeFilter === "approved" && item.status !== "approved") {
-      return false;
-    }
-    return true;
-  }).sort((a, b) => {
+  // Sort current page data (server provides filtered/paginated set)
+  const filteredData = [...tableData].sort((a, b) => {
     if (!sortField || !sortDirection) return 0;
     let aValue = a[sortField];
     let bValue = b[sortField];
 
-    // Handle object comparison for logged/variance
-    if (typeof aValue === 'object' && aValue !== null && 'total' in aValue) {
-      aValue = aValue.total;
+    // Normalize time-based fields to seconds for sorting
+    if (sortField === 'logged') {
+      aValue = (a as any).loggedSec;
+      bValue = (b as any).loggedSec;
     }
-    if (typeof bValue === 'object' && bValue !== null && 'total' in bValue) {
-      bValue = bValue.total;
+    if (sortField === 'variance') {
+      aValue = (a as any).varianceSec;
+      bValue = (b as any).varianceSec;
     }
 
     // Handle string comparison
@@ -426,19 +411,16 @@ export function TimesheetDashboard() {
     }
   });
 
-  // Pagination
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
-  const paginatedData = filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-  const departments = Array.from(new Set(timesheetData.map(item => item.department)));
-  const statuses = ["approved", "review", "rejected", "not-submitted"];
-  const formatTime = (timeObj: any) => {
-    return `${timeObj.hours.toString().padStart(2, '0')}:${timeObj.minutes.toString().padStart(2, '0')}`;
-  };
-  const formatHours = (hours: number) => {
-    const h = Math.floor(hours);
-    const m = Math.round((hours - h) * 60);
-    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-  };
+  // Pagination (from API)
+  const totalPages = apiPagination?.totalPages || 1;
+  const totalItems = apiPagination?.totalItems || filteredData.length;
+  const currentLimit = apiPagination?.limit || itemsPerPage;
+  const startItem = (currentPage - 1) * currentLimit + 1;
+  const endItem = Math.min(currentPage * currentLimit, totalItems);
+  // Dynamic filter sources
+  const teamOptions = allFilterOptions?.data?.teams || [];
+  const statuses = ["approved", "review", "rejected", "not-submitted"] as const;
+  const formatTime = (seconds: number) => formatSecondsToHHMM(seconds);
   const calculateTotals = () => {
     const billable = {
       mon: 0,
@@ -516,10 +498,10 @@ export function TimesheetDashboard() {
       <CustomTabs tabs={visibleTabs} activeTab={activeTab} setActiveTab={setActiveTab} />
     </div>
 
-    {/* Date Range Navigation - Only show in allTimesheets tab */}
-    {activeTab === "allTimesheets" && <div className="mb-3">
-      <WeekNavigation />
-    </div>}
+    {/* Date Range Navigation - Show in allTimesheets and myTimesheet tabs */}
+    {/* {(activeTab === "allTimesheets" || activeTab === "myTimesheet") && <div className="mb-3">
+      <WeekNavigation onWeekChange={handleWeekChange} />
+    </div>} */}
 
     {activeTab === '' && <div>YOU HAVE NO ACCESS</div>}
 
@@ -602,11 +584,32 @@ export function TimesheetDashboard() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" className="bg-white text-xs sm:text-sm">
-          <span className="hidden sm:inline">Team Name</span>
-          <span className="sm:hidden">Team</span>
-          <ChevronDown className="ml-1 sm:ml-2 w-3 h-3 sm:w-4 sm:h-4" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="bg-white text-xs sm:text-sm">
+              <span className="hidden sm:inline">Team Name</span>
+              <span className="sm:hidden">Team</span>
+              <ChevronDown className="ml-1 sm:ml-2 w-3 h-3 sm:w-4 sm:h-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            {(teamOptions as any[]).map((t) => (
+              <DropdownMenuCheckboxItem
+                key={t._id}
+                checked={selectedTeamIds.includes(t._id)}
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    setSelectedTeamIds([...selectedTeamIds, t._id]);
+                  } else {
+                    setSelectedTeamIds(selectedTeamIds.filter(id => id !== t._id));
+                  }
+                }}
+              >
+                {t.name}
+              </DropdownMenuCheckboxItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -617,15 +620,23 @@ export function TimesheetDashboard() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent>
-            {departments.map(dept => <DropdownMenuCheckboxItem key={dept} checked={selectedDepartments.includes(dept)} onCheckedChange={checked => {
-              if (checked) {
-                setSelectedDepartments([...selectedDepartments, dept]);
-              } else {
-                setSelectedDepartments(selectedDepartments.filter(d => d !== dept));
-              }
-            }}>
-              {dept}
-            </DropdownMenuCheckboxItem>)}
+            {(departmentOptions as any[]).map((dept) => (
+              <DropdownMenuCheckboxItem
+                key={dept._id}
+                checked={selectedDepartmentIds.includes(dept._id)}
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    setSelectedDepartmentIds([...selectedDepartmentIds, dept._id]);
+                    setSelectedDepartments([...selectedDepartments, dept.name]);
+                  } else {
+                    setSelectedDepartmentIds(selectedDepartmentIds.filter(id => id !== dept._id));
+                    setSelectedDepartments(selectedDepartments.filter(d => d !== dept.name));
+                  }
+                }}
+              >
+                {dept.name}
+              </DropdownMenuCheckboxItem>
+            ))}
           </DropdownMenuContent>
         </DropdownMenu>
 
@@ -706,20 +717,22 @@ export function TimesheetDashboard() {
               </tr>
             </thead>
             <tbody>
-              {paginatedData.map(item => <tr key={item.id} className="border-t border-border hover:bg-muted/25">
+              {isFetching && <tr><td className="px-4 py-6 text-sm" colSpan={9}>Loading timesheets...</td></tr>}
+              {fetchError && !isFetching && <tr><td className="px-4 py-6 text-sm text-red-600" colSpan={9}>{fetchError}</td></tr>}
+              {!isFetching && !fetchError && filteredData.map(item => <tr key={item.id} className="border-t border-border hover:bg-muted/25">
                 <td className="px-2 sm:px-4 py-2">
                   <div className="flex items-center gap-2 sm:gap-3">
                     <Avatar className="w-6 h-6 sm:w-8 sm:h-8 flex-shrink-0">
-                      <AvatarImage src={item.avatar} />
+                      <AvatarImage src={item.avatar || ''} />
                       <AvatarFallback className="text-xs">{item.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
                     </Avatar>
                     <span className="text-sm sm:text-base text-foreground truncate">{item.name}</span>
                   </div>
                 </td>
-                <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm text-muted-foreground">{item.department}</td>
-                <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm text-foreground">{item.capacity.toFixed(2)}</td>
-                <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm text-foreground">{formatTime(item.logged)}</td>
-                <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm text-foreground">{formatVariance(item.variance)}</td>
+                <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm text-muted-foreground">{item.department || '-'}</td>
+                <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm text-foreground">{formatTime(item.capacitySec)}</td>
+                <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm text-foreground">{formatTime(item.loggedSec)}</td>
+                <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm text-foreground">{formatVariance(item.varianceSec)}</td>
                 <td className="px-2 sm:px-4 py-2">
                   <StatusBadge status={item.status}>
                     {item.status === "approved" && "Approved"}
@@ -749,10 +762,10 @@ export function TimesheetDashboard() {
         </div>
       </div>
 
-      {/* Pagination - Only show if more than 10 results */}
-      {filteredData.length > 10 && <div className="flex flex-col sm:flex-row items-center justify-between px-4 py-3 mt-1 gap-2">
+      {/* Pagination - API-based */}
+      {totalItems > currentLimit && <div className="flex flex-col sm:flex-row items-center justify-between px-4 py-3 mt-1 gap-2">
         <div className="text-xs sm:text-sm text-muted-foreground text-center sm:text-left">
-          Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredData.length)} of {filteredData.length} results
+          Showing {startItem} to {endItem} of {totalItems} results
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} disabled={currentPage === 1} className="text-xs sm:text-sm">
@@ -768,8 +781,12 @@ export function TimesheetDashboard() {
     </>}
 
     {/* My Timesheets Tab Content */}
-    {activeTab === "myTimesheet" &&
-      <MyTimeSheet />}
+    {activeTab === "myTimesheet" && (
+      <>
+        {/* {console.log('TimesheetDashboard: Rendering MyTimeSheet with activeTab:', activeTab, 'currentWeek:', currentWeek)} */}
+        <MyTimeSheet currentWeek={currentWeek} onWeekChange={handleWeekChange} />
+      </>
+    )}
 
     {/* Time Logs Tab Content */}
     {activeTab === "timeLogs" && <AllTimeLogsTab />}

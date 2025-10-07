@@ -5,6 +5,7 @@ import { teamApi } from './teamApi';
 import { clientApi } from './clientApi';
 import { jobApi } from './jobApi';
 import { companiesApi } from './companiesApi';
+import { timesheetApi } from './timesheetApi';
 export const store = configureStore({
   reducer: {
     [authApi.reducerPath]: authApi.reducer,
@@ -12,7 +13,8 @@ export const store = configureStore({
     [teamApi.reducerPath]: teamApi.reducer,
     [clientApi.reducerPath]: clientApi.reducer,
     [jobApi.reducerPath]: jobApi.reducer,
-    [companiesApi.reducerPath]: companiesApi.reducer
+    [companiesApi.reducerPath]: companiesApi.reducer,
+    [timesheetApi.reducerPath]: timesheetApi.reducer
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware()
@@ -21,7 +23,8 @@ export const store = configureStore({
       .concat(teamApi.middleware)
       .concat(clientApi.middleware)
       .concat(jobApi.middleware)
-      .concat(companiesApi.middleware),
+      .concat(companiesApi.middleware)
+      .concat(timesheetApi.middleware),
 });
 
 export type RootState = ReturnType<typeof store.getState>;
