@@ -30,7 +30,7 @@ const AppContent = () => {
    const userToken:any = localStorage.getItem('userToken');
    const {data:user}:any = useGetCurrentUserQuery(userToken);
    const {isAuthenticated} = useAuthContext();
-   const {isSuperAdminMode, isAccessingCompany} = useSuperAdminContext();
+   const {isSuperAdminMode} = useSuperAdminContext();
    const isSuperAdmin = user?.data?.role === 'superAdmin';
 
   return (
