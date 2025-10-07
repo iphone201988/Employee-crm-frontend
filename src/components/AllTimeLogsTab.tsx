@@ -12,13 +12,15 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 
-import { Clock, Users, ChevronDown, ChevronRight, Settings, Download, FileText, Edit2, Search, RefreshCw, Move, Plus, Trash2, Check } from 'lucide-react';
+import { Clock, Users, ChevronDown, ChevronRight, ChevronLeft, ChevronRight as ChevronRightIcon, Settings, Download, FileText, Edit2, Search, RefreshCw, Move, Plus, Trash2, Check } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { formatCurrency } from '@/lib/currency';
 import { getProfileImage, getUserInitials } from '@/utils/profiles';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import TimeLogPopup from './TimeLogPopup';
+import { useGetDropdownOptionsQuery } from '@/store/teamApi';
+import { useListTimeLogsQuery, useDeleteTimeLogsMutation } from '@/store/timesheetApi';
 
 
 interface TimeLog {
@@ -36,6 +38,7 @@ interface TimeLog {
   amount: number;
   billable: boolean;
   status: 'not-invoiced' | 'invoiced' | 'paid';
+  timePurpose?: string;
 }
 
 
@@ -43,14 +46,34 @@ const AllTimeLogsTab = () => {
 
 
   const [filters, setFilters] = useState({
-    client: 'all-clients',
-    teamMember: 'all-team-members',
-    status: 'all',
+    clientId: 'all',
+    jobNameId: 'all',
+    jobTypeId: 'all',
+    teamId: 'all',
+    purposeId: 'all',
+    billable: 'all', // 'true' | 'false' | 'all'
+    status: 'all', // 'notInvoiced' | 'invoiced' | 'paid' | 'all'
     dateFrom: '',
     dateTo: ''
   });
+  // Dropdown options via API
+  const { data: clientOptionsResp } = useGetDropdownOptionsQuery('client');
+  const { data: jobListOptionsResp } = useGetDropdownOptionsQuery('jobList');
+  const { data: jobTypeOptionsResp } = useGetDropdownOptionsQuery('job');
+  const { data: teamOptionsResp } = useGetDropdownOptionsQuery('team');
+  const { data: timePurposeOptionsResp } = useGetDropdownOptionsQuery('time');
+
+  const clientOptions = (clientOptionsResp?.data?.clients || []).map((c: any) => ({ value: c._id, label: c.name }));
+  const jobNameOptions = (jobListOptionsResp?.data?.jobs || []).map((j: any) => ({ value: j._id, label: j.name }));
+  const jobTypeOptions = (jobTypeOptionsResp?.data?.jobCategories || jobTypeOptionsResp?.data?.jobs || []).map((jt: any) => ({ value: jt._id, label: jt.name }));
+  const teamOptions = (teamOptionsResp?.data?.teams || []).map((t: any) => ({ value: t._id, label: t.name }));
+  const timePurposeOptions = (timePurposeOptionsResp?.data?.times || []).map((p: any) => ({ value: p._id, label: p.name || p.title || 'Purpose' }));
   const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
+  const [showTimeLogPopup, setShowTimeLogPopup] = useState(false);
   const [viewMode, setViewMode] = useState<'clients' | 'jobTypes' | 'jobNames' | 'category' | 'teamMembers' | 'flat'>('flat');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
 
   // Column visibility state
@@ -68,42 +91,98 @@ const AllTimeLogsTab = () => {
   });
 
 
-  // Sample time logs data
-  const timeLogsData: TimeLog[] = [
-    { id: '1', date: '2024-01-15', teamMember: 'John Smith', clientName: 'Water Savers Limited', clientRef: 'WAT-24', jobName: 'VAT (01/01/2025 - 28/02/2025)', jobType: 'VAT Return', category: 'client work', description: 'Review financial statements and draft accounts', hours: 3.5, rate: 120, amount: 420, billable: true, status: 'not-invoiced' },
-    { id: '2', date: '2024-01-16', teamMember: 'Sarah Johnson', clientName: 'Water Savers Limited', clientRef: 'WAT-24', jobName: 'Annual Returns - 2024', jobType: 'Annual Returns', category: 'client work', description: 'Complete corporation tax computation', hours: 2.0, rate: 100, amount: 200, billable: true, status: 'not-invoiced' },
-    { id: '3', date: '2024-01-17', teamMember: 'John Smith', clientName: 'Water Savers Limited', clientRef: 'WAT-24', jobName: 'Payroll - W5  2025', jobType: 'Payroll', category: 'client work', description: 'Process monthly payroll', hours: 1.5, rate: 120, amount: 180, billable: true, status: 'invoiced' },
-    { id: '4', date: '2024-01-18', teamMember: 'Mike Wilson', clientName: 'Green Gardens Limited', clientRef: 'GRE-23', jobName: 'Income Tax Returns - 2024', jobType: 'Tax Return', category: 'client work', description: 'Enter transactions and reconcile accounts', hours: 4.0, rate: 85, amount: 340, billable: true, status: 'not-invoiced' },
-    { id: '5', date: '2024-01-19', teamMember: 'Sarah Johnson', clientName: 'Green Gardens Limited', clientRef: 'GRE-23', jobName: 'Audit - 2024', jobType: 'Audit', category: 'client work', description: 'Prepare and submit VAT return', hours: 2.5, rate: 100, amount: 250, billable: true, status: 'paid' },
-    { id: '6', date: '2024-01-20', teamMember: 'John Smith', clientName: 'Brown Enterprises', clientRef: 'BRO-25', jobName: 'Payroll - January 2025', jobType: 'Payroll', category: 'client work', description: 'Audit testing and documentation', hours: 6.0, rate: 120, amount: 720, billable: true, status: 'invoiced' },
-    { id: '7', date: '2024-01-21', teamMember: 'Mike Wilson', clientName: 'Tech Solutions Inc.', clientRef: 'TEC-22', jobName: 'VAT (01/01/2025 - 28/02/2025)', jobType: 'VAT Return', category: 'client work', description: 'Prepare corporation tax return', hours: 3.0, rate: 85, amount: 255, billable: true, status: 'not-invoiced' },
-    { id: '8', date: '2024-01-22', teamMember: 'Sarah Johnson', clientName: 'Smith & Associates', clientRef: 'SMI-21', jobName: 'Annual Returns - 2024', jobType: 'Annual Returns', category: 'client work', description: 'Complete personal tax return', hours: 2.0, rate: 100, amount: 200, billable: true, status: 'paid' },
-    { id: '9', date: '2024-01-23', teamMember: 'John Smith', clientName: 'Marine Consulting Ltd.', clientRef: 'MAR-23', jobName: 'Income Tax Returns - 2024', jobType: 'Tax Return', category: 'client work', description: 'Review compliance procedures', hours: 4.5, rate: 120, amount: 540, billable: true, status: 'not-invoiced' },
-    { id: '10', date: '2024-01-24', teamMember: 'Emily Davis', clientName: 'Digital Media Group', clientRef: 'DIG-24', jobName: 'Audit - 2024', jobType: 'Audit', category: 'meeting', description: 'Prepare monthly management accounts', hours: 3.5, rate: 110, amount: 385, billable: true, status: 'invoiced' },
-    { id: '11', date: '2024-01-25', teamMember: 'Mike Wilson', clientName: 'Construction Pros Ltd.', clientRef: 'CON-22', jobName: 'Payroll - W5  2025', jobType: 'Payroll', category: 'client work', description: 'Process bi-weekly payroll', hours: 2.0, rate: 85, amount: 170, billable: true, status: 'paid' },
-    { id: '12', date: '2024-01-26', teamMember: 'Sarah Johnson', clientName: 'Financial Advisors Co.', clientRef: 'FIN-25', jobName: 'Payroll - January 2025', jobType: 'Payroll', category: 'meeting', description: 'Tax planning consultation', hours: 5.0, rate: 100, amount: 500, billable: true, status: 'not-invoiced' },
-    { id: '13', date: '2024-01-27', teamMember: 'Emily Davis', clientName: 'Healthcare Systems Ltd.', clientRef: 'HEA-23', jobName: 'VAT (01/01/2025 - 28/02/2025)', jobType: 'VAT Return', category: 'client work', description: 'Internal controls audit', hours: 6.0, rate: 110, amount: 660, billable: true, status: 'invoiced' },
-    { id: '14', date: '2024-01-28', teamMember: 'John Smith', clientName: 'Energy Solutions Corp.', clientRef: 'ENE-24', jobName: 'Annual Returns - 2024', jobType: 'Annual Returns', category: 'client work', description: 'Year-end financial audit', hours: 8.0, rate: 120, amount: 960, billable: true, status: 'not-invoiced' },
-    { id: '15', date: '2024-01-29', teamMember: 'Mike Wilson', clientName: 'Transport & Logistics', clientRef: 'TRA-22', jobName: 'Income Tax Returns - 2024', jobType: 'Tax Return', category: 'client work', description: 'Monthly fleet cost analysis', hours: 3.0, rate: 85, amount: 255, billable: true, status: 'paid' },
-    { id: '16', date: '2024-01-30', teamMember: 'Sarah Johnson', clientName: 'Hospitality Group plc', clientRef: 'HOS-25', jobName: 'Staff Payroll', jobType: 'Payroll', category: 'client work', description: 'Monthly staff payroll processing', hours: 2.5, rate: 100, amount: 250, billable: true, status: 'invoiced' },
-    { id: '17', date: '2024-02-01', teamMember: 'Emily Davis', clientName: 'Water Savers Limited', clientRef: 'WAT-24', jobName: 'Management Reports', jobType: 'Management Accounts', category: 'client work', description: 'Quarterly management reporting', hours: 4.0, rate: 110, amount: 440, billable: true, status: 'not-invoiced' },
-    { id: '18', date: '2024-02-02', teamMember: 'John Smith', clientName: 'Green Gardens Limited', clientRef: 'GRE-23', jobName: 'Company Secretarial', jobType: 'Company Secretarial', category: 'meeting', description: 'Board meeting preparation', hours: 1.5, rate: 120, amount: 180, billable: true, status: 'paid' },
-    { id: '19', date: '2024-02-03', teamMember: 'Mike Wilson', clientName: 'Brown Enterprises', clientRef: 'BRO-25', jobName: 'Monthly Bookkeeping', jobType: 'Bookkeeping', category: 'client work', description: 'Bank reconciliation and data entry', hours: 5.0, rate: 85, amount: 425, billable: true, status: 'invoiced' },
-    { id: '20', date: '2024-02-04', teamMember: 'Sarah Johnson', clientName: 'Tech Solutions Inc.', clientRef: 'TEC-22', jobName: 'VAT Return', jobType: 'VAT Return', category: 'client work', description: 'Quarterly VAT return preparation', hours: 3.0, rate: 100, amount: 300, billable: true, status: 'not-invoiced' }
-  ];
+  // Fetch time logs from API (None view)
+  const { data: listResp, isLoading: isLogsLoading } = useListTimeLogsQuery({
+    search: '',
+    page,
+    limit,
+    clientId: filters.clientId !== 'all' ? filters.clientId : undefined,
+    jobId: filters.jobNameId !== 'all' ? filters.jobNameId : undefined,
+    jobTypeId: filters.jobTypeId !== 'all' ? filters.jobTypeId : undefined,
+    userId: filters.teamId !== 'all' ? filters.teamId : undefined,
+    timeCategoryId: filters.purposeId !== 'all' ? filters.purposeId : undefined,
+    billable: filters.billable === 'all' ? undefined : filters.billable === 'true',
+    status: filters.status !== 'all' ? (filters.status as any) : undefined,
+    dateFrom: filters.dateFrom ? new Date(filters.dateFrom + 'T00:00:00.000Z').toISOString() : undefined,
+    dateTo: filters.dateTo ? new Date(filters.dateTo + 'T23:59:59.999Z').toISOString() : undefined,
+  });
+  const apiLogs = listResp?.timeLogs || [];
+  const apiSummary = listResp?.summary || {} as any;
+  const apiPagination = listResp?.pagination;
+  const [deleteTimeLogs, { isLoading: isDeleting }] = useDeleteTimeLogsMutation();
+
+  const timeLogsData: TimeLog[] = apiLogs.map((log: any) => ({
+    id: log?._id,
+    date: log?.date,
+    teamMember: log?.user?.name || '',
+    clientName: log?.client?.name || '',
+    clientRef: log?.client?.clientRef || '',
+    jobName: log?.job?.name || '',
+    jobType: log?.jobCategory?.name || '',
+    category: 'client work',
+    description: log?.description || '',
+    hours: (log?.duration || 0) / 3600,
+    rate: Number(log?.rate || 0),
+    amount: Number(log?.amount || 0),
+    billable: Boolean(log?.billable),
+    status: 'not-invoiced',
+    timePurpose: log?.timeCategory?.name || '',
+  }));
+
+  const formatHoursToHHMMSS = (hours: number) => {
+    const totalSeconds = Math.max(0, Math.round((hours || 0) * 3600));
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  };
+
 
 
   // Filter the time logs
   const filteredTimeLogs = useMemo(() => {
     return timeLogsData.filter(log => {
-      if (filters.client && filters.client !== 'all-clients' && !log.clientName.toLowerCase().includes(filters.client.toLowerCase())) return false;
-      if (filters.teamMember && filters.teamMember !== 'all-team-members' && !log.teamMember.toLowerCase().includes(filters.teamMember.toLowerCase())) return false;
-      if (filters.status && filters.status !== 'all' && log.status !== filters.status) return false;
+      if (filters.status && filters.status !== 'all') {
+        const statusMap: Record<string, string> = { notInvoiced: 'not-invoiced', invoiced: 'invoiced', paid: 'paid' };
+        const wanted = statusMap[filters.status] || filters.status;
+        if (log.status !== wanted as any) return false;
+      }
+      if (filters.billable !== 'all') {
+        const isBillable = filters.billable === 'true';
+        if (log.billable !== isBillable) return false;
+      }
       if (filters.dateFrom && log.date < filters.dateFrom) return false;
       if (filters.dateTo && log.date > filters.dateTo) return false;
       return true;
     });
   }, [timeLogsData, filters]);
+
+  const toggleSelect = (id: string, checked: boolean) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (checked) next.add(id); else next.delete(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAllVisible = (checked: boolean, logs: any[]) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      logs.forEach(l => { if (checked) next.add(l.id); else next.delete(l.id); });
+      return next;
+    });
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedIds.size === 0) return;
+    try {
+      await deleteTimeLogs({ timeLogIds: Array.from(selectedIds) }).unwrap();
+      setSelectedIds(new Set());
+    } catch (e) {
+      console.error('Failed to delete logs', e);
+    }
+  };
+
 
 
   // Group by client and job
@@ -116,14 +195,14 @@ const AllTimeLogsTab = () => {
     if (viewMode === 'category') {
       const grouped: Record<string, Record<string, TimeLog[]>> = {};
       filteredTimeLogs.forEach(log => {
-        const categoryKey = log.category.charAt(0).toUpperCase() + log.category.slice(1);
-        if (!grouped[categoryKey]) {
-          grouped[categoryKey] = {};
+        const purposeKey = (log.timePurpose || '—').toString();
+        if (!grouped[purposeKey]) {
+          grouped[purposeKey] = {};
         }
-        if (!grouped[categoryKey][log.clientName]) {
-          grouped[categoryKey][log.clientName] = [];
+        if (!grouped[purposeKey][log.clientName]) {
+          grouped[purposeKey][log.clientName] = [];
         }
-        grouped[categoryKey][log.clientName].push(log);
+        grouped[purposeKey][log.clientName].push(log);
       });
       return grouped;
     }
@@ -189,13 +268,13 @@ const AllTimeLogsTab = () => {
 
     return grouped;
   }, [filteredTimeLogs, viewMode]);
-
+  console.log("grouped============fdgdfgdfg", groupedLogs);
 
   // Calculate totals
-  const totalHours = filteredTimeLogs.reduce((sum, log) => sum + log.hours, 0);
-  const totalAmount = filteredTimeLogs.reduce((sum, log) => sum + log.amount, 0);
-  const uniqueClients = new Set(filteredTimeLogs.map(log => log.clientName)).size;
-  const uniqueTeamMembers = new Set(filteredTimeLogs.map(log => log.teamMember)).size;
+  const totalHours = apiSummary?.totalHours ? (apiSummary.totalHours / 3600) : filteredTimeLogs.reduce((sum, log) => sum + log.hours, 0);
+  const totalAmount = apiSummary?.totalAmount ?? filteredTimeLogs.reduce((sum, log) => sum + log.amount, 0);
+  const uniqueClients = apiSummary?.uniqueClients ?? new Set(filteredTimeLogs.map(log => log.clientName)).size;
+  const uniqueTeamMembers = apiSummary?.uniqueJobs ?? new Set(filteredTimeLogs.map(log => log.teamMember)).size;
 
 
   const getStatusBadge = (status: TimeLog['status']) => {
@@ -496,13 +575,13 @@ const AllTimeLogsTab = () => {
               className='rounded-sm bg-[#E7E5F2] text-[#381980ac]'
               size="sm"
             >
-              Category
+              Time purpose
             </Button>
           </div>
 
         </div>
-        <button className='bg-[#017DB9] text-white py-[8px] px-[12px] rounded-[4px] flex items-center gap-[4px] font-semibold'><Plus size={16} /> Time Log</button>
-        
+        <button onClick={() => setShowTimeLogPopup(true)} className='bg-[#017DB9] text-white py-[8px] px-[12px] rounded-[4px] flex items-center gap-[4px] font-semibold'><Plus size={16} /> Time Log</button>
+
       </div>
 
 
@@ -514,120 +593,113 @@ const AllTimeLogsTab = () => {
             <Input placeholder="Search..." className="pl-10 w-[200px] bg-white text-[#381980] font-semibold placeholder:text-[#381980]" />
           </div>
           <div className="space-y-2">
-            {/* <Label htmlFor="client-filter">Client</Label> */}
             <Select
-              value={filters.client}
-              onValueChange={(value) => setFilters(prev => ({ ...prev, client: value }))}
-
+              value={filters.clientId}
+              onValueChange={(value) => setFilters(prev => ({ ...prev, clientId: value }))}
             >
               <SelectTrigger className="w-32 bg-white text-[#381980] font-semibold">
                 <SelectValue placeholder="Client Name" />
               </SelectTrigger>
               <SelectContent className=''>
-                <SelectItem value="all-clients">Client Name</SelectItem>
-                <SelectItem value="Water Savers Limited">Water Savers Limited</SelectItem>
-                <SelectItem value="Green Gardens Limited">Green Gardens Limited</SelectItem>
-                <SelectItem value="Brown Enterprises">Brown Enterprises</SelectItem>
-                <SelectItem value="Tech Solutions Inc.">Tech Solutions Inc.</SelectItem>
-                <SelectItem value="Smith & Associates">Smith & Associates</SelectItem>
-                <SelectItem value="Marine Consulting Ltd.">Marine Consulting Ltd.</SelectItem>
-                <SelectItem value="Digital Media Group">Digital Media Group</SelectItem>
-                <SelectItem value="Construction Pros Ltd.">Construction Pros Ltd.</SelectItem>
-                <SelectItem value="Financial Advisors Co.">Financial Advisors Co.</SelectItem>
-                <SelectItem value="Healthcare Systems Ltd.">Healthcare Systems Ltd.</SelectItem>
-                <SelectItem value="Energy Solutions Corp.">Energy Solutions Corp.</SelectItem>
-                <SelectItem value="Transport & Logistics">Transport & Logistics</SelectItem>
-                <SelectItem value="Hospitality Group plc">Hospitality Group plc</SelectItem>
+                <SelectItem value="all">Client Name</SelectItem>
+                {clientOptions.map((o: any) => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
             <Select
-              value={filters.client}
-              onValueChange={(value) => setFilters(prev => ({ ...prev, client: value }))}
-
+              value={filters.jobNameId}
+              onValueChange={(value) => setFilters(prev => ({ ...prev, jobNameId: value }))}
             >
               <SelectTrigger className="w-28 bg-white text-[#381980] font-semibold">
                 <SelectValue placeholder="Job Name" />
               </SelectTrigger>
               <SelectContent className=''>
-                <SelectItem value="all-clients">Job Name</SelectItem>
-                <SelectItem value="Water Savers Limited">Water Savers Limited</SelectItem>
+                <SelectItem value="all">Job Name</SelectItem>
+                {jobNameOptions.map((o: any) => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
             <Select
-              value={filters.client}
-              onValueChange={(value) => setFilters(prev => ({ ...prev, client: value }))}
-
+              value={filters.jobTypeId}
+              onValueChange={(value) => setFilters(prev => ({ ...prev, jobTypeId: value }))}
             >
               <SelectTrigger className="w-28 bg-white text-[#381980] font-semibold">
                 <SelectValue placeholder="Job Type" />
               </SelectTrigger>
               <SelectContent className=''>
-                <SelectItem value="all-clients">Job Type</SelectItem>
-                <SelectItem value="Water Savers Limited">Water Savers Limited</SelectItem>
+                <SelectItem value="all">Job Type</SelectItem>
+                {jobTypeOptions.map((o: any) => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
             <Select
-              value={filters.client}
-              onValueChange={(value) => setFilters(prev => ({ ...prev, client: value }))}
-
+              value={filters.teamId}
+              onValueChange={(value) => setFilters(prev => ({ ...prev, teamId: value }))}
             >
               <SelectTrigger className="w-32 bg-white text-[#381980] font-semibold">
                 <SelectValue placeholder="Team Name" />
               </SelectTrigger>
               <SelectContent className=''>
-                <SelectItem value="all-clients">Team Name</SelectItem>
-                <SelectItem value="Water Savers Limited">Water Savers Limited</SelectItem>
+                <SelectItem value="all">Team Name</SelectItem>
+                {teamOptions.map((o: any) => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
             <Select
-              value={filters.client}
-              onValueChange={(value) => setFilters(prev => ({ ...prev, client: value }))}
-
+              value={filters.purposeId}
+              onValueChange={(value) => setFilters(prev => ({ ...prev, purposeId: value }))}
             >
               <SelectTrigger className="w-24 bg-white text-[#381980] font-semibold">
                 <SelectValue placeholder="Purpose" />
               </SelectTrigger>
               <SelectContent className=''>
-                <SelectItem value="all-clients">Purpose</SelectItem>
-                <SelectItem value="Water Savers Limited">Water Savers Limited</SelectItem>
+                <SelectItem value="all">Purpose</SelectItem>
+                {timePurposeOptions.map((o: any) => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
             <Select
-              value={filters.client}
-              onValueChange={(value) => setFilters(prev => ({ ...prev, client: value }))}
-
+              value={filters.billable}
+              onValueChange={(value) => setFilters(prev => ({ ...prev, billable: value }))}
             >
               <SelectTrigger className="w-24 bg-white text-[#381980] font-semibold">
                 <SelectValue placeholder="Billable" />
               </SelectTrigger>
               <SelectContent className=''>
-                <SelectItem value="all-clients">Billable</SelectItem>
-                <SelectItem value="Water Savers Limited">Water Savers Limited</SelectItem>
+                <SelectItem value="all">Billable</SelectItem>
+                <SelectItem value="true">Billable</SelectItem>
+                <SelectItem value="false">Non Billable</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
             <Select
-              value={filters.client}
-              onValueChange={(value) => setFilters(prev => ({ ...prev, client: value }))}
-
+              value={filters.status}
+              onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}
             >
               <SelectTrigger className="w-24 bg-white text-[#381980] font-semibold">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent className=''>
-                <SelectItem value="all-clients">Status</SelectItem>
-                <SelectItem value="Water Savers Limited">Water Savers Limited</SelectItem>
+                <SelectItem value="all">Status</SelectItem>
+                <SelectItem value="notInvoiced">notInvoiced</SelectItem>
+                <SelectItem value="invoiced">invoiced</SelectItem>
+                <SelectItem value="paid">paid</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -643,13 +715,30 @@ const AllTimeLogsTab = () => {
             />
           </div>
           <div className="space-y-2">
-            <Button variant="outline" className="bg-[#381980] w-[42px] rounded-sm text-primary-foreground p-2 hover:bg-primary/90 !text-[#fff]">
+            <Button
+              variant="outline"
+              className="bg-[#381980] w-[42px] rounded-sm text-primary-foreground p-2 hover:bg-primary/90 !text-[#fff]"
+              onClick={() => {
+                setFilters({
+                  clientId: 'all',
+                  jobNameId: 'all',
+                  jobTypeId: 'all',
+                  teamId: 'all',
+                  purposeId: 'all',
+                  billable: 'all',
+                  status: 'all',
+                  dateFrom: '',
+                  dateTo: ''
+                });
+                setPage(1);
+              }}
+            >
               <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4" />
             </Button>
           </div>
 
         </div>
-        <button className='text-[#fff] font-semibold bg-[#381980] w-[42px] h-[42px] flex items-center justify-center rounded-sm text-primary-foreground p-2 hover:bg-primary/90'><Trash2 size={16}/></button>
+        <button onClick={handleDeleteSelected} disabled={isDeleting || selectedIds.size===0} className='text-[#fff] font-semibold bg-[#381980] w/[42px] h/[42px] flex items-center justify-center rounded-sm text-primary-foreground p-2 hover:bg-primary/90'><Trash2 size={16} /></button>
       </div>
 
 
@@ -665,7 +754,7 @@ const AllTimeLogsTab = () => {
                 <TableRow className="border-b border-border bg-muted/50 text-[#381980]">
                   {viewMode === 'flat' ? (
                     <>
-                      <TableHead className="p-3 text-foreground h-12 text-[#381980]"><input type="checkbox" name="" id="" /></TableHead>
+                      <TableHead className="p-3 text-foreground h-12 text-[#381980]"><input type="checkbox" onChange={(e) => toggleSelectAllVisible(e.target.checked, filteredTimeLogs)} /></TableHead>
                       <TableHead className="p-3 text-foreground h-12 text-[#381980]">Date</TableHead>
                       <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">Client Ref.</TableHead>
                       <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">Client Name</TableHead>
@@ -674,9 +763,9 @@ const AllTimeLogsTab = () => {
                   ) : (
                     <>
                       <TableHead>
-                       <div className="bg-[#381980] text-white h-4 w-4 flex items-center justify-center rounded-sm" >
-                         <ChevronDown className="h-4 w-4" />
-                       </div>
+                        <div className="bg-[#381980] text-white h-4 w-4 flex items-center justify-center rounded-sm" >
+                          <ChevronDown className="h-4 w-4" />
+                        </div>
                       </TableHead>
                       <TableHead className="p-3 text-foreground h-12 text-[#381980]">Date</TableHead>
                       <TableHead className="p-3 text-foreground h-12 text-[#381980]">
@@ -753,25 +842,29 @@ const AllTimeLogsTab = () => {
                       >
                         <TableCell className="p-4 text-foreground text-sm">
                           {expandedClients.has(groupName) ? (
-                           <div className="bg-[#381980] text-white h-4 w-4 flex items-center justify-center rounded-sm" >
-                         <ChevronDown className="h-4 w-4" />
-                       </div>
+                            <div className="bg-[#381980] text-white h-4 w-4 flex items-center justify-center rounded-sm" >
+                              <ChevronDown className="h-4 w-4" />
+                            </div>
                           ) : (
-                           <div className="bg-[#381980] text-white h-4 w-4 flex items-center justify-center rounded-sm" >
-                         <ChevronRight className="h-4 w-4" />
-                       </div>
+                            <div className="bg-[#381980] text-white h-4 w-4 flex items-center justify-center rounded-sm" >
+                              <ChevronRight className="h-4 w-4" />
+                            </div>
                           )}
 
                         </TableCell>
                         <TableCell className="p-4 text-foreground text-sm"></TableCell>
                         <TableCell className="p-4 text-foreground text-sm">
                           <div className="flex items-center gap-2">
-                            A-45
+                            {(() => {
+                              const firstSub = Object.values(subGroups)[0] as any[] | undefined;
+                              const firstLog = firstSub && firstSub[0];
+                              return firstLog?.clientRef || '-';
+                            })()}
                           </div>
                         </TableCell>
                         <TableCell className="p-4 text-foreground text-sm">
                           <div className="flex items-center gap-2 underline whitespace-nowrap">
-                            Acme Consulting (5)
+                            {groupName} ({Object.values(subGroups).reduce((acc: number, logs: any) => acc + (logs as any[]).length, 0)})
                           </div>
                         </TableCell>
                         {visibleColumns.teamMember && <TableCell className="p-4"></TableCell>}
@@ -780,89 +873,56 @@ const AllTimeLogsTab = () => {
                         {visibleColumns.amount && (<TableCell className="p-4 text-left font-semibold"></TableCell>)}
                         {visibleColumns.billable && <TableCell className="p-4"></TableCell>}
                         {visibleColumns.status && <TableCell className="p-4"></TableCell>}
-                       <TableCell className="p-4 text-left">
-                                  <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold text-center">€100.00</div>
-                                </TableCell>
+                        <TableCell className="p-4 text-left">
+                          {(() => {
+                            const groupLogs = Object.values(subGroups).flat() as any[];
+                            const sumHrs = groupLogs.reduce((s, l: any) => s + (l.hours || 0), 0);
+                            return (
+                              <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold text-center">{formatHoursToHHMMSS(sumHrs)}</div>
+                            );
+                          })()}
+                        </TableCell>
                         <TableCell className="p-4"></TableCell>
-                           <TableCell className="p-4 text-left">
-                                  <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold text-center">€100.00</div>
-                                </TableCell>
+                        <TableCell className="p-4 text-left">
+                          {(() => {
+                            const groupLogs = Object.values(subGroups).flat() as any[];
+                            const sumAmount = groupLogs.reduce((s, l: any) => s + Number(l.amount || 0), 0);
+                            return (
+                              <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold text-center">{formatCurrency(sumAmount)}</div>
+                            );
+                          })()}
+                        </TableCell>
                         <TableCell className="p-4"></TableCell>
                         <TableCell className="p-4">
-                                <div className="text-right text-red-50"><Settings className='text-[#381980] ml-auto' size={16}/> </div>
-                              </TableCell>
+                          <div className="text-right text-red-50"><Settings className='text-[#381980] ml-auto' size={16} /> </div>
+                        </TableCell>
 
                       </TableRow>
                     )}
 
-                    {/* Sub-group + Log Rows */}
-                    {(viewMode === 'flat' || expandedClients.has(groupName)) &&
-                      Object.entries(subGroups).map(([subGroupName, logs]) => (
-                        <React.Fragment key={`${groupName}-${subGroupName}`}>
-                          {viewMode !== 'flat' && (
-                            <TableRow className="border-b border-border bg-muted/20 h-12">
-                                <TableCell className="p-4">
-                              </TableCell>
-                                <TableCell className="p-4">
-                                01/03/2025
-                              </TableCell>
-                              <TableCell className="p-4 text-left">A-45</TableCell>
-                              <TableCell className="p-4 text-left underline">Acme Consulting</TableCell>
-                              <TableCell className="p-4 text-left underline whitespace-nowrap">Annual Returns (2024)</TableCell>
-                              <TableCell className="p-4 text-left  whitespace-nowrap">Annual Returns</TableCell>
-                              <TableCell className="p-4 text-left  whitespace-nowrap">Team name</TableCell>
-                              <TableCell className="p-4 text-left  whitespace-nowrap">Description</TableCell>
-                              <TableCell className="p-4 text-left  whitespace-nowrap">
-                                 <Badge variant="secondary" className="bg-[#EBF6ED] text-[#38A24B] border border-[#38A24B] whitespace-nowrap">Client Work</Badge>
-                                {/* <Badge variant="secondary" className="bg-[#FEF8E5] text-[#F6BC00] border border-[#F6BC00] whitespace-nowrap">Admin</Badge>
-                          <Badge variant="secondary" className="bg-[#E5F2F8] text-[#007CB8] border border-[#007CB8] whitespace-nowrap">Training</Badge>
-                          <Badge variant="secondary" className="bg-[#F5F5F5] text-[#999999] border border-[#999999] whitespace-nowrap">Other</Badge> */}
-                              </TableCell>
-                              <TableCell className="p-4 text-left  whitespace-nowrap">
-                                 <Badge variant="secondary" className="bg-[#EBF6ED] text-[#38A24B] border border-[#38A24B] whitespace-nowrap  rounded-full !p-[4px]"><Check size={14} /></Badge>
-                              </TableCell>
-                                <TableCell className="p-4 text-left">
-                                  <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold">01:30:00</div>
-                                </TableCell>
-                                <TableCell className="p-4 text-left">
-                                  <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold text-center">€100.00</div>
-                                </TableCell>
-                                <TableCell className="p-4 text-left "><div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold">
-                                  €100.00</div></TableCell>
-                                <TableCell className="p-4 text-left">
-                                  <Badge variant="secondary" className="bg-[#EBF6ED] text-[#38A24B] border border-[#38A24B] whitespace-nowrap">Paid</Badge>
-                                </TableCell>
-                              <TableCell className="p-4">
-                                <div className="text-right text-red-50"><Settings className='text-[#381980] ml-auto' size={16}/> </div>
-                              </TableCell>
-                              {/* <TableCell className="p-4 pl-12 font-semibold text-foreground">
-                                📋 {subGroupName}
-                              </TableCell> */}
-                              {/* {visibleColumns.teamMember && <TableCell className="p-4"></TableCell>}
-                              {visibleColumns.jobType && <TableCell className="p-4"></TableCell>}
-                              {visibleColumns.description && <TableCell className="p-4">sxazsas</TableCell>}
-                              
-                              {visibleColumns.billable && <TableCell className="p-4"></TableCell>}
-                              {visibleColumns.status && <TableCell className="p-4"></TableCell>}
-                              <TableCell className="p-4"></TableCell>
-                              <TableCell className="p-4"></TableCell> */}
-                            </TableRow>
-                          )}
-
-                          {logs.map((log) => (
+                    {/* Logs under each group (no sub-groups) */}
+                    {(viewMode === 'flat' || expandedClients.has(groupName)) && (
+                      Object.values(subGroups).flat().map((log: any) => (
                             <TableRow key={log.id} className="border-b border-border hover:bg-muted/30 transition-colors h-12">
                               {viewMode === 'flat' ? (
                                 <>
-                                  <TableCell className="p-4"><input type="checkbox" name="" id="" /></TableCell>
-                                  <TableCell className="p-4 text-muted-foreground">01/03/2025</TableCell>
+                                  <TableCell className="p-4"><input type="checkbox" checked={selectedIds.has(log.id)} onChange={(e) => toggleSelect(log.id, e.target.checked)} /></TableCell>
+                                  <TableCell className="p-4 text-muted-foreground">{new Date(log.date).toLocaleDateString('en-GB')}</TableCell>
                                   <TableCell className="p-4 text-muted-foreground">{log.clientRef}</TableCell>
-                                  <TableCell className="p-4 text-muted-foreground underline whitespace-nowrap">Acme Consulting</TableCell>
+                                  <TableCell className="p-4 text-muted-foreground underline whitespace-nowrap">{log.clientName || '-'}</TableCell>
                                   <TableCell className="p-4 text-muted-foreground underline whitespace-nowrap">{log.jobName}</TableCell>
                                   {visibleColumns.jobType && <TableCell className="p-4">{log.jobType}</TableCell>}
 
                                 </>
                               ) : (
-                                <TableCell className="p-4 text-muted-foreground pl-16 whitespace-nowrap">{log.description}</TableCell>
+                              <>
+                                <TableCell className="p-4"><input type="checkbox" checked={selectedIds.has(log.id)} onChange={(e) => toggleSelect(log.id, e.target.checked)} /></TableCell>
+                                <TableCell className="p-4" />
+                                <TableCell className="p-4 text-left">{log.clientRef || '-'}</TableCell>
+                                <TableCell className="p-4 text-left underline">{log.clientName || '-'}</TableCell>
+                                <TableCell className="p-4 text-left underline whitespace-nowrap">{log.jobName || '-'}</TableCell>
+                                <TableCell className="p-4 text-left  whitespace-nowrap">{log.jobType || '-'}</TableCell>
+                              </>
                               )}
                               {visibleColumns.teamMember && (
                                 <TableCell className="p-4">
@@ -879,25 +939,25 @@ const AllTimeLogsTab = () => {
                                   </div>
                                 </TableCell>
                               )}
-                              {/* {visibleColumns.jobType && <TableCell className="p-4">{log.jobType}</TableCell>} */}
                               {visibleColumns.description && <TableCell className="p-4 whitespace-nowrap">{log.description}</TableCell>}
-                              {visibleColumns.description && <TableCell className="p-4">
-                                <Badge variant="secondary" className="bg-[#EBF6ED] text-[#38A24B] border border-[#38A24B] whitespace-nowrap">Client Work</Badge>
-                                {/* <Badge variant="secondary" className="bg-[#FEF8E5] text-[#F6BC00] border border-[#F6BC00] whitespace-nowrap">Admin</Badge>
-                          <Badge variant="secondary" className="bg-[#E5F2F8] text-[#007CB8] border border-[#007CB8] whitespace-nowrap">Training</Badge>
-                          <Badge variant="secondary" className="bg-[#F5F5F5] text-[#999999] border border-[#999999] whitespace-nowrap">Other</Badge> */}
+                              {visibleColumns.amount && <TableCell className="p-4">
+                                <Badge variant="secondary" className="bg-[#EBF6ED] text-[#38A24B] border border-[#38A24B] whitespace-nowrap">{log.timePurpose || '-'}</Badge>
                               </TableCell>}
-                              {visibleColumns.description && <TableCell className="p-4">
-                                <Badge variant="secondary" className="bg-[#EBF6ED] text-[#38A24B] border border-[#38A24B] whitespace-nowrap  rounded-full !p-[4px]"><Check size={14} /></Badge>
+                              {visibleColumns.billable && <TableCell className="p-4">
+                                {log.billable ? (
+                                  <Badge variant="secondary" className="bg-[#EBF6ED] text-[#38A24B] border border-[#38A24B] whitespace-nowrap  rounded-full !p-[4px]"><Check size={14} /></Badge>
+                                ) : (
+                                  <span className="text-[#666666] text-sm">—</span>
+                                )}
                               </TableCell>}
-                              {visibleColumns.amount && (
+                              {visibleColumns.billable && (
                                 <TableCell className="p-4 text-left">
-                                  <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold">01:30:00</div>
+                                  <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold">{formatHoursToHHMMSS(log.hours)}</div>
                                 </TableCell>
                               )}
-                              {visibleColumns.status && (
+                              {visibleColumns.amount && (
                                 <TableCell className="p-4 text-left">
-                                  <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold text-center">€100.00</div>
+                                  <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold text-center">{formatCurrency(log.rate)}</div>
                                 </TableCell>
                               )}
                               {visibleColumns.amount && (
@@ -910,19 +970,53 @@ const AllTimeLogsTab = () => {
                                 </TableCell>
                               )}
                               <TableCell className="p-4">
-                                <div className="text-right text-red-50"><Settings className='text-[#381980] ml-auto' size={16}/> </div>
+                                <div className="text-right text-red-50"><Settings className='text-[#381980] ml-auto' size={16} /> </div>
                               </TableCell>
                             </TableRow>
-                          ))}
-                        </React.Fragment>
-                      ))}
+                      ))
+                    )}
                   </React.Fragment>
                 ))}
               </TableBody>
             </Table>
+            {isLogsLoading && <div className="px-4 py-6 text-sm">Loading logs...</div>}
           </div>
         </CardContent>
       </Card>
+
+      {/* Pagination Controls */}
+      {apiPagination && apiPagination.totalPages > 0 && (
+        <div className="space-y-4 mt-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">Show:</span>
+              <select value={limit} onChange={(e) => { setPage(1); setLimit(Number(e.target.value)); }} className="border border-gray-300 rounded px-2 py-1 text-sm" disabled={isLogsLoading}>
+                <option value={5}>5 per page</option>
+                <option value={10}>10 per page</option>
+                <option value={20}>20 per page</option>
+                <option value={50}>50 per page</option>
+              </select>
+            </div>
+            <div className="text-sm text-gray-500">
+              Showing {apiPagination.totalRecords > 0 ? ((page - 1) * (apiPagination.limit || limit)) + 1 : 0} to {Math.min(page * (apiPagination.limit || limit), apiPagination.totalRecords)} of {apiPagination.totalRecords} logs
+            </div>
+          </div>
+          {apiPagination.totalPages > 1 && (
+            <div className="flex justify-center items-center gap-2">
+              <Button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1 || isLogsLoading} variant="outline" size="sm">
+                <ChevronLeft className="h-4 w-4" /> Previous
+              </Button>
+              <Button onClick={() => setPage(p => p + 1)} disabled={page >= apiPagination.totalPages || isLogsLoading} variant="outline" size="sm">
+                Next <ChevronRightIcon className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {showTimeLogPopup && (
+        <TimeLogPopup onClose={() => setShowTimeLogPopup(false)} />
+      )}
 
     </div>
   );

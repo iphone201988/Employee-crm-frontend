@@ -90,6 +90,20 @@ export interface GetTimesheetRequest {
   timesheetId?: string;
 }
 
+export interface AddTimeLogRequest {
+  date: string; // ISO
+  status: 'notInvoiced' | 'invoiced' | 'paid';
+  clientId: string;
+  jobId: string;
+  jobTypeId: string;
+  timeCategoryId: string;
+  description: string;
+  billable: boolean;
+  rate: number;
+  userId: string;
+  duration: number; // seconds
+}
+
 export interface AddTimesheetRequest {
   weekStart: string;
   weekEnd: string;
@@ -122,6 +136,61 @@ export interface AddTimesheetRequest {
 }
 
 // Removed UpdateTimesheetRequest as update endpoint is no longer supported
+
+export interface ListTimeLogsRequest {
+  search?: string;
+  page?: number;
+  limit?: number;
+  clientId?: string;
+  jobId?: string;
+  jobTypeId?: string;
+  userId?: string;
+  timeCategoryId?: string;
+  billable?: boolean;
+  status?: 'notInvoiced' | 'invoiced' | 'paid';
+  dateFrom?: string; // ISO or YYYY-MM-DD
+  dateTo?: string;   // ISO or YYYY-MM-DD
+}
+
+export interface DeleteTimeLogsRequest {
+  timeLogIds: string[];
+}
+
+export interface ListedTimeLogItem {
+  _id: string;
+  date: string;
+  description: string;
+  billable: boolean | null;
+  duration: number; // seconds
+  rate: number;
+  amount?: number;
+  client?: { _id: string; clientRef?: string; name: string };
+  job?: { _id: string; name: string; jobTypeId?: string };
+  jobCategory?: { _id: string; name: string };
+  timeCategory?: { _id: string; name: string };
+  user?: { _id: string; name: string };
+}
+
+export interface ListTimeLogsResponse {
+  success: boolean;
+  message: string;
+  timeLogs: ListedTimeLogItem[];
+  summary?: {
+    totalHours?: number;
+    totalAmount?: number;
+    uniqueClients?: number;
+    uniqueJobs?: number;
+    totalLogs?: number;
+    billableHours?: number;
+    nonBillableHours?: number;
+  };
+  pagination?: {
+    currentPage: number;
+    totalPages: number;
+    totalRecords: number;
+    limit: number;
+  };
+}
 
 export const timesheetApi = createApi({
   reducerPath: 'timesheetApi',
@@ -167,6 +236,46 @@ export const timesheetApi = createApi({
       }),
       invalidatesTags: ['Timesheet'],
     }),
+    addTimeLog: builder.mutation<{ success: boolean; message: string; data: any }, AddTimeLogRequest>({
+      query: (body) => ({
+        url: '/add-time-log',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['Timesheet', 'TimeEntry'],
+    }),
+    deleteTimeLogs: builder.mutation<{ success: boolean; message: string }, DeleteTimeLogsRequest>({
+      query: (body) => ({
+        url: '/delete-time-log',
+        method: 'DELETE',
+        body,
+      }),
+      invalidatesTags: ['TimeEntry'],
+    }),
+    listTimeLogs: builder.query<ListTimeLogsResponse, ListTimeLogsRequest | void>({
+      query: (args) => {
+        const params = new URLSearchParams();
+        const a = (args || {}) as ListTimeLogsRequest;
+        if (a.search) params.set('search', a.search);
+        if (a.page) params.set('page', String(a.page));
+        if (a.limit) params.set('limit', String(a.limit));
+        if (a.clientId) params.set('clientId', a.clientId);
+        if (a.jobId) params.set('jobId', a.jobId);
+        if (a.jobTypeId) params.set('jobTypeId', a.jobTypeId);
+        if (a.userId) params.set('userId', a.userId);
+        if (a.timeCategoryId) params.set('timeCategoryId', a.timeCategoryId);
+        if (typeof a.billable === 'boolean') params.set('billable', String(a.billable));
+        if (a.status) params.set('status', a.status);
+        if (a.dateFrom) params.set('dateFrom', a.dateFrom);
+        if (a.dateTo) params.set('dateTo', a.dateTo);
+        const qs = params.toString();
+        return {
+          url: `/logs${qs ? `?${qs}` : ''}`,
+          method: 'GET',
+        };
+      },
+      providesTags: ['TimeEntry'],
+    }),
     
     // updateTimesheet endpoint removed
   }),
@@ -176,4 +285,7 @@ export const {
   useGetTimesheetQuery,
   useLazyGetTimesheetQuery,
   useAddTimesheetMutation,
+  useAddTimeLogMutation,
+  useListTimeLogsQuery,
+  useDeleteTimeLogsMutation,
 } = timesheetApi;
