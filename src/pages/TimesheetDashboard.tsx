@@ -20,6 +20,7 @@ import { useGetTabAccessQuery, useLazyGetTabAccessQuery } from "@/store/authApi"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@radix-ui/react-tooltip";
 import { useGetDropdownOptionsQuery } from "@/store/teamApi";
 import Avatars from "@/components/Avatars";
+import { useSearchParams } from "react-router-dom";
 type ApiTimesheet = {
   _id: string;
   userId: string;
@@ -79,14 +80,11 @@ const tabs = [{
   label: "All Timesheets"
 }, {
   id: "timeLogs",
-  label: "My Time Logs"
-},
- {
-  id: "timeLogs",
   label: "All Time Logs"
 }];
 export function TimesheetDashboard() {
-
+  const [searchParams, setSearchParams] = useSearchParams();
+  
   const [activeTab, setActiveTab] = useState("");
   const { visibleTabs, isLoading, isError } = usePermissionTabs(tabs);
   const [activeFilter, setActiveFilter] = useState("allTimesheets");
@@ -111,6 +109,16 @@ export function TimesheetDashboard() {
   // Week change handler
   const handleWeekChange = (weekStart: string, weekEnd: string) => {
     setCurrentWeek({ weekStart, weekEnd });
+  };
+
+  // Handle View Timesheet button click
+  const handleViewTimesheet = (timesheetId: string, userId: string) => {
+    setSearchParams({
+      timesheetId,
+      userId,
+      tab: 'myTimesheet'
+    });
+    setActiveTab('myTimesheet');
   };
 
   // Fetch all filter dropdown options (teams, departments, etc.)
@@ -302,6 +310,7 @@ export function TimesheetDashboard() {
       const status = normalizeSubmissionStatus(t?.submissionStatus);
       return {
         id: t?._id,
+        userId: t?.userId || '',
         name,
         department,
         capacitySec,
@@ -323,6 +332,17 @@ export function TimesheetDashboard() {
     const notSubmitted = apiSummary?.draft ?? tableData.filter(i => i.status === 'not-submitted').length;
     return { total, forReview, rejected, approved, allTimesheets: total, notSubmitted };
   }, [tableData, apiSummary]);
+  // Handle URL parameters for timesheet viewing
+  useEffect(() => {
+    const tabFromUrl = searchParams.get('tab');
+    const timesheetId = searchParams.get('timesheetId');
+    const userId = searchParams.get('userId');
+    
+    if (tabFromUrl === 'myTimesheet' && timesheetId && userId) {
+      setActiveTab('myTimesheet');
+    }
+  }, [searchParams]);
+
   useEffect(() => {
     console.log('TimesheetDashboard: useEffect triggered with visibleTabs:', visibleTabs.length, 'activeTab:', activeTab);
     if (visibleTabs.length > 0 && !visibleTabs.some(tab => tab.id === activeTab)) {
@@ -751,8 +771,13 @@ export function TimesheetDashboard() {
                 <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm text-muted-foreground">{item.submitted}</td>
                 <td className="px-2 sm:px-4 py-2">
                   <div className="flex flex-col sm:flex-row gap-1">
-                    <Button variant="outline" size="sm" className="text-xs">
-                      <span className="hidden sm:inline">View Timesheets</span>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="text-xs"
+                      onClick={() => handleViewTimesheet(item.id, item.userId)}
+                    >
+                      <span className="hidden sm:inline">View Timesheet</span>
                       <span className="sm:hidden">View</span>
                     </Button>
                     {item.status === "review" && <Button variant="outline" size="sm" className="text-xs">
@@ -788,7 +813,12 @@ export function TimesheetDashboard() {
     {activeTab === "myTimesheet" && (
       <>
         {/* {console.log('TimesheetDashboard: Rendering MyTimeSheet with activeTab:', activeTab, 'currentWeek:', currentWeek)} */}
-        <MyTimeSheet currentWeek={currentWeek} onWeekChange={handleWeekChange} />
+        <MyTimeSheet 
+          currentWeek={currentWeek} 
+          onWeekChange={handleWeekChange}
+          timesheetId={searchParams.get('timesheetId') || undefined}
+          userId={searchParams.get('userId') || undefined}
+        />
       </>
     )}
 
