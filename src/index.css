@@ -111,3 +111,7 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+
+
+.custom-dn button svg{width: 20px !important; height: 20px !important;}

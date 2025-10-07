@@ -649,7 +649,7 @@ const AllTimeLogsTab = () => {
           </div>
 
         </div>
-        <button className='text-[#fff] font-semibold bg-[#381980] w-[auto] rounded-sm text-primary-foreground p-2 hover:bg-primary/90'><Trash2 size={16}/></button>
+        <button className='text-[#fff] font-semibold bg-[#381980] w-[42px] h-[42px] flex items-center justify-center rounded-sm text-primary-foreground p-2 hover:bg-primary/90'><Trash2 size={16}/></button>
       </div>
 
 

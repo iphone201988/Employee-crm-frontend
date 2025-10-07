@@ -79,7 +79,11 @@ const tabs = [{
   label: "All Timesheets"
 }, {
   id: "timeLogs",
-  label: "Time Logs"
+  label: "My Time Logs"
+},
+ {
+  id: "timeLogs",
+  label: "All Time Logs"
 }];
 export function TimesheetDashboard() {
 
