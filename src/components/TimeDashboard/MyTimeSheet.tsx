@@ -12,6 +12,7 @@ import { Card, CardContent } from "../ui/card";
 import { useGetTimesheetQuery, useAddTimesheetMutation } from "@/store/timesheetApi";
 import { toast } from "sonner";
 import { useGetCurrentUserQuery } from "@/store/authApi";
+import { useSearchParams } from "react-router-dom";
 import { 
   formatHours, 
   formatSeconds,
@@ -52,9 +53,13 @@ interface TimesheetRow {
 interface MyTimeSheetProps {
   currentWeek?: { weekStart: string; weekEnd: string };
   onWeekChange?: (weekStart: string, weekEnd: string) => void;
+  timesheetId?: string;
+  userId?: string;
 }
 
-export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange }: MyTimeSheetProps = {}) => {
+export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesheetId: propTimesheetId, userId: propUserId }: MyTimeSheetProps = {}) => {
+    const [searchParams] = useSearchParams();
+    
     // Debug component mount/unmount
     useEffect(() => {
         console.log('MyTimeSheet: Component mounted');
@@ -70,6 +75,10 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange }: MyTi
     const [isLoading, setIsLoading] = useState(false);
     const [hasChanges, setHasChanges] = useState(false);
 
+    // Extract URL parameters for specific timesheet viewing (prefer props over URL params)
+    const timesheetId = propTimesheetId || searchParams.get('timesheetId');
+    const userId = propUserId || searchParams.get('userId');
+
     // Track current week for query and navigation
     const [currentWeek, setCurrentWeek] = useState(() => propCurrentWeek ?? getCurrentWeekRange());
     
@@ -77,7 +86,9 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange }: MyTi
     const queryParams = useMemo(() => ({
         weekStart: currentWeek.weekStart,
         weekEnd: currentWeek.weekEnd,
-    }), [currentWeek.weekStart, currentWeek.weekEnd]);
+        timesheetId: timesheetId || undefined,
+        userId: userId || undefined,
+    }), [currentWeek.weekStart, currentWeek.weekEnd, timesheetId, userId]);
 
     const { data: currentUser } = useGetCurrentUserQuery();
 
@@ -92,10 +103,12 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange }: MyTi
         console.log('MyTimeSheet: useGetTimesheetQuery called with:', {
             weekStart: queryParams.weekStart,
             weekEnd: queryParams.weekEnd,
+            timesheetId: queryParams.timesheetId,
+            userId: queryParams.userId,
             isLoading: isTimesheetLoading,
             hasData: !!timesheetData
         });
-    }, [queryParams.weekStart, queryParams.weekEnd, isTimesheetLoading, timesheetData]);
+    }, [queryParams.weekStart, queryParams.weekEnd, queryParams.timesheetId, queryParams.userId, isTimesheetLoading, timesheetData]);
 
     // Mutations
     const [addTimesheet] = useAddTimesheetMutation();
@@ -192,7 +205,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange }: MyTi
 
     // Save timesheet changes
     const handleSaveChanges = async () => {
-        if (!timesheet || !clients.length || !jobs.length || !categories.length) return;
+        if ( !clients.length || !jobs.length || !categories.length) return;
         
         setIsLoading(true);
         try {

@@ -87,6 +87,7 @@ export interface GetTimesheetRequest {
   weekStart: string;
   weekEnd: string;
   userId?: string;
+  timesheetId?: string;
 }
 
 export interface AddTimesheetRequest {
@@ -138,13 +139,14 @@ export const timesheetApi = createApi({
   tagTypes: ['Timesheet', 'TimeEntry'],
   endpoints: (builder) => ({
     getTimesheet: builder.query<GetTimesheetResponse, GetTimesheetRequest>({
-      query: ({ weekStart, weekEnd, userId }) => ({
+      query: ({ weekStart, weekEnd, userId, timesheetId }) => ({
         url: '/',
         params: { 
           // Use weekEnd as-is since it's already in ISO format from getCurrentWeekRange
           weekStart: weekStart, 
           weekEnd: weekEnd, 
-          userId 
+          userId,
+          timesheetId
         },
       }),
       providesTags: (result, error, { weekStart, weekEnd }) => [
