@@ -2,6 +2,8 @@ import { useEffect } from "react";
 import { useLazyGetTabAccessQuery } from "@/store/authApi";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@radix-ui/react-tooltip";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 
 interface AvatarsProps {
   activeTab: string;
@@ -57,13 +59,16 @@ const Avatars = ({ activeTab, title }: AvatarsProps) => {
           </TooltipProvider>
         </div>
       </div>
-      <select name="" id="" className="bg-[#017DB9] text-white p-[8px] rounded-[4px]">
+    <div className="bg-[#017DB9] pr-2 rounded">
+        <select name="" id="" className="bg-[#017DB9] text-white p-[8px] rounded-[4px] font-semibold">
         <option value="">Create</option>
         <option value="">Time Log</option>
         <option value="">Client</option>
         <option value="">Job</option>
         <option value="">Expense</option>
       </select>
+    </div>
+
     </div>
   );
 };

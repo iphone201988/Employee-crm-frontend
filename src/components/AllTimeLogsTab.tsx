@@ -18,6 +18,7 @@ import { formatCurrency } from '@/lib/currency';
 import { getProfileImage, getUserInitials } from '@/utils/profiles';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import TimeLogPopup from './TimeLogPopup';
 
 
 interface TimeLog {
@@ -403,6 +404,7 @@ const AllTimeLogsTab = () => {
 
   return (
     <div className="space-y-6">
+      {/* <TimeLogPopup/> */}
       {/* Dashboard */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="h-full">
@@ -446,7 +448,7 @@ const AllTimeLogsTab = () => {
       {/* View Switcher */}
       <div className="flex  items-center justify-between">
         <div className="flex items-center gap-3 mt-4 border border-[#381980] w-max p-[6px] rounded-sm pl-4">
-          <p className='text-[#381980] font-semibold'>Group by:</p>
+          <p className='text-[#381980] font-semibold text-[14px]'>Group by:</p>
           <div className="flex gap-2">
             <Button
               variant={viewMode === 'flat' ? 'default' : 'outline'}
@@ -499,7 +501,8 @@ const AllTimeLogsTab = () => {
           </div>
 
         </div>
-        <button className='bg-[#017DB9] text-white py-[8px] px-[12px] rounded-[4px] flex items-center gap-[4px]'><Plus size={18} /> Time Log</button>
+        <button className='bg-[#017DB9] text-white py-[8px] px-[12px] rounded-[4px] flex items-center gap-[4px] font-semibold'><Plus size={16} /> Time Log</button>
+        
       </div>
 
 
@@ -640,13 +643,13 @@ const AllTimeLogsTab = () => {
             />
           </div>
           <div className="space-y-2">
-            <Button variant="outline" className="bg-[#381980] w-[42px] rounded-sm text-primary-foreground p-2 ">
+            <Button variant="outline" className="bg-[#381980] w-[42px] rounded-sm text-primary-foreground p-2 hover:bg-primary/90 !text-[#fff]">
               <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4" />
             </Button>
           </div>
 
         </div>
-        <button className='text-[#fff] font-semibold bg-[#381980] w-[42px] rounded-sm text-primary-foreground p-2 hover:bg-primary/90'><Trash2 /></button>
+        <button className='text-[#fff] font-semibold bg-[#381980] w-[auto] rounded-sm text-primary-foreground p-2 hover:bg-primary/90'><Trash2 size={16}/></button>
       </div>
 
 
@@ -690,7 +693,7 @@ const AllTimeLogsTab = () => {
                   )}
                   {visibleColumns.jobType && <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">Job Type</TableHead>}
                   {visibleColumns.teamMember && <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">Team Name</TableHead>}
-                  {visibleColumns.description && <TableHead className="p-3 text-foreground h-12 text-[#381980]">Description</TableHead>}
+                  {visibleColumns.description && <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">Description</TableHead>}
                   {visibleColumns.amount && <TableHead className="p-3 text-foreground h-12 text-left text-[#381980] whitespace-nowrap">Time Purpose</TableHead>}
                   {visibleColumns.billable && <TableHead className="p-3 text-foreground h-12 text-left text-[#381980]">Billable</TableHead>}
                   {visibleColumns.billable && <TableHead className="p-3 text-foreground h-12 text-left text-[#381980]">Duration</TableHead>}
@@ -773,7 +776,7 @@ const AllTimeLogsTab = () => {
                         </TableCell>
                         {visibleColumns.teamMember && <TableCell className="p-4"></TableCell>}
                         {visibleColumns.jobType && <TableCell className="p-4"></TableCell>}
-                        {visibleColumns.description && <TableCell className="p-4"></TableCell>}
+                        {visibleColumns.description && <TableCell className="p-4 whitespace-nowrap"></TableCell>}
                         {visibleColumns.amount && (<TableCell className="p-4 text-left font-semibold"></TableCell>)}
                         {visibleColumns.billable && <TableCell className="p-4"></TableCell>}
                         {visibleColumns.status && <TableCell className="p-4"></TableCell>}
@@ -859,7 +862,7 @@ const AllTimeLogsTab = () => {
 
                                 </>
                               ) : (
-                                <TableCell className="p-4 text-muted-foreground pl-16">{log.description}</TableCell>
+                                <TableCell className="p-4 text-muted-foreground pl-16 whitespace-nowrap">{log.description}</TableCell>
                               )}
                               {visibleColumns.teamMember && (
                                 <TableCell className="p-4">
