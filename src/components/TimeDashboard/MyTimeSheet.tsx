@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
 import { DashboardCard, DashboardGrid } from "@/components/ui/dashboard-card";
 import { Card, CardContent } from "../ui/card";
-import { useGetTimesheetQuery, useAddTimesheetMutation } from "@/store/timesheetApi";
+import { useGetTimesheetQuery, useAddTimesheetMutation, useChangeTimesheetStatusMutation } from "@/store/timesheetApi";
 import { toast } from "sonner";
 import { useGetCurrentUserQuery } from "@/store/authApi";
 import { useSearchParams } from "react-router-dom";
@@ -90,7 +90,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
         userId: userId || undefined,
     }), [currentWeek.weekStart, currentWeek.weekEnd, timesheetId, userId]);
 
-    const { data: currentUser } = useGetCurrentUserQuery();
+    const { data: currentUser }:any = useGetCurrentUserQuery();
 
     const { 
         data: timesheetData, 
@@ -112,13 +112,27 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
 
     // Mutations
     const [addTimesheet] = useAddTimesheetMutation();
+    const [changeTimesheetStatus, { isLoading: isSubmittingStatus }] = useChangeTimesheetStatusMutation();
 
     // Extract data from API response
     const timesheet = timesheetData?.data;
+    console.log('timesheet============================', timesheet);
     const dropdownOptions = timesheetData?.dropdoenOptionals;
     const billableRate = timesheetData?.billableRate || 35;
     const userDisplayName = (timesheetData as any)?.name;
     const userAvatarUrl = (timesheetData as any)?.avatarUrl;
+
+    const shouldShowApproveRejectButtons = useMemo(() => {
+        const hasTimesheetId = !!timesheetId;
+
+        const autoApproveDisabled = (currentUser as any)?.data?.settings?.[0]?.autoApproveTimesheets === false;
+
+        const hasApprovePermission = (currentUser as any)?.data?.permissions?.approveTimesheets === true;
+
+        const inReview = timesheet?.status === 'reviewed';
+
+        return hasTimesheetId && autoApproveDisabled && hasApprovePermission;
+    }, [timesheetId, currentUser]);
 
     // Convert API data to dropdown options
     const clients = dropdownOptions?.clients || [];
@@ -244,7 +258,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
     // Add new row
     const handleAddRow = () => {
         if (clients.length === 0 || jobs.length === 0 || categories.length === 0) {
-            alert('Please wait for data to load before adding a new row.');
+            toast.error('Job is not assigned to you yet.');
             return;
         }
 
@@ -496,17 +510,33 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                     </Button>
                 </div>
                 <div className="flex gap-2 w-full sm:w-auto">
-                    <Button 
-                        variant="outline" 
-                        className="text-green-600 border-green-600 hover:bg-green-50 flex-1 sm:flex-none text-sm" 
-                        onClick={() => {
-                            alert('Timesheet submitted for approval!');
-                        }}
-                        disabled={timesheet?.status === 'submitted' || timesheet?.status === 'approved'}
-                    >
-                        {timesheet?.status === 'submitted' ? 'Submitted' : 
-                         timesheet?.status === 'approved' ? 'Approved' : 'Submit for Approval'}
-                    </Button>
+                    {timesheet?.status === 'draft' ? (
+                        <Button 
+                            variant="outline" 
+                            className="text-green-600 border-green-600 hover:bg-green-50 flex-1 sm:flex-none text-sm" 
+                            onClick={async () => {
+                                try {
+                                    if (!timesheet?._id) return;
+                                    await changeTimesheetStatus({ status: 'reviewed', timeSheetId: timesheet._id }).unwrap();
+                                    await refetchTimesheet();
+                                } catch (e) {
+                                    console.error('Failed to submit timesheet for approval', e);
+                                }
+                            }}
+                            disabled={isSubmittingStatus}
+                        >
+                            {isSubmittingStatus ? 'Submitting...' : 'Submit for Approval'}
+                        </Button>
+                    ) : (
+                        <div className="flex items-center px-3 py-1 border rounded text-sm">
+                            {timesheet?.status === 'submitted' && <span className="text-amber-600">Submitted</span>}
+                            {timesheet?.status === 'approved' && <span className="text-green-600">Approved</span>}
+                            {timesheet?.status === 'rejected' && <span className="text-red-600">Rejected</span>}
+                            {!['submitted','approved','rejected'].includes(timesheet?.status || '') && (
+                                <span className="text-muted-foreground">{timesheet?.status === "reviewed" && "Submitted For Approval"}</span>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -619,23 +649,43 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
 
 
             {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                    <Button 
-                        variant="outline" 
-                        className="text-green-600 border-green-600 hover:bg-green-50 h-9 text-sm"
-                        disabled={timesheet?.status === 'approved' || timesheet?.status === 'rejected'}
-                    >
-                        Approve
-                    </Button>
-                    <Button 
-                        variant="outline" 
-                        className="text-red-600 border-red-600 hover:bg-red-50 h-9 text-sm"
-                        disabled={timesheet?.status === 'approved' || timesheet?.status === 'rejected'}
-                    >
-                        Reject
-                    </Button>
-                </div>
+            <div className={`flex flex-col sm:flex-row items-stretch sm:items-center gap-3 ${shouldShowApproveRejectButtons ? 'justify-between' : 'justify-end'}`}>
+                {shouldShowApproveRejectButtons && (
+                    <div className="flex items-center gap-2">
+                        <Button 
+                            variant="outline" 
+                            className="text-green-600 border-green-600 hover:bg-green-50 h-9 text-sm"
+                            disabled={isSubmittingStatus || timesheet?.status === 'approved' || timesheet?.status === 'rejected' || timesheet?.status !== 'reviewed'}
+                            onClick={async () => {
+                                try {
+                                    if (!timesheet?._id) return;
+                                    await changeTimesheetStatus({ status: 'approved', timeSheetId: timesheet._id }).unwrap();
+                                    await refetchTimesheet();
+                                } catch (e) {
+                                    console.error('Failed to approve timesheet', e);
+                                }
+                            }}
+                        >
+                            {isSubmittingStatus ? 'Approving...' : 'Approve'}
+                        </Button>
+                        <Button 
+                            variant="outline" 
+                            className="text-red-600 border-red-600 hover:bg-red-50 h-9 text-sm"
+                            disabled={isSubmittingStatus || timesheet?.status === 'approved' || timesheet?.status === 'rejected' || timesheet?.status !== 'reviewed'}
+                            onClick={async () => {
+                                try {
+                                    if (!timesheet?._id) return;
+                                    await changeTimesheetStatus({ status: 'rejected', timeSheetId: timesheet._id }).unwrap();
+                                    await refetchTimesheet();
+                                } catch (e) {
+                                    console.error('Failed to reject timesheet', e);
+                                }
+                            }}
+                        >
+                            {isSubmittingStatus ? 'Rejecting...' : 'Reject'}
+                        </Button>
+                    </div>
+                )}
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                     <div className="flex items-center justify-between sm:justify-start gap-2">
                         <span className="text-sm text-muted-foreground">Hide Weekend</span>
@@ -645,7 +695,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                         variant="outline" 
                         className="flex items-center justify-center gap-2 text-primary border-primary hover:bg-primary/10 h-9 text-sm" 
                         onClick={handleAddRow}
-                        disabled={isLoading}
+                        disabled={isLoading || (timesheet?.status && timesheet?.status !== 'draft')}
                     >
                         <Plus className="w-4 h-4" />
                         New Row
@@ -654,7 +704,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                         variant="outline" 
                         className="flex items-center justify-center gap-2 text-primary border-primary hover:bg-primary/10 h-9 text-sm"
                         onClick={handleSaveChanges}
-                        disabled={!hasChanges || isLoading}
+                        disabled={!hasChanges || isLoading || (timesheet?.status && timesheet?.status !== 'draft')}
                     >
                         {isLoading ? (
                             <>

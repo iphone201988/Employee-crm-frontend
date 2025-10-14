@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { X } from 'lucide-react';
 import { useGetDropdownOptionsQuery } from "@/store/teamApi";
 import { useAddTimeLogMutation } from "@/store/timesheetApi";
@@ -11,22 +12,17 @@ type TimeLogPopupProps = {
 };
 
 const TimeLogPopup = ({ onClose }: TimeLogPopupProps) => {
-  const [clientInput, setClientInput] = useState("");
-  const [jobNameInput, setJobNameInput] = useState("");
-  const [jobTypeInput, setJobTypeInput] = useState("");
-  const [teamInput, setTeamInput] = useState("");
-  const [purposeInput, setPurposeInput] = useState("");
+  const [selectedClientId, setSelectedClientId] = useState("");
+  const [selectedJobId, setSelectedJobId] = useState("");
+  const [selectedJobTypeId, setSelectedJobTypeId] = useState("");
+  const [selectedTeamId, setSelectedTeamId] = useState("");
+  const [selectedPurposeId, setSelectedPurposeId] = useState("");
   const [durationSeconds, setDurationSeconds] = useState(0);
-  const [billable, setBillable] = useState(true);
-  const [rate, setRate] = useState('');
+  const [billable, setBillable] = useState(false);
+  const [rate, setRate] = useState('100');
   const [dateISO, setDateISO] = useState('');
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState<'notInvoiced' | 'invoiced' | 'paid'>('notInvoiced');
-  const [clientOpen, setClientOpen] = useState(false);
-  const [jobNameOpen, setJobNameOpen] = useState(false);
-  const [jobTypeOpen, setJobTypeOpen] = useState(false);
-  const [teamOpen, setTeamOpen] = useState(false);
-  const [purposeOpen, setPurposeOpen] = useState(false);
 
   const { data: clientResp } = useGetDropdownOptionsQuery('client');
   const { data: jobListResp } = useGetDropdownOptionsQuery('jobList');
@@ -40,39 +36,21 @@ const TimeLogPopup = ({ onClose }: TimeLogPopupProps) => {
   const teamOptions = useMemo(() => (teamResp?.data?.teams || []).map((t: any) => ({ id: t._id, name: t.name })), [teamResp]);
   const timePurposeOptions = useMemo(() => (timeResp?.data?.times || timeResp?.data?.time || []).map((p: any) => ({ id: p._id, name: p.name || p.title || '' })), [timeResp]);
 
-  const filterOpts = (opts: Array<{ id: string; name: string }>, q: string) => {
-    const query = (q || '').toLowerCase().trim();
-    if (!query) return opts.slice(0, 8);
-    return opts.filter(o => (o.name || '').toLowerCase().includes(query)).slice(0, 8);
-  };
-
   const [addTimeLog, { isLoading: isSaving }] = useAddTimeLogMutation();
-  const resolveIdByName = (opts: Array<{ id: string; name: string }>, name: string) => {
-    const exact = opts.find(o => (o.name || '').toLowerCase() === (name || '').toLowerCase());
-    if (exact) return exact.id;
-    const partial = opts.find(o => (o.name || '').toLowerCase().includes((name || '').toLowerCase()));
-    return partial ? partial.id : '';
-  };
 
   const handleSubmit = async () => {
     try {
-      const clientId = resolveIdByName(clientOptions, clientInput);
-      const jobId = resolveIdByName(jobNameOptions, jobNameInput);
-      const jobTypeId = resolveIdByName(jobTypeOptions, jobTypeInput);
-      const timeCategoryId = resolveIdByName(timePurposeOptions, purposeInput);
-      const userId = resolveIdByName(teamOptions, teamInput);
-
       const payload = {
         date: dateISO || new Date().toISOString(),
         status: status,
-        clientId,
-        jobId,
-        jobTypeId,
-        timeCategoryId,
+        clientId: selectedClientId,
+        jobId: selectedJobId,
+        jobTypeId: selectedJobTypeId,
+        timeCategoryId: selectedPurposeId,
         description: description,
         billable: billable,
         rate: Number(rate) || 0,
-        userId,
+        userId: selectedTeamId,
         duration: durationSeconds,
       };
       await addTimeLog(payload).unwrap();
@@ -96,82 +74,88 @@ const TimeLogPopup = ({ onClose }: TimeLogPopupProps) => {
                 Date
                 <input className="bg-white border border-[#eee] text-[#666666] px-[12px] py-[8px] rounded-sm" type="date" value={dateISO ? new Date(dateISO).toISOString().slice(0,10) : ''} onChange={(e) => { const d = new Date(e.target.value + 'T00:00:00.000Z'); setDateISO(d.toISOString()); }} />
             </label>
-            <label className="flex flex-col gap-[3px] text-[14px] font-semibold text-[#381980] w-full relative" htmlFor="">
+            <label className="flex flex-col gap-[3px] text-[14px] font-semibold text-[#381980] w-full" htmlFor="">
                 Client Name
-                <input className="bg-white border border-[#eee] text-[#666666] px-[12px] py-[8px] rounded-sm" type="text" value={clientInput} onChange={(e) => { const v = e.target.value; setClientInput(v); setClientOpen(v.trim().length > 0); }} placeholder="Search client..." />
-                {clientOpen && clientInput.trim().length > 0 && filterOpts(clientOptions, clientInput).length > 0 && (
-                  <div className="absolute left-0 right-0 top-[70px] bg-white border border-[#eee] rounded-sm max-h-48 overflow-auto z-[100]">
-                    {filterOpts(clientOptions, clientInput).map(opt => (
-                      <button key={opt.id} type="button" className="w-full text-left px-3 py-2 hover:bg-[#F5F3F9] text-[#666666]" onClick={() => { setClientInput(opt.name); setClientOpen(false); }}>
+                <Select value={selectedClientId || undefined} onValueChange={setSelectedClientId}>
+                  <SelectTrigger className="bg-white border border-[#eee] text-[#666666] px-[12px] py-[8px] rounded-sm cursor-pointer">
+                    <SelectValue placeholder="Select client..." />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border border-[#eee] z-[10000000] max-h-60 overflow-auto">
+                    {clientOptions.map(opt => (
+                      <SelectItem key={opt.id} value={opt.id} className="text-[#666666] hover:bg-[#F5F3F9]">
                         {opt.name}
-                      </button>
+                      </SelectItem>
                     ))}
-                  </div>
-                )}
+                  </SelectContent>
+                </Select>
             </label>
           </div>
           <div className="flex gap-[15px] max-sm:flex-wrap ">
-            <label className="flex flex-col gap-[3px] text-[14px] font-semibold text-[#381980] w-full relative" htmlFor="">
+            <label className="flex flex-col gap-[3px] text-[14px] font-semibold text-[#381980] w-full" htmlFor="">
                 Job Name
-                <input className="bg-white border border-[#eee] text-[#666666] px-[12px] py-[8px] rounded-sm" type="text" value={jobNameInput} onChange={(e) => { const v = e.target.value; setJobNameInput(v); setJobNameOpen(v.trim().length > 0); }} placeholder="Search job name..." />
-                {jobNameOpen && jobNameInput.trim().length > 0 && filterOpts(jobNameOptions, jobNameInput).length > 0 && (
-                  <div className="absolute left-0 right-0 top-[70px] bg-white border border-[#eee] rounded-sm max-h-48 overflow-auto z-[100]">
-                    {filterOpts(jobNameOptions, jobNameInput).map(opt => (
-                      <button key={opt.id} type="button" className="w-full text-left px-3 py-2 hover:bg-[#F5F3F9] text-[#666666]" onClick={() => { setJobNameInput(opt.name); setJobNameOpen(false); }}>
+                <Select value={selectedJobId || undefined} onValueChange={setSelectedJobId}>
+                  <SelectTrigger className="bg-white border border-[#eee] text-[#666666] px-[12px] py-[8px] rounded-sm cursor-pointer">
+                    <SelectValue placeholder="Select job..." />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border border-[#eee] z-[10000000] max-h-60 overflow-auto">
+                    {jobNameOptions.map(opt => (
+                      <SelectItem key={opt.id} value={opt.id} className="text-[#666666] hover:bg-[#F5F3F9]">
                         {opt.name}
-                      </button>
+                      </SelectItem>
                     ))}
-                  </div>
-                )}
+                  </SelectContent>
+                </Select>
             </label>
-            <label className="flex flex-col gap-[3px] text-[14px] font-semibold text-[#381980] w-full relative" htmlFor="">
+            <label className="flex flex-col gap-[3px] text-[14px] font-semibold text-[#381980] w-full" htmlFor="">
                 Job Type
-                <input className="bg-white border border-[#eee] text-[#666666] px-[12px] py-[8px] rounded-sm" type="text" value={jobTypeInput} onChange={(e) => { const v = e.target.value; setJobTypeInput(v); setJobTypeOpen(v.trim().length > 0); }} placeholder="Search job type..." />
-                {jobTypeOpen && jobTypeInput.trim().length > 0 && filterOpts(jobTypeOptions, jobTypeInput).length > 0 && (
-                  <div className="absolute left-0 right-0 top-[70px] bg-white border border-[#eee] rounded-sm max-h-48 overflow-auto z-[100]">
-                    {filterOpts(jobTypeOptions, jobTypeInput).map(opt => (
-                      <button key={opt.id} type="button" className="w-full text-left px-3 py-2 hover:bg-[#F5F3F9] text-[#666666]" onClick={() => { setJobTypeInput(opt.name); setJobTypeOpen(false); }}>
+                <Select value={selectedJobTypeId || undefined} onValueChange={setSelectedJobTypeId}>
+                  <SelectTrigger className="bg-white border border-[#eee] text-[#666666] px-[12px] py-[8px] rounded-sm cursor-pointer">
+                    <SelectValue placeholder="Select job type..." />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border border-[#eee] z-[10000000] max-h-60 overflow-auto">
+                    {jobTypeOptions.map(opt => (
+                      <SelectItem key={opt.id} value={opt.id} className="text-[#666666] hover:bg-[#F5F3F9]">
                         {opt.name}
-                      </button>
+                      </SelectItem>
                     ))}
-                  </div>
-                )}
+                  </SelectContent>
+                </Select>
             </label>
           </div>
-          <label className="flex flex-col gap-[3px] text-[14px] font-semibold text-[#381980] w-[48%] max-sm:w-full relative" htmlFor="">
+          <label className="flex flex-col gap-[3px] text-[14px] font-semibold text-[#381980] w-[48%] max-sm:w-full" htmlFor="">
                 Team Name
-                <input className="bg-white border border-[#eee] text-[#666666] px-[12px] py-[8px] rounded-sm" type="text" value={teamInput} onChange={(e) => { const v = e.target.value; setTeamInput(v); setTeamOpen(v.trim().length > 0); }} placeholder="Search team..." />
-                {teamOpen && teamInput.trim().length > 0 && filterOpts(teamOptions, teamInput).length > 0 && (
-                  <div className="absolute left-0 right-0 top-[70px] bg-white border border-[#eee] rounded-sm max-h-48 overflow-auto z-[100]">
-                    {filterOpts(teamOptions, teamInput).map(opt => (
-                      <button key={opt.id} type="button" className="w-full text-left px-3 py-2 hover:bg-[#F5F3F9] text-[#666666]" onClick={() => { setTeamInput(opt.name); setTeamOpen(false); }}>
+                <Select value={selectedTeamId || undefined} onValueChange={setSelectedTeamId}>
+                  <SelectTrigger className="bg-white border border-[#eee] text-[#666666] px-[12px] py-[8px] rounded-sm cursor-pointer">
+                    <SelectValue placeholder="Select team..." />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border border-[#eee] z-[10000000] max-h-60 overflow-auto">
+                    {teamOptions.map(opt => (
+                      <SelectItem key={opt.id} value={opt.id} className="text-[#666666] hover:bg-[#F5F3F9]">
                         {opt.name}
-                      </button>
+                      </SelectItem>
                     ))}
-                  </div>
-                )}
+                  </SelectContent>
+                </Select>
             </label>
           <label className="flex flex-col gap-[3px] text-[14px] font-semibold text-[#381980] w-full" htmlFor="">
                 Description
                 <input className="bg-white border border-[#eee] text-[#666666] px-[12px] py-[8px] rounded-sm" type="text" value={description} onChange={(e) => setDescription(e.target.value)} />
             </label>
              <div className="flex gap-[15px] max-sm:flex-wrap ">
-            <label className="flex flex-col gap-[3px] text-[14px] font-semibold text-[#381980] w-full relative" htmlFor="">
+            <label className="flex flex-col gap-[3px] text-[14px] font-semibold text-[#381980] w-full" htmlFor="">
                 Time Purpose
-                <input className="bg-white border border-[#eee] text-[#666666] px-[12px] py-[8px] rounded-sm" type="text" value={purposeInput} onChange={(e) => { const v = e.target.value; setPurposeInput(v); setPurposeOpen(v.trim().length > 0); }} placeholder="Search purpose..." />
-                {purposeOpen && purposeInput.trim().length > 0 && filterOpts(timePurposeOptions, purposeInput).length > 0 && (
-                  <div className="absolute left-0 right-0 top-[70px] bg-white border border-[#eee] rounded-sm max-h-48 overflow-auto z-[100]">
-                    {filterOpts(timePurposeOptions, purposeInput).map(opt => (
-                      <button key={opt.id} type="button" className="w-full text-left px-3 py-2 hover:bg-[#F5F3F9] text-[#666666]" onClick={() => { setPurposeInput(opt.name); setPurposeOpen(false); }}>
+                <Select value={selectedPurposeId || undefined} onValueChange={setSelectedPurposeId}>
+                  <SelectTrigger className="bg-white border border-[#eee] text-[#666666] px-[12px] py-[8px] rounded-sm cursor-pointer">
+                    <SelectValue placeholder="Select purpose..." />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border border-[#eee] z-[10000000] max-h-60 overflow-auto">
+                    {timePurposeOptions.map(opt => (
+                      <SelectItem key={opt.id} value={opt.id} className="text-[#666666] hover:bg-[#F5F3F9]">
                         {opt.name}
-                      </button>
+                      </SelectItem>
                     ))}
-                  </div>
-                )}
-            </label>
-              <label className="flex flex-col gap-[3px] text-[14px] font-semibold text-[#381980] w-full" htmlFor="">
-                Billable
-                <Switch checked={billable} onCheckedChange={setBillable} />
+                  </SelectContent>
+                </Select>
             </label>
             <label className="flex flex-col gap-[3px] text-[14px] font-semibold text-[#381980] w-full" htmlFor="">
                 Duration
@@ -189,16 +173,30 @@ const TimeLogPopup = ({ onClose }: TimeLogPopupProps) => {
           
           </div>
           <div className="flex gap-[15px] max-sm:flex-wrap ">
-            <label className="flex flex-col gap-[3px] text-[14px] font-semibold text-[#381980] w-full" htmlFor="">
-                Billable Rate
-                <input className="bg-white border border-[#eee] text-[#666666] px-[12px] py-[8px] rounded-sm" type="number" value={rate} onChange={(e) => setRate(e.target.value)} />
+            <label className="flex flex-col gap-[3px] text-[14px] font-semibold text-[#381980] w-[20%] max-sm:w-full" htmlFor="">
+                Billable
+                <div className="flex items-center gap-2 bg-white border border-[#eee] rounded-sm px-[10px] py-[6px]">
+                  <div className="scale-90 origin-left">
+                    <Switch checked={billable} onCheckedChange={setBillable} />
+                  </div>
+                </div>
             </label>
-            <label className="flex flex-col gap-[3px] text-[14px] font-semibold text-[#381980] w-full" htmlFor="">
+            <label className="flex flex-col gap-[3px] text-[14px] font-semibold text-[#381980] w-[33%] max-sm:w-full" htmlFor="">
+                Billable Rate
+                <input
+                  className={`bg-white border border-[#eee] ${billable ? 'text-[#666666]' : 'text-[#9ca3af]'} px-[12px] py-[8px] rounded-sm`}
+                  type="number"
+                  value={rate}
+                  onChange={(e) => setRate(e.target.value)}
+                  disabled={!billable}
+                />
+            </label>
+            <label className="flex flex-col gap-[3px] text-[14px] font-semibold text-[#381980] w-[40%] max-sm:w-full" htmlFor="">
                 Status
-                <div className="bg-white border border-[#eee] text-[#666666] rounded-sm flex">
-                    <button type="button" onClick={() => setStatus('notInvoiced')} className={`${status==='notInvoiced' ? 'bg-[#017DB9] text-white' : 'text-[#017DB9]'} px-[12px] py-[8px] text-[12px] text-center w-auto`}>Not Invoiced</button>
-                    <button type="button" onClick={() => setStatus('invoiced')} className={`${status==='invoiced' ? 'bg-[#017DB9] text-white' : 'text-[#017DB9]'} px-[12px] py-[8px] text-[12px] text-center w-auto`}>Invoiced</button>
-                    <button type="button" onClick={() => setStatus('paid')} className={`${status==='paid' ? 'bg-[#017DB9] text-white' : 'text-[#017DB9]'} px-[12px] py-[8px] text-[12px] text-center w-auto`}>Paid</button>
+                <div className={`bg-white border border-[#eee] ${billable ? 'text-[#666666]' : 'text-[#9ca3af]'} rounded-sm flex`}>
+                    <button type="button" onClick={() => billable && setStatus('notInvoiced')} disabled={!billable} className={`${status==='notInvoiced' && billable ? 'bg-[#017DB9] text-white' : 'text-[#017DB9]'} px-[12px] py-[8px] text-[12px] text-center w-auto disabled:opacity-50`}>Not Invoiced</button>
+                    <button type="button" onClick={() => billable && setStatus('invoiced')} disabled={!billable} className={`${status==='invoiced' && billable ? 'bg-[#017DB9] text-white' : 'text-[#017DB9]'} px-[12px] py-[8px] text-[12px] text-center w-auto disabled:opacity-50`}>Invoiced</button>
+                    <button type="button" onClick={() => billable && setStatus('paid')} disabled={!billable} className={`${status==='paid' && billable ? 'bg-[#017DB9] text-white' : 'text-[#017DB9]'} px-[12px] py-[8px] text-[12px] text-center w-auto disabled:opacity-50`}>Paid</button>
                 </div>
             </label>
           </div>

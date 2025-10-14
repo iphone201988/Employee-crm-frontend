@@ -14,6 +14,8 @@ import CustomTabs from '@/components/Tabs';
 import { usePermissionTabs } from '@/hooks/usePermissionTabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@radix-ui/react-tooltip';
 import { useLazyGetTabAccessQuery } from '@/store/authApi';
+import { useGetDropdownOptionsQuery } from '@/store/teamApi';
+import { useAddClientExpenseMutation } from '@/store/expensesApi';
 import { useGetCurrentUserQuery } from '@/store/authApi';
 import Avatars from '@/components/Avatars';
 interface Expense {
@@ -472,6 +474,41 @@ const ExpensesLogTab = () => {
   const [selectedInvoice, setSelectedInvoice] = useState<string | null>(null);
   const [addClientExpenseOpen, setAddClientExpenseOpen] = useState(false);
   const [addTeamExpenseOpen, setAddTeamExpenseOpen] = useState(false);
+  const { data: clientOptionsResp } = useGetDropdownOptionsQuery('client');
+  const clientOptions = (clientOptionsResp?.data?.clients || []).map((c: any) => ({ value: c._id, label: c.name }));
+  const [addClientExpense, { isLoading: isAddingClientExpense }] = useAddClientExpenseMutation();
+  const [clientExpenseForm, setClientExpenseForm] = useState({
+    date: '',
+    clientId: '',
+    description: '',
+    expreseCategory: '',
+    netAmount: '',
+    vatPercentage: '',
+    vatAmount: '',
+    totalAmount: '',
+    status: 'no',
+    file: null as File | null,
+  });
+  const submitClientExpense = async () => {
+    try {
+      await addClientExpense({
+        type: 'client',
+        description: clientExpenseForm.description,
+        clientId: clientExpenseForm.clientId,
+        date: clientExpenseForm.date,
+        expreseCategory: clientExpenseForm.expreseCategory,
+        netAmount: Number(clientExpenseForm.netAmount || 0),
+        vatPercentage: Number(clientExpenseForm.vatPercentage || 0),
+        vatAmount: Number(clientExpenseForm.vatAmount || 0),
+        totalAmount: Number(clientExpenseForm.totalAmount || 0),
+        status: clientExpenseForm.status as 'yes' | 'no',
+        file: clientExpenseForm.file,
+      }).unwrap();
+      setAddClientExpenseOpen(false);
+    } catch (e) {
+      console.error('Failed to add client expense', e);
+    }
+  };
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState<string | null>(null);
   const { visibleTabs, isLoading, isError } = usePermissionTabs(tabs);
@@ -979,46 +1016,66 @@ const ExpensesLogTab = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium">Date</label>
-                <Input type="date" />
+                <Input type="date" value={clientExpenseForm.date} onChange={(e) => setClientExpenseForm(f => ({ ...f, date: e.target.value }))} />
               </div>
               <div>
                 <label className="text-sm font-medium">Client</label>
-                <Select>
+                <Select value={clientExpenseForm.clientId} onValueChange={(v) => setClientExpenseForm(f => ({ ...f, clientId: v }))}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select client" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="abc-corp">ABC Corp Ltd</SelectItem>
-                    <SelectItem value="xyz-holdings">XYZ Holdings</SelectItem>
-                    <SelectItem value="smith-associates">Smith & Associates</SelectItem>
+                    {clientOptions.map(o => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
             <div>
               <label className="text-sm font-medium">Description</label>
-              <Input placeholder="Enter expense description" />
+              <Input placeholder="Enter expense description" value={clientExpenseForm.description} onChange={(e) => setClientExpenseForm(f => ({ ...f, description: e.target.value }))} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium">Category</label>
-                <Select>
+                <Input placeholder="Enter category" value={clientExpenseForm.expreseCategory} onChange={(e) => setClientExpenseForm(f => ({ ...f, expreseCategory: e.target.value }))} />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Amount</label>
+                <Input type="number" placeholder="Net" step="0.01" value={clientExpenseForm.netAmount} onChange={(e) => setClientExpenseForm(f => ({ ...f, netAmount: e.target.value }))} />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="text-sm font-medium">VAT %</label>
+                <Input type="number" placeholder="0" step="0.01" value={clientExpenseForm.vatPercentage} onChange={(e) => setClientExpenseForm(f => ({ ...f, vatPercentage: e.target.value }))} />
+              </div>
+              <div>
+                <label className="text-sm font-medium">VAT Amount</label>
+                <Input type="number" placeholder="0.00" step="0.01" value={clientExpenseForm.vatAmount} onChange={(e) => setClientExpenseForm(f => ({ ...f, vatAmount: e.target.value }))} />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Total Amount</label>
+                <Input type="number" placeholder="0.00" step="0.01" value={clientExpenseForm.totalAmount} onChange={(e) => setClientExpenseForm(f => ({ ...f, totalAmount: e.target.value }))} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium">Status</label>
+                <Select value={clientExpenseForm.status} onValueChange={(v) => setClientExpenseForm(f => ({ ...f, status: v }))}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
+                    <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="cro-filing-fee">CRO filing fee</SelectItem>
-                    <SelectItem value="subsistence">Subsistence</SelectItem>
-                    <SelectItem value="accommodation">Accommodation</SelectItem>
-                    <SelectItem value="mileage">Mileage</SelectItem>
-                    <SelectItem value="software">Software</SelectItem>
-                    <SelectItem value="stationary">Stationary</SelectItem>
+                    <SelectItem value="no">Not Invoiced</SelectItem>
+                    <SelectItem value="yes">Invoiced</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <label className="text-sm font-medium">Amount</label>
-                <Input type="number" placeholder="0.00" step="0.01" />
+                <label className="text-sm font-medium">Attachment</label>
+                <Input type="file" onChange={(e) => setClientExpenseForm(f => ({ ...f, file: e.target.files && e.target.files[0] ? e.target.files[0] : null }))} />
               </div>
             </div>
             <div>
@@ -1041,8 +1098,8 @@ const ExpensesLogTab = () => {
               <Button variant="outline" onClick={() => setAddClientExpenseOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={() => setAddClientExpenseOpen(false)}>
-                Save Expense
+              <Button onClick={submitClientExpense} disabled={isAddingClientExpense}>
+                {isAddingClientExpense ? 'Saving...' : 'Save Expense'}
               </Button>
             </div>
           </div>

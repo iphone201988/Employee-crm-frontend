@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useLazyGetTabAccessQuery } from "@/store/authApi";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -15,6 +15,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import TimeLogPopup from './TimeLogPopup';
+import AddClient from '@/components/client/AddClient';
+import { JobForm } from '@/components/JobForm';
 
 interface AvatarsProps {
   activeTab: string;
@@ -23,6 +27,9 @@ interface AvatarsProps {
 
 const Avatars = ({ activeTab, title }: AvatarsProps) => {
   const [getTabAccess, { data: currentTabsUsers }] = useLazyGetTabAccessQuery();
+  const [showTimeLogPopup, setShowTimeLogPopup] = useState(false);
+  const [showAddClient, setShowAddClient] = useState(false);
+  const [showAddJob, setShowAddJob] = useState(false);
 
   useEffect(() => {
     if (activeTab) {
@@ -85,8 +92,12 @@ const Avatars = ({ activeTab, title }: AvatarsProps) => {
     </div> */}
 
      <div className="custom-dn">
-        <Select> 
-                    <SelectTrigger className="w-32 bg-[#017DB9] text-[#fff] font-semibold">
+        <Select onValueChange={(v) => {
+          if (v === '1') setShowTimeLogPopup(true);
+          if (v === '2') setShowAddClient(true);
+          if (v === '3') setShowAddJob(true);
+        }}> 
+                    <SelectTrigger className="bg-[#017DB9] text-white py-[8px] px-[12px] rounded-[4px] flex items-center gap-[4px] font-semibold h-auto">
                       <SelectValue placeholder="Create" />
                     </SelectTrigger>
                     <SelectContent className='sel-custom-dp bg-[#381980] text-white'>
@@ -94,10 +105,28 @@ const Avatars = ({ activeTab, title }: AvatarsProps) => {
                       <SelectItem value="1" className="p-2 hover:!bg-[#017DB9] hover:!text-white">Time Log</SelectItem>
                       <SelectItem value="2" className="p-2 hover:!bg-[#017DB9] hover:!text-white">Client</SelectItem>
                       <SelectItem value="3" className="p-2 hover:!bg-[#017DB9] hover:!text-white">Job</SelectItem>
-                      <SelectItem value="4" className="p-2 hover:!bg-[#017DB9] hover:!text-white">Expense</SelectItem>
+                      <SelectItem value="4" className="p-2 hover:!bg-[#017DB9] hover:!text-white" disabled>Expense</SelectItem>
                     </SelectContent>
                   </Select>
      </div>
+
+     {/* Time Log Popup (render directly like in AllTimeLogsTab) */}
+     {showTimeLogPopup && (
+       <TimeLogPopup onClose={() => setShowTimeLogPopup(false)} />
+     )}
+
+     {/* Add Client Popup (reusing Clients page component) */}
+     <AddClient dialogOpen={showAddClient} setDialogOpen={setShowAddClient} />
+
+     {/* Add Job Popup (reuse JobForm inside a dialog) */}
+     <Dialog open={showAddJob} onOpenChange={setShowAddJob}>
+       <DialogContent className="max-w-2xl">
+         <DialogHeader>
+           <DialogTitle>Add New Job</DialogTitle>
+         </DialogHeader>
+         <JobForm job={null} onSubmit={() => {}} onCancel={() => setShowAddJob(false)} />
+       </DialogContent>
+     </Dialog>
     </div>
   );
 };

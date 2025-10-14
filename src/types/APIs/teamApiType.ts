@@ -54,6 +54,7 @@ export interface TeamMember {
     featureAccess: FeatureAccess;
     permission: Permission;
     companyId: string;
+    myTimeLogs: boolean;
 }
 
 interface WorkSchedule {

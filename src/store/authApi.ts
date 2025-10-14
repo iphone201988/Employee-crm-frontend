@@ -1,6 +1,6 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 
-import { LoginRequest, LoginResponse, User } from '../types/APIs/authApiType';
+import { LoginRequest, LoginResponse, User, GetCurrentUserResponse } from '../types/APIs/authApiType';
 
 interface TabAccessResponse {
   success: boolean;
@@ -71,7 +71,7 @@ export const authApi = createApi({
       invalidatesTags: ['Auth'],
     }),
 
-    getCurrentUser: builder.query<User, void>({
+    getCurrentUser: builder.query<GetCurrentUserResponse, void>({
       query: () => '/auth/me', // Prefixed with /auth
       providesTags: ['Auth'],
     }),

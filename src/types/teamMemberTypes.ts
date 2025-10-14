@@ -18,6 +18,7 @@ export interface BaseTeamMember {
     vat: number | string;
     cgt: number | string;
   };
+
 }
 
 // Service Rates specific interface
@@ -64,6 +65,7 @@ export interface AccessTeamMember extends BaseTeamMember {
     timeLogsImport: boolean;
     integrations: boolean;
     jobImport: boolean;
+    myTimeLogs: boolean;
   };
 }
 
@@ -128,5 +130,6 @@ export const transformToAccess = (apiMember: ApiTeamMember): AccessTeamMember =>
     timeLogsImport: (apiMember.featureAccess as any)?.timeLogsImport || false,
     integrations: (apiMember.featureAccess as any)?.integrations || false,
     jobImport: (apiMember.featureAccess as any)?.jobImport || false,
+    myTimeLogs: (apiMember.featureAccess as any)?.myTimeLogs || false,
   }
 });

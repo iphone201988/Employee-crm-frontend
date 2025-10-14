@@ -41,7 +41,7 @@ export interface TimesheetData {
   companyId: string;
   weekStart: string;
   weekEnd: string;
-  status: 'draft' | 'submitted' | 'approved' | 'rejected';
+  status: 'draft' | 'submitted' | 'approved' | 'rejected' | 'reviewed';
   timeEntries: TimeEntry[];
   dailySummary: DailySummary[];
   totalBillable: number; // in minutes
@@ -192,6 +192,11 @@ export interface ListTimeLogsResponse {
   };
 }
 
+export interface ChangeTimesheetStatusRequest {
+  status: 'reviewed' | 'draft' | 'approved' | 'rejected';
+  timeSheetId: string;
+}
+
 export const timesheetApi = createApi({
   reducerPath: 'timesheetApi',
   baseQuery: fetchBaseQuery({
@@ -252,6 +257,14 @@ export const timesheetApi = createApi({
       }),
       invalidatesTags: ['TimeEntry'],
     }),
+    changeTimesheetStatus: builder.mutation<{ success: boolean; message: string }, ChangeTimesheetStatusRequest>({
+      query: (body) => ({
+        url: '/change-time-sheet-status',
+        method: 'PUT',
+        body,
+      }),
+      invalidatesTags: ['Timesheet'],
+    }),
     listTimeLogs: builder.query<ListTimeLogsResponse, ListTimeLogsRequest | void>({
       query: (args) => {
         const params = new URLSearchParams();
@@ -288,4 +301,5 @@ export const {
   useAddTimeLogMutation,
   useListTimeLogsQuery,
   useDeleteTimeLogsMutation,
+  useChangeTimesheetStatusMutation,
 } = timesheetApi;

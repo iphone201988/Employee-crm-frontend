@@ -34,6 +34,16 @@ export interface GetTeamMembersByCompanyResponse {
     };
 }
 
+export interface UpdateSettingsRequest {
+    wipWarningPercentage: number;
+    autoApproveTimesheets: boolean;
+}
+
+export interface UpdateSettingsResponse {
+    success: boolean;
+    message: string;
+}
+
 type UploadImageRequest = File;
 export const teamApi = createApi({
     reducerPath: 'teamApi',
@@ -178,6 +188,13 @@ export const teamApi = createApi({
                     : [companyTeamTag];
             },
         }),
+        updateSettings: builder.mutation<UpdateSettingsResponse, UpdateSettingsRequest>({
+            query: (settingsData) => ({
+                url: '/update-settings',
+                method: 'POST',
+                body: settingsData,
+            }),
+        }),
 
     }),
 });
@@ -192,6 +209,6 @@ export const {
     useAddCompanyMutation,
     useGetAllCompanyMembersQuery,
     useGetCompanyByIdQuery,
-    useGetTeamMembersByCompanyIdQuery
-
+    useGetTeamMembersByCompanyIdQuery,
+    useUpdateSettingsMutation
 } = teamApi;

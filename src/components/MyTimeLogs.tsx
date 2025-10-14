@@ -9,9 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 
-import { Clock, Users, ChevronDown, ChevronRight, ChevronLeft, ChevronRight as ChevronRightIcon, Settings, Download, FileText, Edit2, Search, RefreshCw, Move, Plus, Trash2, Check, Calendar, X } from 'lucide-react';
+import { Clock, Users, ChevronDown, ChevronRight, ChevronLeft, ChevronRight as ChevronRightIcon, Settings, Download, FileText, Edit2, Search, RefreshCw, Move, Plus, Trash2, Check } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { formatCurrency } from '@/lib/currency';
 import { getProfileImage, getUserInitials } from '@/utils/profiles';
@@ -20,6 +21,7 @@ import autoTable from 'jspdf-autotable';
 import TimeLogPopup from './TimeLogPopup';
 import { useGetDropdownOptionsQuery } from '@/store/teamApi';
 import { useListTimeLogsQuery, useDeleteTimeLogsMutation } from '@/store/timesheetApi';
+import { useAuthContext } from '@/context/AuthContext';
 
 
 interface TimeLog {
@@ -41,14 +43,13 @@ interface TimeLog {
 }
 
 
-const AllTimeLogsTab = () => {
+const MyTimeLogs = () => {
 
 
   const [filters, setFilters] = useState({
     clientId: 'all',
     jobNameId: 'all',
     jobTypeId: 'all',
-    teamId: 'all',
     purposeId: 'all',
     billable: 'all', // 'true' | 'false' | 'all'
     status: 'all', // 'notInvoiced' | 'invoiced' | 'paid' | 'all'
@@ -59,13 +60,11 @@ const AllTimeLogsTab = () => {
   const { data: clientOptionsResp } = useGetDropdownOptionsQuery('client');
   const { data: jobListOptionsResp } = useGetDropdownOptionsQuery('jobList');
   const { data: jobTypeOptionsResp } = useGetDropdownOptionsQuery('job');
-  const { data: teamOptionsResp } = useGetDropdownOptionsQuery('team');
   const { data: timePurposeOptionsResp } = useGetDropdownOptionsQuery('time');
 
   const clientOptions = (clientOptionsResp?.data?.clients || []).map((c: any) => ({ value: c._id, label: c.name }));
   const jobNameOptions = (jobListOptionsResp?.data?.jobs || []).map((j: any) => ({ value: j._id, label: j.name }));
   const jobTypeOptions = (jobTypeOptionsResp?.data?.jobCategories || jobTypeOptionsResp?.data?.jobs || []).map((jt: any) => ({ value: jt._id, label: jt.name }));
-  const teamOptions = (teamOptionsResp?.data?.teams || []).map((t: any) => ({ value: t._id, label: t.name }));
   const timePurposeOptions = (timePurposeOptionsResp?.data?.times || []).map((p: any) => ({ value: p._id, label: p.name || p.title || 'Purpose' }));
   const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
   const [showTimeLogPopup, setShowTimeLogPopup] = useState(false);
@@ -74,6 +73,8 @@ const AllTimeLogsTab = () => {
   const [limit, setLimit] = useState(10);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
+  // Get current user from context
+  const { userInfo } = useAuthContext();
 
   // Column visibility state
   const [visibleColumns, setVisibleColumns] = useState({
@@ -90,7 +91,7 @@ const AllTimeLogsTab = () => {
   });
 
 
-  // Fetch time logs from API (None view)
+  // Fetch time logs from API (None view) - only current user's logs
   const { data: listResp, isLoading: isLogsLoading } = useListTimeLogsQuery({
     search: '',
     page,
@@ -98,7 +99,7 @@ const AllTimeLogsTab = () => {
     clientId: filters.clientId !== 'all' ? filters.clientId : undefined,
     jobId: filters.jobNameId !== 'all' ? filters.jobNameId : undefined,
     jobTypeId: filters.jobTypeId !== 'all' ? filters.jobTypeId : undefined,
-    userId: filters.teamId !== 'all' ? filters.teamId : undefined,
+    userId: userInfo?.id, // Pass current user's ID
     timeCategoryId: filters.purposeId !== 'all' ? filters.purposeId : undefined,
     billable: filters.billable === 'all' ? undefined : filters.billable === 'true',
     status: filters.status !== 'all' ? (filters.status as any) : undefined,
@@ -270,7 +271,7 @@ const AllTimeLogsTab = () => {
   console.log("grouped============fdgdfgdfg", groupedLogs);
 
   // Calculate totals
-  const totalHours = apiSummary?.totalHours ? (apiSummary.totalHours / 60) : filteredTimeLogs.reduce((sum, log) => sum + log.hours, 0);
+  const totalHours = apiSummary?.totalHours ? (apiSummary.totalHours / 3600) : filteredTimeLogs.reduce((sum, log) => sum + log.hours, 0);
   const totalAmount = apiSummary?.totalAmount ?? filteredTimeLogs.reduce((sum, log) => sum + log.amount, 0);
   const uniqueClients = apiSummary?.uniqueClients ?? new Set(filteredTimeLogs.map(log => log.clientName)).size;
   const uniqueTeamMembers = apiSummary?.uniqueJobs ?? new Set(filteredTimeLogs.map(log => log.teamMember)).size;
@@ -287,30 +288,6 @@ const AllTimeLogsTab = () => {
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
-  };
-
-  // Deterministic color mapping for time purpose badges
-  const timePurposeColors = useMemo(() => [
-    { bg: 'bg-[#EBF6ED]', text: 'text-[#38A24B]', border: 'border-[#38A24B]' }, // green
-    { bg: 'bg-[#E6F0FF]', text: 'text-[#1D4ED8]', border: 'border-[#1D4ED8]' }, // blue
-    { bg: 'bg-[#FEF8E7]', text: 'text-[#F6B800]', border: 'border-[#F6B800]' }, // yellow
-    { bg: 'bg-[#FEEBEA]', text: 'text-[#F50000]', border: 'border-[#F50000]' }, // red
-    { bg: 'bg-[#F3E8FF]', text: 'text-[#7C3AED]', border: 'border-[#7C3AED]' }, // purple
-    { bg: 'bg-[#E7F6FB]', text: 'text-[#017DB9]', border: 'border-[#017DB9]' }, // cyan
-  ], []);
-
-  const getPurposeColorClasses = (purpose?: string) => {
-    const value = (purpose || '').toString();
-    if (!value) {
-      return `${timePurposeColors[0].bg} ${timePurposeColors[0].text} border ${timePurposeColors[0].border}`;
-    }
-    let hash = 0;
-    for (let i = 0; i < value.length; i++) {
-      hash = (hash * 31 + value.charCodeAt(i)) >>> 0;
-    }
-    const idx = hash % timePurposeColors.length;
-    const c = timePurposeColors[idx];
-    return `${c.bg} ${c.text} border ${c.border}`;
   };
 
 
@@ -432,11 +409,11 @@ const AllTimeLogsTab = () => {
 
 
   const exportToCSV = () => {
-    // Build headers and data dynamically based on visible columns (current page only)
-    const headers: string[] = [];
+    // Build headers and data based on visible columns
+    const headers = [];
     const dataMappers: ((log: TimeLog) => string)[] = [];
 
-    // Fixed leading columns depending on view mode
+
     if (viewMode === 'flat') {
       headers.push('Client Ref.', 'Client Name', 'Job Name');
       dataMappers.push(
@@ -446,9 +423,10 @@ const AllTimeLogsTab = () => {
       );
     }
 
+
     if (visibleColumns.date) {
       headers.push('Date');
-      dataMappers.push((log) => new Date(log.date).toLocaleDateString('en-GB'));
+      dataMappers.push((log) => log.date);
     }
     if (visibleColumns.teamMember) {
       headers.push('Team Member');
@@ -464,11 +442,11 @@ const AllTimeLogsTab = () => {
     }
     if (visibleColumns.description) {
       headers.push('Description');
-      dataMappers.push((log) => `"${(log.description || '').replace(/"/g, '""')}"`);
+      dataMappers.push((log) => `"${log.description}"`);
     }
     if (visibleColumns.hours) {
       headers.push('Hours');
-      dataMappers.push((log) => formatHoursToHHMMSS(log.hours));
+      dataMappers.push((log) => log.hours.toString());
     }
     if (visibleColumns.rate) {
       headers.push('Rate');
@@ -480,17 +458,15 @@ const AllTimeLogsTab = () => {
     }
     if (visibleColumns.billable) {
       headers.push('Billable');
-      dataMappers.push((log) => (log.billable ? 'Yes' : 'No'));
+      dataMappers.push((log) => log.billable ? 'Yes' : 'No');
     }
     if (visibleColumns.status) {
       headers.push('Status');
       dataMappers.push((log) => log.status);
     }
 
-    // Use current page logs only
-    const pageStart = (page - 1) * (apiPagination?.limit || limit);
-    const currentPageLogs = filteredTimeLogs.slice(pageStart, pageStart + (apiPagination?.limit || limit));
-    const csvContent = `${headers.join(',')}\n${currentPageLogs.map(log =>
+
+    const csvContent = `${headers.join(',')}\n${filteredTimeLogs.map(log =>
       dataMappers.map(mapper => mapper(log)).join(',')
     ).join('\n')}`;
 
@@ -543,7 +519,6 @@ const AllTimeLogsTab = () => {
           </CardContent>
         </Card>
       </div>
-
 
 
 
@@ -666,22 +641,6 @@ const AllTimeLogsTab = () => {
           </div>
           <div className="space-y-2">
             <Select
-              value={filters.teamId}
-              onValueChange={(value) => setFilters(prev => ({ ...prev, teamId: value }))}
-            >
-              <SelectTrigger className="w-32 bg-white text-[#381980] font-semibold">
-                <SelectValue placeholder="Team Name" />
-              </SelectTrigger>
-              <SelectContent className=''>
-                <SelectItem value="all">Team Name</SelectItem>
-                {teamOptions.map((o: any) => (
-                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Select
               value={filters.purposeId}
               onValueChange={(value) => setFilters(prev => ({ ...prev, purposeId: value }))}
             >
@@ -721,43 +680,22 @@ const AllTimeLogsTab = () => {
               </SelectTrigger>
               <SelectContent className=''>
                 <SelectItem value="all">Status</SelectItem>
-                <SelectItem value="notInvoiced">Not Invoiced</SelectItem>
-                <SelectItem value="invoiced">Invoiced</SelectItem>
-                <SelectItem value="paid">Paid</SelectItem>
+                <SelectItem value="notInvoiced">notInvoiced</SelectItem>
+                <SelectItem value="invoiced">invoiced</SelectItem>
+                <SelectItem value="paid">paid</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
-            <Popover>
-              <PopoverTrigger asChild>
-                <button className="w-full min-w-[200px] bg-white border border-input rounded-md px-3 py-2 text-left flex items-center justify-between">
-                  <span className="text-[#381980] font-semibold text-sm">
-                    {filters.dateFrom && filters.dateTo
-                      ? `${new Date(filters.dateFrom).toLocaleDateString()} — ${new Date(filters.dateTo).toLocaleDateString()}`
-                      : 'Date Range'}
-                  </span>
-                  <Calendar className="w-4 h-4 text-[#381980]" />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[280px] p-3" align="start">
-                <div className="space-y-2">
-                  <div className="grid grid-cols-1 gap-2">
-                    <div className="flex flex-col gap-1">
-                      <Label htmlFor="dr-from">From</Label>
-                      <Input id="dr-from" type="date" value={filters.dateFrom} onChange={(e) => setFilters(prev => ({ ...prev, dateFrom: e.target.value }))} />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <Label htmlFor="dr-to">To</Label>
-                      <Input id="dr-to" type="date" value={filters.dateTo} onChange={(e) => setFilters(prev => ({ ...prev, dateTo: e.target.value }))} />
-                    </div>
-                  </div>
-                  <div className="flex justify-between pt-1">
-                    <Button variant="outline" size="sm" onClick={() => setFilters(prev => ({ ...prev, dateFrom: '', dateTo: '' }))}>Clear</Button>
-                    {/* <Button size="sm">Apply</Button> */}
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
+            {/* <Label htmlFor="date-to">Date To</Label> */}
+            <Input
+              id="date-to"
+              type="date"
+              placeholder='sisdis'
+              value={filters.dateTo}
+              onChange={(e) => setFilters(prev => ({ ...prev, dateTo: e.target.value }))}
+              className="w- bg-white"
+            />
           </div>
           <div className="space-y-2">
             <Button
@@ -768,7 +706,6 @@ const AllTimeLogsTab = () => {
                   clientId: 'all',
                   jobNameId: 'all',
                   jobTypeId: 'all',
-                  teamId: 'all',
                   purposeId: 'all',
                   billable: 'all',
                   status: 'all',
@@ -783,15 +720,7 @@ const AllTimeLogsTab = () => {
           </div>
 
         </div>
-        <div className="space-y-2">
-          <Button
-            onClick={handleDeleteSelected}
-            disabled={isDeleting || selectedIds.size===0}
-            className='bg-[#381980] w-[42px] rounded-sm text-primary-foreground p-2 hover:bg-primary/90 !text-[#fff] flex items-center justify-center'
-          >
-            <Trash2 size={16} />
-          </Button>
-        </div>
+        <button onClick={handleDeleteSelected} disabled={isDeleting || selectedIds.size===0} className='text-[#fff] font-semibold bg-[#381980] w/[42px] h/[42px] flex items-center justify-center rounded-sm text-primary-foreground p-2 hover:bg-primary/90'><Trash2 size={16} /></button>
       </div>
 
 
@@ -808,9 +737,7 @@ const AllTimeLogsTab = () => {
                   {viewMode === 'flat' ? (
                     <>
                       <TableHead className="p-3 text-foreground h-12 text-[#381980]"><input type="checkbox" onChange={(e) => toggleSelectAllVisible(e.target.checked, filteredTimeLogs)} /></TableHead>
-                      {visibleColumns.date && (
-                        <TableHead className="p-3 text-foreground h-12 text-[#381980] ml-4">Date</TableHead>
-                      )}
+                      <TableHead className="p-3 text-foreground h-12 text-[#381980]">Date</TableHead>
                       <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">Client Ref.</TableHead>
                       <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">Client Name</TableHead>
                       <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">Job Name</TableHead>
@@ -822,9 +749,7 @@ const AllTimeLogsTab = () => {
                           <ChevronDown className="h-4 w-4" />
                         </div>
                       </TableHead>
-                      {visibleColumns.date && (
-                        <TableHead className="p-3 text-foreground h-12 text-[#381980]">Date</TableHead>
-                      )}
+                      <TableHead className="p-3 text-foreground h-12 text-[#381980]">Date</TableHead>
                       <TableHead className="p-3 text-foreground h-12 text-[#381980]">
                         {viewMode === 'clients' ? 'Client Ref.' :
                           viewMode === 'jobTypes' ? 'Job Type / Client' :
@@ -842,60 +767,48 @@ const AllTimeLogsTab = () => {
                   {visibleColumns.description && <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">Description</TableHead>}
                   {visibleColumns.amount && <TableHead className="p-3 text-foreground h-12 text-left text-[#381980] whitespace-nowrap">Time Purpose</TableHead>}
                   {visibleColumns.billable && <TableHead className="p-3 text-foreground h-12 text-left text-[#381980]">Billable</TableHead>}
-                  {visibleColumns.hours && <TableHead className="p-3 text-foreground h-12 text-left text-[#381980]">Duration</TableHead>}
-                  {visibleColumns.rate && <TableHead className="p-3 text-foreground h-12 text-left text-[#381980] whitespace-nowrap">Billable Rate</TableHead>}
+                  {visibleColumns.billable && <TableHead className="p-3 text-foreground h-12 text-left text-[#381980]">Duration</TableHead>}
+                  {visibleColumns.amount && <TableHead className="p-3 text-foreground h-12 text-left text-[#381980] whitespace-nowrap">Billable Rate</TableHead>}
                   {visibleColumns.amount && <TableHead className="p-3 text-foreground h-12 text-left text-[#381980]">Amount</TableHead>}
                   {visibleColumns.status && <TableHead className="p-3 text-foreground h-12 text-left text-[#381980]">Status</TableHead>}
 
                   {/* Column visibility toggle */}
                   <TableHead className="p-3 text-foreground h-12 text-center">
-                    <div className="flex gap-[6px] justify-center">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0 bg-white rounded-full"
-                        onClick={exportToCSV}
-                        aria-label="Export CSV"
-                        title="Export CSV (current page, visible columns)"
-                      >
-                        <Download className="h-3 w-3" color='#381980' />
-                      </Button>
-                      <Popover>
-                        <PopoverTrigger>
-                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0 bg-white rounded-full" aria-label="Show/Hide Columns" title="Show/Hide Columns">
-                            <Move className="h-3 w-3" color='#381980' />
+                    <Popover>
+                      <div className="flex gap-[6px]">
+                        <PopoverTrigger asChild className='mr-[4px]'>
+                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0 bg-white rounded-full">
+                            <Download className="h-3 w-3 bg-red" color='#381980' />
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-64" align="end">
-                          <div className="space-y-3">
-                            <h4 className="font-medium text-sm">Show/Hide Columns</h4>
+                        <PopoverTrigger >
+                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0 bg-white rounded-full">
+                            <Move className="h-3 w-3 bg-red" color='#381980' />
+                          </Button>
+                        </PopoverTrigger>
+                      </div>
+                      <PopoverContent className="w-64" align="end">
+                        <div className="space-y-3">
+                          <h4 className="font-medium text-sm">Show/Hide Columns</h4>
                           <div className="space-y-2">
-                            {[
-                              ['date', 'Date'],
-                              ['teamMember', 'Team Member'],
-                              ['jobType', 'Job Type'],
-                              ['category', 'Category'],
-                              ['description', 'Description'],
-                              ['hours', 'Duration'],
-                              ['rate', 'Billable Rate'],
-                              ['amount', 'Amount'],
-                              ['billable', 'Billable'],
-                              ['status', 'Status'],
-                            ].map(([key, label]) => (
-                              <div key={key} className="flex items-center space-x-2">
+                            {Object.entries(visibleColumns).map(([column, visible]) => (
+                              <div key={column} className="flex items-center space-x-2">
                                 <Checkbox
-                                  id={key as string}
-                                  checked={(visibleColumns as any)[key as string]}
-                                  onCheckedChange={() => toggleColumn(key as keyof typeof visibleColumns)}
+                                  id={column}
+                                  checked={visible}
+                                  onCheckedChange={() => toggleColumn(column as keyof typeof visibleColumns)}
                                 />
-                                <Label htmlFor={key as string} className="text-sm">{label as string}</Label>
+                                <Label htmlFor={column} className="text-sm capitalize">
+                                  {column === 'teamMember' ? 'Team Member' :
+                                    column === 'jobType' ? 'Job Type' :
+                                      column}
+                                </Label>
                               </div>
                             ))}
                           </div>
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                    </div>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -976,9 +889,7 @@ const AllTimeLogsTab = () => {
                               {viewMode === 'flat' ? (
                                 <>
                                   <TableCell className="p-4"><input type="checkbox" checked={selectedIds.has(log.id)} onChange={(e) => toggleSelect(log.id, e.target.checked)} /></TableCell>
-                                  {visibleColumns.date && (
-                                    <TableCell className="p-4 text-muted-foreground">{new Date(log.date).toLocaleDateString('en-GB')}</TableCell>
-                                  )}
+                                  <TableCell className="p-4 text-muted-foreground">{new Date(log.date).toLocaleDateString('en-GB')}</TableCell>
                                   <TableCell className="p-4 text-muted-foreground">{log.clientRef}</TableCell>
                                   <TableCell className="p-4 text-muted-foreground underline whitespace-nowrap">{log.clientName || '-'}</TableCell>
                                   <TableCell className="p-4 text-muted-foreground underline whitespace-nowrap">{log.jobName}</TableCell>
@@ -1012,21 +923,21 @@ const AllTimeLogsTab = () => {
                               )}
                               {visibleColumns.description && <TableCell className="p-4 whitespace-nowrap">{log.description}</TableCell>}
                               {visibleColumns.amount && <TableCell className="p-4">
-                                <Badge variant="secondary" className={`${getPurposeColorClasses(log.timePurpose)} whitespace-nowrap`}>{log.timePurpose || '-'}</Badge>
+                                <Badge variant="secondary" className="bg-[#EBF6ED] text-[#38A24B] border border-[#38A24B] whitespace-nowrap">{log.timePurpose || '-'}</Badge>
                               </TableCell>}
                               {visibleColumns.billable && <TableCell className="p-4">
                                 {log.billable ? (
-                                  <Badge variant="secondary" className="bg-[#EBF6ED] text-[#38A24B] border border-[#38A24B] whitespace-nowrap rounded-full !p-[4px]"><Check size={14} /></Badge>
+                                  <Badge variant="secondary" className="bg-[#EBF6ED] text-[#38A24B] border border-[#38A24B] whitespace-nowrap  rounded-full !p-[4px]"><Check size={14} /></Badge>
                                 ) : (
-                                  <Badge variant="secondary" className="bg-[#FEEBEA] text-[#F50000] border border-[#F50000] whitespace-nowrap rounded-full !p-[4px]"><X size={14} /></Badge>
+                                  <span className="text-[#666666] text-sm">—</span>
                                 )}
                               </TableCell>}
-                              {visibleColumns.hours && (
+                              {visibleColumns.billable && (
                                 <TableCell className="p-4 text-left">
                                   <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold">{formatHoursToHHMMSS(log.hours)}</div>
                                 </TableCell>
                               )}
-                              {visibleColumns.rate && (
+                              {visibleColumns.amount && (
                                 <TableCell className="p-4 text-left">
                                   <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold text-center">{formatCurrency(log.rate)}</div>
                                 </TableCell>
@@ -1094,4 +1005,4 @@ const AllTimeLogsTab = () => {
 };
 
 
-export default AllTimeLogsTab;
+export default MyTimeLogs;

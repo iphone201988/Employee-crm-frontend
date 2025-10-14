@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, X } from 'lucide-react';
 import CustomTabs from './Tabs';
 import { useGetAllCategorieasQuery, useAddCategoryMutation, useDeleteCategoryMutation } from '@/store/categoryApi';
+import { useUpdateSettingsMutation } from '@/store/teamApi';
 import { toast } from 'sonner';
 import { useLazyGetTabAccessQuery, useGetCurrentUserQuery } from '@/store/authApi';
 import Avatars from './Avatars';
@@ -19,6 +20,9 @@ import { usePermissionTabs } from '@/hooks/usePermissionTabs';
 interface SettingsTabProps {
   autoApproveTimesheets: boolean;
   onAutoApproveChange: (enabled: boolean) => void;
+  wipWarningPercentage: number;
+  onWipWarningPercentageChange: (percentage: number) => void;
+  onSettingsUpdate?: () => void;
 }
 
 
@@ -37,7 +41,10 @@ const allTabs = [
 
 const SettingsTab = ({
   autoApproveTimesheets,
-  onAutoApproveChange
+  onAutoApproveChange,
+  wipWarningPercentage,
+  onWipWarningPercentageChange,
+  onSettingsUpdate
 }: SettingsTabProps) => {
   const [newJobType, setNewJobType] = useState('');
   const [activeTab, setActiveTab] = useState<string>('');
@@ -62,6 +69,7 @@ const SettingsTab = ({
   const { data: categories, isLoading: isLoadingCategories, isError } = useGetAllCategorieasQuery("all");
   const [addCategory, { isLoading: isAdding }] = useAddCategoryMutation();
   const [deleteCategory, { isLoading: isDeleting }] = useDeleteCategoryMutation();
+  const [updateSettings, { isLoading: isUpdatingSettings }] = useUpdateSettingsMutation();
 
 
 
@@ -158,6 +166,23 @@ const SettingsTab = ({
     }
   };
 
+  const handleUpdateSettings = async () => {
+    try {
+      await updateSettings({
+        wipWarningPercentage,
+        autoApproveTimesheets
+      }).unwrap();
+      toast.success('Settings updated successfully!');
+      // Refetch user data to get updated settings
+      if (onSettingsUpdate) {
+        onSettingsUpdate();
+      }
+    } catch (err) {
+      console.error('Failed to update settings:', err);
+      toast.error('Failed to update settings. Please try again.');
+    }
+  };
+
   // Sorts categories alphabetically, placing "other" at the end
   const sortCategoriesByName = (items: { name: string }[]) => {
     const itemsCopy = [...items];
@@ -201,8 +226,8 @@ const SettingsTab = ({
               key={item._id}
               variant="secondary"
               className={`border ${item.count === 0
-                  ? "bg-gray-200 text-gray-700 border-gray-400"
-                  : "bg-blue-100 text-blue-800 border-blue-200"
+                ? "bg-gray-200 text-gray-700 border-gray-400"
+                : "bg-blue-100 text-blue-800 border-blue-200"
                 }`}
             >
               {item.name}
@@ -233,27 +258,59 @@ const SettingsTab = ({
 
 
       {activeTab === "general" && (
-        <Card>
-          <CardHeader>
-            <CardTitle>General Settings</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4">
-              <div className="space-y-0.5">
-                <Label htmlFor="auto-approve" className="text-base">Auto-approve timesheets</Label>
-                <p className="text-sm text-muted-foreground">
-                  Enable to automatically approve all submitted timesheets.
-                </p>
+        <>
+          <Card>
+            <CardHeader>
+              <CardTitle>General Settings</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4">
+                <div className="space-y-0.5">
+                  <Label htmlFor="auto-approve" className="text-base">Auto-approve timesheets</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Enable to automatically approve all submitted timesheets.
+                  </p>
+                </div>
+                <Switch
+                  id="auto-approve"
+                  checked={autoApproveTimesheets}
+                  onCheckedChange={onAutoApproveChange}
+                  className="self-start sm:self-center"
+                />
               </div>
-              <Switch
-                id="auto-approve"
-                checked={autoApproveTimesheets}
-                onCheckedChange={onAutoApproveChange}
-                className="self-start sm:self-center"
-              />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>WIP Warning Percentage</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Input 
+                  type="number" 
+                  value={wipWarningPercentage} 
+                  onChange={(e) => onWipWarningPercentageChange(Number(e.target.value))}
+                  className="w-20" 
+                  min="0"
+                  max="100"
+                />
+                <span>%</span>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <Button 
+                onClick={handleUpdateSettings} 
+                disabled={isUpdatingSettings}
+                className="w-full sm:w-auto"
+              >
+                {isUpdatingSettings ? 'Saving...' : 'Save Settings'}
+              </Button>
+            </CardContent>
+          </Card>
+        </>
+
       )}
 
 
@@ -290,7 +347,7 @@ const SettingsTab = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
+
       <Dialog open={isCannotDeletePopupOpen} onOpenChange={setIsCannotDeletePopupOpen}>
         <DialogContent>
           <DialogHeader>
@@ -307,78 +364,78 @@ const SettingsTab = ({
 
 
       {activeTab === "clientImport" && (
-          <Card>
-            <CardContent className="py-8">
-              <div className="text-center text-muted-foreground">
-                Client Import functionality coming soon.
-              </div>
-            </CardContent>
-          </Card>
-        )}
-        {activeTab === "jobImport" && (
-          <Card>
-            <CardContent className="py-8">
-              <div className="text-center text-muted-foreground">
-                job Import functionality coming soon.
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        <Card>
+          <CardContent className="py-8">
+            <div className="text-center text-muted-foreground">
+              Client Import functionality coming soon.
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      {activeTab === "jobImport" && (
+        <Card>
+          <CardContent className="py-8">
+            <div className="text-center text-muted-foreground">
+              job Import functionality coming soon.
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
 
-        {activeTab === "timeLogsImport" && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Time Logs Import</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                Time Logs Import functionality coming soon.
-              </div>
-            </CardContent>
-          </Card>
-        )}
+      {activeTab === "timeLogsImport" && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Time Logs Import</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center py-8 text-muted-foreground">
+              Time Logs Import functionality coming soon.
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
 
-        {activeTab === "integrations" && (
-          <Card>
-            <CardContent className="space-y-6 p-6">
-              <Card className="pt-6">
-                <CardHeader>
-                  <CardTitle>QuickBooks Integration</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 p-6">
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="space-y-0.5">
-                      <Label className="text-base">Connect to QuickBooks</Label>
-                      <p className="text-sm text-muted-foreground">Sync data with QuickBooks for seamless accounting.</p>
-                    </div>
-                    <Button variant="outline" className="w-full sm:w-auto">Connect</Button>
+      {activeTab === "integrations" && (
+        <Card>
+          <CardContent className="space-y-6 p-6">
+            <Card className="pt-6">
+              <CardHeader>
+                <CardTitle>QuickBooks Integration</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 p-6">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-base">Connect to QuickBooks</Label>
+                    <p className="text-sm text-muted-foreground">Sync data with QuickBooks for seamless accounting.</p>
                   </div>
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="space-y-0.5">
-                      <Label className="text-base">Auto-sync invoices</Label>
-                      <p className="text-sm text-muted-foreground">Automatically sync new invoices to QuickBooks.</p>
-                    </div>
-                    <Switch className="self-start sm:self-center" />
+                  <Button variant="outline" className="w-full sm:w-auto">Connect</Button>
+                </div>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-base">Auto-sync invoices</Label>
+                    <p className="text-sm text-muted-foreground">Automatically sync new invoices to QuickBooks.</p>
                   </div>
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="space-y-0.5">
-                      <Label className="text-base">Sync time entries</Label>
-                      <p className="text-sm text-muted-foreground">Sync time tracking data to QuickBooks.</p>
-                    </div>
-                    <Switch className="self-start sm:self-center" />
+                  <Switch className="self-start sm:self-center" />
+                </div>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-base">Sync time entries</Label>
+                    <p className="text-sm text-muted-foreground">Sync time tracking data to QuickBooks.</p>
                   </div>
-                </CardContent>
-              </Card>
-            </CardContent>
-          </Card>
-        )}
-        {
-          activeTab === '' && (
-            <div>YOU HAVE NO ACCESS</div>
-          )
-        }
+                  <Switch className="self-start sm:self-center" />
+                </div>
+              </CardContent>
+            </Card>
+          </CardContent>
+        </Card>
+      )}
+      {
+        activeTab === '' && (
+          <div>YOU HAVE NO ACCESS</div>
+        )
+      }
     </div>
   );
 };

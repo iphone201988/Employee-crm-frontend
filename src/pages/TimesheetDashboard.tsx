@@ -15,8 +15,9 @@ type SortField = 'name' | 'department' | 'capacity' | 'logged' | 'variance' | 's
 type SortDirection = 'asc' | 'desc' | null;
 import { usePermissionTabs } from "@/hooks/usePermissionTabs";
 import AllTimeLogsTab from "@/components/AllTimeLogsTab";
+import MyTimeLogs from "@/components/MyTimeLogs";
 import { Card, CardContent } from "@/components/ui/card";
-import { useGetTabAccessQuery, useLazyGetTabAccessQuery } from "@/store/authApi";
+import { useGetTabAccessQuery, useLazyGetTabAccessQuery, useGetCurrentUserQuery } from "@/store/authApi";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@radix-ui/react-tooltip";
 import { useGetDropdownOptionsQuery } from "@/store/teamApi";
 import Avatars from "@/components/Avatars";
@@ -81,12 +82,45 @@ const tabs = [{
 }, {
   id: "timeLogs",
   label: "All Time Logs"
+}, {
+  id: "myTimeLogs",
+  label: "My Time Logs"
 }];
 export function TimesheetDashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
   
+  // Get current user data
+  const { data: currentUserData } = useGetCurrentUserQuery<any>();
+  const currentUser = currentUserData?.data;
+  const isCompanyRole = currentUser?.role === 'company';
+  
+  // Get URL parameters
+  const timesheetId = searchParams.get('timesheetId');
+  const userId = searchParams.get('userId');
+  
+  // Filter tabs based on user role and conditions
+  const filteredTabs = useMemo(() => {
+    let filtered = [...tabs];
+    
+    // Hide "My Time Logs" tab for company role users
+    if (isCompanyRole) {
+      filtered = filtered.filter(tab => tab.id !== 'myTimeLogs');
+    }
+    
+    // For company role users, only show "My Timesheet" tab if timesheetId exists in URL
+    if (isCompanyRole) {
+      const myTimesheetTab = filtered.find(tab => tab.id === 'myTimesheet');
+      if (myTimesheetTab && !timesheetId) {
+        filtered = filtered.filter(tab => tab.id !== 'myTimesheet');
+      }
+    }
+    
+    return filtered;
+  }, [isCompanyRole, timesheetId]);
+  
   const [activeTab, setActiveTab] = useState("");
-  const { visibleTabs, isLoading, isError } = usePermissionTabs(tabs);
+  const { visibleTabs, isLoading, isError } = usePermissionTabs(filteredTabs);
+  
   const [activeFilter, setActiveFilter] = useState("allTimesheets");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
@@ -263,7 +297,7 @@ export function TimesheetDashboard() {
         if (selectedTeamIds[0]) params.set('userId', selectedTeamIds[0]);
         if (selectedDepartmentIds[0]) params.set('departmentId', selectedDepartmentIds[0]);
 
-        const url = `${import.meta.env.VITE_API_URL}/timesheet/all?${params.toString()}`;
+        const url = `${import.meta.env.VITE_API_URL}/timesheet/all`;
         const res = await fetch(url, {
           method: 'GET',
           headers: {
@@ -335,13 +369,11 @@ export function TimesheetDashboard() {
   // Handle URL parameters for timesheet viewing
   useEffect(() => {
     const tabFromUrl = searchParams.get('tab');
-    const timesheetId = searchParams.get('timesheetId');
-    const userId = searchParams.get('userId');
     
     if (tabFromUrl === 'myTimesheet' && timesheetId && userId) {
       setActiveTab('myTimesheet');
     }
-  }, [searchParams]);
+  }, [searchParams, timesheetId, userId]);
 
   useEffect(() => {
     console.log('TimesheetDashboard: useEffect triggered with visibleTabs:', visibleTabs.length, 'activeTab:', activeTab);
@@ -780,9 +812,7 @@ export function TimesheetDashboard() {
                       <span className="hidden sm:inline">View Timesheet</span>
                       <span className="sm:hidden">View</span>
                     </Button>
-                    {item.status === "review" && <Button variant="outline" size="sm" className="text-xs">
-                      Remind
-                    </Button>}
+                    {item.status === "review" && <Button variant="outline" size="sm" className="text-xs">Remind</Button>}
                   </div>
                 </td>
               </tr>)}
@@ -816,14 +846,17 @@ export function TimesheetDashboard() {
         <MyTimeSheet 
           currentWeek={currentWeek} 
           onWeekChange={handleWeekChange}
-          timesheetId={searchParams.get('timesheetId') || undefined}
-          userId={searchParams.get('userId') || undefined}
+          timesheetId={timesheetId || undefined}
+          userId={userId || undefined}
         />
       </>
     )}
 
     {/* Time Logs Tab Content */}
     {activeTab === "timeLogs" && <AllTimeLogsTab />}
+
+    {/* My Time Logs Tab Content */}
+    {activeTab === "myTimeLogs" && <MyTimeLogs />}
   </div>;
 }
 

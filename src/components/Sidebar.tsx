@@ -22,6 +22,14 @@ import {
   useUpdateProfileImageMutation,
 } from "../store/authApi";
 import { useRef, ChangeEvent, useMemo } from "react";
+import { store } from "@/store/store";
+import { authApi } from "@/store/authApi";
+import { categoryApi } from "@/store/categoryApi";
+import { teamApi } from "@/store/teamApi";
+import { clientApi } from "@/store/clientApi";
+import { jobApi } from "@/store/jobApi";
+import { companiesApi } from "@/store/companiesApi";
+import { timesheetApi } from "@/store/timesheetApi";
 
 const baseNavigation = [
   { name: "Time", icon: Clock, href: "/" },
@@ -87,9 +95,35 @@ export function Sidebar({ onClose }: SidebarProps) {
   }, [logdInUserRole, loggedInUser?.features?.reports, isSuperAdminMode]);
 
   const handleLogout = async () => {
+    try {
+      // Call logout API first
+      await logout().unwrap();
+    } catch (error) {
+      console.error('Logout API call failed:', error);
+      // Continue with local cleanup even if API call fails
+    }
+
+    // Clear all RTK Query caches
+    store.dispatch(authApi.util.resetApiState());
+    store.dispatch(categoryApi.util.resetApiState());
+    store.dispatch(teamApi.util.resetApiState());
+    store.dispatch(clientApi.util.resetApiState());
+    store.dispatch(jobApi.util.resetApiState());
+    store.dispatch(companiesApi.util.resetApiState());
+    store.dispatch(timesheetApi.util.resetApiState());
+
+    // Clear all localStorage items
+    localStorage.clear();
+
+    // Clear context states
     clearCredentials();
+
+    // Navigate to login and close sidebar
     navigate("/login");
     onClose?.();
+
+    // Reload the page to ensure complete state reset
+    window.location.reload();
   };
 
   const handleAvatarClick = () => {

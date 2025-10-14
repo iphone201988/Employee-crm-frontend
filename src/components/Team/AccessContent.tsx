@@ -13,7 +13,8 @@ const systemFeatures = {
     features: [
       { key: 'myTimesheet', label: 'My Timesheet' },
       { key: 'allTimesheets', label: 'All Timesheets' },
-      { key: 'timeLogs', label: 'Time Logs' }
+      { key: 'timeLogs', label: 'All Time Logs' },
+      { key: 'myTimeLogs', label: 'My Time Logs' }
     ]
   },
   'WIP & Debtors': {
@@ -207,6 +208,7 @@ const AccessContent: React.FC<AccessContentProps> = ({ onUnsavedChangesChange })
         timeLogsImport: member.featureAccess.timeLogsImport,
         integrations: member.featureAccess.integrations,
         jobImport: member.featureAccess.jobImport,
+        myTimeLogs: member.featureAccess.myTimeLogs,
       }));
 
       await updateTeamMembers({ featureAccess: featureAccessUpdates }).unwrap();
