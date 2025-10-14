@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -604,7 +604,7 @@ const AllTimeLogsTab = () => {
           </div>
 
         </div>
-        <button onClick={() => setShowTimeLogPopup(true)} className='bg-[#017DB9] text-white py-[8px] px-[12px] rounded-[4px] flex items-center gap-[4px] font-semibold'><Plus size={16} /> Time Log</button>
+        <button onClick={() => setShowTimeLogPopup(true)} className='bg-[#017DB9] w-[120px] text-white py-[8px] px-[12px] rounded-[4px] flex items-center gap-[4px] font-semibold'><Plus size={16} /> Time Log</button>
 
       </div>
 
@@ -624,11 +624,13 @@ const AllTimeLogsTab = () => {
               <SelectTrigger className="w-32 bg-white text-[#381980] font-semibold">
                 <SelectValue placeholder="Client Name" />
               </SelectTrigger>
-              <SelectContent className=''>
-                <SelectItem value="all">Client Name</SelectItem>
+               <SelectContent className='[&_div:focus]:bg-[#5f46b9] [&_div:focus]:text-white'>
+                <SelectGroup>
+                  <SelectItem value="all" className=''>Client Name</SelectItem>
                 {clientOptions.map((o: any) => (
                   <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
                 ))}
+                </SelectGroup>
               </SelectContent>
             </Select>
           </div>
@@ -640,7 +642,7 @@ const AllTimeLogsTab = () => {
               <SelectTrigger className="w-28 bg-white text-[#381980] font-semibold">
                 <SelectValue placeholder="Job Name" />
               </SelectTrigger>
-              <SelectContent className=''>
+              <SelectContent className='[&_div:focus]:bg-[#5f46b9] [&_div:focus]:text-white'>
                 <SelectItem value="all">Job Name</SelectItem>
                 {jobNameOptions.map((o: any) => (
                   <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
@@ -656,7 +658,7 @@ const AllTimeLogsTab = () => {
               <SelectTrigger className="w-28 bg-white text-[#381980] font-semibold">
                 <SelectValue placeholder="Job Type" />
               </SelectTrigger>
-              <SelectContent className=''>
+              <SelectContent className='[&_div:focus]:bg-[#5f46b9] [&_div:focus]:text-white'>
                 <SelectItem value="all">Job Type</SelectItem>
                 {jobTypeOptions.map((o: any) => (
                   <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
@@ -672,7 +674,7 @@ const AllTimeLogsTab = () => {
               <SelectTrigger className="w-32 bg-white text-[#381980] font-semibold">
                 <SelectValue placeholder="Team Name" />
               </SelectTrigger>
-              <SelectContent className=''>
+             <SelectContent className='[&_div:focus]:bg-[#5f46b9] [&_div:focus]:text-white'>
                 <SelectItem value="all">Team Name</SelectItem>
                 {teamOptions.map((o: any) => (
                   <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
@@ -688,7 +690,7 @@ const AllTimeLogsTab = () => {
               <SelectTrigger className="w-24 bg-white text-[#381980] font-semibold">
                 <SelectValue placeholder="Purpose" />
               </SelectTrigger>
-              <SelectContent className=''>
+              <SelectContent className='[&_div:focus]:bg-[#5f46b9] [&_div:focus]:text-white'>
                 <SelectItem value="all">Purpose</SelectItem>
                 {timePurposeOptions.map((o: any) => (
                   <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
@@ -704,7 +706,7 @@ const AllTimeLogsTab = () => {
               <SelectTrigger className="w-24 bg-white text-[#381980] font-semibold">
                 <SelectValue placeholder="Billable" />
               </SelectTrigger>
-              <SelectContent className=''>
+              <SelectContent className='[&_div:focus]:bg-[#5f46b9] [&_div:focus]:text-white'>
                 <SelectItem value="all">Billable</SelectItem>
                 <SelectItem value="true">Billable</SelectItem>
                 <SelectItem value="false">Non Billable</SelectItem>
@@ -719,7 +721,7 @@ const AllTimeLogsTab = () => {
               <SelectTrigger className="w-24 bg-white text-[#381980] font-semibold">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
-              <SelectContent className=''>
+              <SelectContent className='[&_div:focus]:bg-[#5f46b9] [&_div:focus]:text-white'>
                 <SelectItem value="all">Status</SelectItem>
                 <SelectItem value="notInvoiced">Not Invoiced</SelectItem>
                 <SelectItem value="invoiced">Invoiced</SelectItem>
@@ -730,7 +732,7 @@ const AllTimeLogsTab = () => {
           <div className="space-y-2">
             <Popover>
               <PopoverTrigger asChild>
-                <button className="w-full min-w-[200px] bg-white border border-input rounded-md px-3 py-2 text-left flex items-center justify-between">
+                <button className="w-full min-w-[200px] h-[40px] bg-white border border-input rounded-md px-3 py-2 text-left flex items-center justify-between">
                   <span className="text-[#381980] font-semibold text-sm">
                     {filters.dateFrom && filters.dateTo
                       ? `${new Date(filters.dateFrom).toLocaleDateString()} — ${new Date(filters.dateTo).toLocaleDateString()}`
@@ -979,7 +981,7 @@ const AllTimeLogsTab = () => {
                                   {visibleColumns.date && (
                                     <TableCell className="p-4 text-muted-foreground">{new Date(log.date).toLocaleDateString('en-GB')}</TableCell>
                                   )}
-                                  <TableCell className="p-4 text-muted-foreground">{log.clientRef}</TableCell>
+                                  <TableCell className="p-4 text-muted-foreground whitespace-nowrap">{log.clientRef}</TableCell>
                                   <TableCell className="p-4 text-muted-foreground underline whitespace-nowrap">{log.clientName || '-'}</TableCell>
                                   <TableCell className="p-4 text-muted-foreground underline whitespace-nowrap">{log.jobName}</TableCell>
                                   {visibleColumns.jobType && <TableCell className="p-4">{log.jobType}</TableCell>}
@@ -1023,7 +1025,7 @@ const AllTimeLogsTab = () => {
                               </TableCell>}
                               {visibleColumns.hours && (
                                 <TableCell className="p-4 text-left">
-                                  <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold">{formatHoursToHHMMSS(log.hours)}</div>
+                                  <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold text-center">{formatHoursToHHMMSS(log.hours)}</div>
                                 </TableCell>
                               )}
                               {visibleColumns.rate && (
@@ -1032,7 +1034,7 @@ const AllTimeLogsTab = () => {
                                 </TableCell>
                               )}
                               {visibleColumns.amount && (
-                                <TableCell className="p-4 text-left "><div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold">
+                                <TableCell className="p-4 text-left "><div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold text-center">
                                   {formatCurrency(log.amount)}</div></TableCell>
                               )}
                               {visibleColumns.status && (

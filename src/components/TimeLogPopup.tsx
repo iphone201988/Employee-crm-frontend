@@ -62,7 +62,7 @@ const TimeLogPopup = ({ onClose }: TimeLogPopupProps) => {
     }
   };
   return (
-    <div className="w-full min-h-[100vh] bg-[#000000a6] absolute z-[9999999] left-0 top-0 flex items-center justify-center p-[16px]">
+    <div className="w-full min-h-[100vh] bg-[#000000a6] absolute z-[9999999] left-0 top-0 flex items-center justify-center p-[16px] m-0">
       <div className="p-[0px] bg-white w-auto ">
         <div className="bg-[#381980] py-[14px] relative">
             <h5 className=" font-semibold text-white text-center">+ Time Log</h5>
@@ -167,7 +167,7 @@ const TimeLogPopup = ({ onClose }: TimeLogPopupProps) => {
                     const sec = timeToSeconds(e.target.value);
                     setDurationSeconds(Number.isFinite(sec) ? sec : 0);
                   }}
-                  placeholder="HH:mm:ss"
+                  placeholder="HH:MM:SS "
                 />
             </label>
           
@@ -191,9 +191,9 @@ const TimeLogPopup = ({ onClose }: TimeLogPopupProps) => {
                   disabled={!billable}
                 />
             </label>
-            <label className="flex flex-col gap-[3px] text-[14px] font-semibold text-[#381980] w-[40%] max-sm:w-full" htmlFor="">
+            <label className="flex flex-col gap-[3px] text-[14px] font-semibold text-[#381980] w-[50%] max-sm:w-full" htmlFor="">
                 Status
-                <div className={`bg-white border border-[#eee] ${billable ? 'text-[#666666]' : 'text-[#9ca3af]'} rounded-sm flex`}>
+                <div className={`bg-white border border-[#eee] ${billable ? 'text-[#666666]' : 'text-[#9ca3af]'} rounded-sm flex justify-between`}>
                     <button type="button" onClick={() => billable && setStatus('notInvoiced')} disabled={!billable} className={`${status==='notInvoiced' && billable ? 'bg-[#017DB9] text-white' : 'text-[#017DB9]'} px-[12px] py-[8px] text-[12px] text-center w-auto disabled:opacity-50`}>Not Invoiced</button>
                     <button type="button" onClick={() => billable && setStatus('invoiced')} disabled={!billable} className={`${status==='invoiced' && billable ? 'bg-[#017DB9] text-white' : 'text-[#017DB9]'} px-[12px] py-[8px] text-[12px] text-center w-auto disabled:opacity-50`}>Invoiced</button>
                     <button type="button" onClick={() => billable && setStatus('paid')} disabled={!billable} className={`${status==='paid' && billable ? 'bg-[#017DB9] text-white' : 'text-[#017DB9]'} px-[12px] py-[8px] text-[12px] text-center w-auto disabled:opacity-50`}>Paid</button>

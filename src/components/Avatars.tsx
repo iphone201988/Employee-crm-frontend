@@ -97,10 +97,10 @@ const Avatars = ({ activeTab, title }: AvatarsProps) => {
           if (v === '2') setShowAddClient(true);
           if (v === '3') setShowAddJob(true);
         }}> 
-                    <SelectTrigger className="bg-[#017DB9] text-white py-[8px] px-[12px] rounded-[4px] flex items-center gap-[4px] font-semibold h-auto">
+                    <SelectTrigger className="bg-[#017DB9] w-[120px] text-[16px] text-white py-[8px] px-[12px] rounded-[4px] flex items-center gap-[4px] font-semibold h-auto">
                       <SelectValue placeholder="Create" />
                     </SelectTrigger>
-                    <SelectContent className='sel-custom-dp bg-[#381980] text-white'>
+                    <SelectContent className='sel-custom-dp bg-[#381980] text-white [&_div:focus]:bg-[#fff] [&_div:focus]:text-[#381980]'>
                       {/* <SelectItem value="all-clients">Create</SelectItem> */}
                       <SelectItem value="1" className="p-2 hover:!bg-[#017DB9] hover:!text-white">Time Log</SelectItem>
                       <SelectItem value="2" className="p-2 hover:!bg-[#017DB9] hover:!text-white">Client</SelectItem>
