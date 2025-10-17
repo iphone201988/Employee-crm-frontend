@@ -34,7 +34,9 @@ interface TimesheetRow {
   id: string;
   ref: string;
   client: string;
+  clientId: string;
   job: string;
+  jobId: string;
   category: string;
   description: string;
   billable: boolean;
@@ -118,7 +120,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
     const timesheet = timesheetData?.data;
     console.log('timesheet============================', timesheet);
     const dropdownOptions = timesheetData?.dropdoenOptionals;
-    const billableRate = timesheetData?.billableRate || 35;
+    const billableRate = timesheetData?.rate || 35;
     const userDisplayName = (timesheetData as any)?.name;
     const userAvatarUrl = (timesheetData as any)?.avatarUrl;
 
@@ -140,6 +142,34 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
     const categories = dropdownOptions?.jobCategories || [];
     const rates = [`€${billableRate.toFixed(2)}`];
 
+    // Function to get filtered jobs based on selected client
+    const getFilteredJobs = (clientId: string) => {
+        if (!clientId) return jobs;
+        return jobs.filter(job => job.clientId === clientId);
+    };
+
+    // Function to check if a row is a duplicate
+    const isDuplicateRow = (rowIndex: number) => {
+        const row = timesheetRows[rowIndex];
+        if (!row || !row.clientId || !row.jobId) return false;
+        
+        const entryKey = `${row.clientId}-${row.jobId}-${row.category}-${row.billable}`;
+        
+        // Check if this combination appears more than once
+        let count = 0;
+        for (let i = 0; i < timesheetRows.length; i++) {
+            const otherRow = timesheetRows[i];
+            if (otherRow && otherRow.clientId && otherRow.jobId) {
+                const otherEntryKey = `${otherRow.clientId}-${otherRow.jobId}-${otherRow.category}-${otherRow.billable}`;
+                if (otherEntryKey === entryKey) {
+                    count++;
+                }
+            }
+        }
+        
+        return count > 1;
+    };
+
     // Convert time entries to rows when data loads
     useEffect(() => {
         if (timesheet?.timeEntries && clients.length > 0 && jobs.length > 0 && categories.length > 0) {
@@ -149,7 +179,13 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                 jobs,
                 categories
             );
-            setTimesheetRows(convertedRows);
+            // Convert to TimesheetRow format with clientId and jobId
+            const timesheetRows = convertedRows.map(row => ({
+                ...row,
+                clientId: row.clientId || '',
+                jobId: row.jobId || ''
+            }));
+            setTimesheetRows(timesheetRows);
             setHasChanges(false);
         }
     }, [timesheet?.timeEntries, clients, jobs, categories]);
@@ -177,6 +213,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
         const timeEntries = convertRowsToTimeEntries(
             timesheetRows,
             clients,
+            
             jobs,
             categories,
             currentWeek.weekStart
@@ -213,6 +250,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
             totalLogged: hoursToSeconds(totals.logged.total),
             totalCapacity: hoursToSeconds(40),
             totalVariance: hoursToSeconds(40 - totals.logged.total),
+            userId: userId || currentUser?._id,
         };
         return payload;
     };
@@ -223,6 +261,37 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
         
         setIsLoading(true);
         try {
+            // Check for duplicate entries (same client, job, category, and billable value)
+            const duplicateEntries = [];
+            const seenEntries = new Set();
+            
+            for (let i = 0; i < timesheetRows.length; i++) {
+                const row = timesheetRows[i];
+                const entryKey = `${row.clientId}-${row.jobId}-${row.category}-${row.billable}`;
+                
+                if (seenEntries.has(entryKey)) {
+                    duplicateEntries.push({
+                        rowIndex: i + 1,
+                        client: row.client,
+                        job: row.job,
+                        category: row.category,
+                        billable: row.billable ? 'Yes' : 'No'
+                    });
+                } else {
+                    seenEntries.add(entryKey);
+                }
+            }
+            
+            if (duplicateEntries.length > 0) {
+                const duplicateDetails = duplicateEntries.map(entry => 
+                    `Row ${entry.rowIndex}: ${entry.client} - ${entry.job} - ${entry.category} (Billable: ${entry.billable})`
+                ).join('\n');
+                
+                toast.error(`Duplicate time entries found:\n${duplicateDetails}\n\nPlease remove duplicates before saving.`);
+                setIsLoading(false);
+                return;
+            }
+
             // Validate each row has at least one non-zero hour
             const hasEmptyRow = timesheetRows.some(row => {
                 const hrs = row.hours;
@@ -237,7 +306,8 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                 );
             });
             if (timesheetRows.length > 0 && hasEmptyRow) {
-                alert('Please add some hours in the timesheet for each row before saving.');
+                toast.error('Please add some hours in the timesheet for each row before saving.');
+                setIsLoading(false);
                 return;
             }
 
@@ -249,7 +319,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
             await refetchTimesheet();
         } catch (error) {
             console.error('Error saving timesheet:', error);
-            alert('Error saving timesheet. Please try again.');
+            toast.error('Error saving timesheet. Please try again.');
         } finally {
             setIsLoading(false);
         }
@@ -273,7 +343,9 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
             id: newId,
             ref: generateClientRef(clients[0].name),
             client: clients[0].name,
+            clientId: clients[0]._id,
             job: jobs[0].name,
+            jobId: jobs[0]._id,
             category: categories[0].name,
             description: "",
             billable: true,
@@ -438,10 +510,24 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
         const endDate = new Date(currentWeek.weekEnd);
         const weekNumber = Math.ceil((startDate.getTime() - new Date(startDate.getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000));
         
+        // Format dates as "Sep 29 - Oct 5 2025"
+        const formatDate = (date: Date) => {
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const month = monthNames[date.getMonth()];
+            const day = date.getDate();
+            const year = date.getFullYear();
+            return `${month} ${day} ${year}`;
+        };
+        
+        const startFormatted = formatDate(startDate);
+        const endFormatted = formatDate(endDate);
+        
         return {
-            start: startDate.toLocaleDateString('en-GB'),
-            end: endDate.toLocaleDateString('en-GB'),
-            weekNumber
+            start: startFormatted,
+            end: endFormatted,
+            weekNumber,
+            fullDisplay: `${startFormatted} - ${endFormatted} (Week ${weekNumber})`
         };
     }, [currentWeek]);
 
@@ -496,7 +582,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                         <ChevronLeft className="w-4 h-4" />
                     </Button>
                     <p className="text-sm sm:text-base text-muted-foreground font-medium text-center sm:text-left min-w-[220px]">
-                        {weekDisplay.start} to {weekDisplay.end} - Week {weekDisplay.weekNumber}
+                        {weekDisplay.fullDisplay}
                     </p>
                     <Button
                         type="button"
@@ -530,9 +616,10 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                     ) : (
                         <div className="flex items-center px-3 py-1 border rounded text-sm">
                             {timesheet?.status === 'submitted' && <span className="text-amber-600">Submitted</span>}
-                            {timesheet?.status === 'approved' && <span className="text-green-600">Approved</span>}
-                            {timesheet?.status === 'rejected' && <span className="text-red-600">Rejected</span>}
-                            {!['submitted','approved','rejected'].includes(timesheet?.status || '') && (
+                            {/^auto\s*approved$/i.test(timesheet?.status || '') && <span className="text-green-600">Auto Approved</span>}
+                            {/^approved$/i.test(timesheet?.status || '') && <span className="text-green-600">Approved</span>}
+                            {/^rejected$/i.test(timesheet?.status || '') && <span className="text-red-600">Rejected</span>}
+                            {!['submitted','approved','rejected'].includes((timesheet?.status || '').toLowerCase()) && (
                                 <span className="text-muted-foreground">{timesheet?.status === "reviewed" && "Submitted For Approval"}</span>
                             )}
                         </div>
@@ -721,6 +808,24 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                 </div>
             </div>
 
+            {/* Duplicate Warning */}
+            {timesheetRows.some((_, index) => isDuplicateRow(index)) && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                    <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+                            <span className="text-white text-xs font-bold">!</span>
+                        </div>
+                        <div>
+                            <h4 className="text-red-800 font-medium">Duplicate Entries Detected</h4>
+                            <p className="text-red-600 text-sm">
+                                You have duplicate time entries with the same client, job, category, and billable status. 
+                                Please remove duplicates before saving.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Detailed Timesheet Table */}
             <div className="bg-card rounded-lg border overflow-hidden">
                 <div className="overflow-x-auto">
@@ -755,7 +860,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                         {getTimesheetSortIcon('category')}
                                     </button>
                                 </th>
-                                <th className="text-left px-2 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-32 sm:w-48">
+                                <th className="text-left px-2 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-36 sm:w-48">
                                     <button className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleTimesheetSort('description')}>
                                         <span className="hidden sm:inline">DESCRIPTION</span>
                                         <span className="sm:hidden">DESC</span>
@@ -763,9 +868,9 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                     </button>
                                 </th>
                                 <th className="text-center px-2 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-16 sm:w-20">BILLABLE</th>
-                                <th className="text-left px-2 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-12 sm:w-16">
-                                    <button className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleTimesheetSort('rate')}>
-                                        RATE
+                                <th className="text-left px-2 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-36 sm:w-16">
+                                    <button className="w-36 flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleTimesheetSort('rate')}>
+                                    BILLABLE RATE
                                         {getTimesheetSortIcon('rate')}
                                     </button>
                                 </th>
@@ -803,7 +908,9 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                 } else {
                                     return aValue < bValue ? 1 : -1;
                                 }
-                            }).map(row => <tr key={row.id} className="border-t border-border hover:bg-muted/25">
+                            }).map((row, rowIndex) => {
+                                const isDuplicate = isDuplicateRow(rowIndex);
+                                return <tr key={row.id} className={`border-t border-border hover:bg-muted/25 ${isDuplicate ? 'bg-red-50 border-red-200' : ''}`}>
                                 <td className="px-3 py-2 text-sm text-left text-muted-foreground">{row.ref}</td>
                                 <td className="px-3 py-2 text-sm">
                                     <DropdownMenu>
@@ -819,9 +926,17 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                                     const year = new Date().getFullYear().toString().slice(-2);
                                                     return `${firstThreeLetters}-${year}`;
                                                 };
+                                                // Get filtered jobs for the selected client
+                                                const filteredJobs = getFilteredJobs(client._id);
+                                                const firstJob = filteredJobs[0];
+                                                
                                                 updateRow(row.id, {
                                                     client: client.name,
-                                                    ref: generateClientRef(client.name)
+                                                    clientId: client._id,
+                                                    ref: generateClientRef(client.name),
+                                                    // Reset job to first available job for this client
+                                                    job: firstJob ? firstJob.name : '',
+                                                    jobId: firstJob ? firstJob._id : ''
                                                 });
                                             }}>
                                                 {client.name}
@@ -837,9 +952,10 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent>
-                                            {jobs.map(job => <DropdownMenuItem key={job._id} onClick={() => {
+                                            {getFilteredJobs(row.clientId).map(job => <DropdownMenuItem key={job._id} onClick={() => {
                                                 updateRow(row.id, {
-                                                    job: job.name
+                                                    job: job.name,
+                                                    jobId: job._id
                                                 });
                                             }}>
                                                 {job.name}
@@ -975,7 +1091,8 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                         <Trash2 className="w-4 h-4" />
                                     </Button>
                                 </td>
-                            </tr>)}
+                            </tr>;
+                            })}
                         </tbody>
                         {/* Summary rows */}
                         <tbody className="border-t-2 border-border">

@@ -113,6 +113,7 @@ interface Permission {
     editServices: boolean;
     editJobBuilder: boolean;
     editJobTemplates: boolean;
+    bulkDeleteLogs: boolean;
     __v: number;
 }
 

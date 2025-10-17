@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DashboardCard, DashboardGrid } from "@/components/ui/dashboard-card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -9,42 +9,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useGetCurrentUserQuery } from '@/store/authApi';
 
-
-import { Clock, Users, ChevronDown, ChevronRight, ChevronLeft, ChevronRight as ChevronRightIcon, Settings, Download, FileText, Edit2, Search, RefreshCw, Move, Plus, Trash2, Check } from 'lucide-react';
+import { Clock, Users, ChevronDown, ChevronRight, ChevronLeft, ChevronRight as ChevronRightIcon, Settings, Download, FileText, Edit2, Search, RefreshCw, Move, Plus, Trash2, Check, Calendar, X, GripVertical } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { formatCurrency } from '@/lib/currency';
 import { getProfileImage, getUserInitials } from '@/utils/profiles';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import TimeLogPopup from './TimeLogPopup';
+import TimeLogPopup, { TimeLog } from './TimeLogPopup';
 import { useGetDropdownOptionsQuery } from '@/store/teamApi';
-import { useListTimeLogsQuery, useDeleteTimeLogsMutation } from '@/store/timesheetApi';
+import { useListTimeLogsQuery, useDeleteTimeLogsMutation, useUpdateTimeLogMutation } from '@/store/timesheetApi';
 import { useAuthContext } from '@/context/AuthContext';
 
 
-interface TimeLog {
-  id: string;
-  date: string;
-  teamMember: string;
-  clientName: string;
-  clientRef: string;
-  jobName: string;
-  jobType: string;
-  category: 'client work' | 'meeting' | 'phone call' | 'event' | 'training' | 'other';
-  description: string;
-  hours: number;
-  rate: number;
-  amount: number;
-  billable: boolean;
-  status: 'not-invoiced' | 'invoiced' | 'paid';
-  timePurpose?: string;
-}
 
 
 const MyTimeLogs = () => {
-
 
   const [filters, setFilters] = useState({
     clientId: 'all',
@@ -56,6 +37,17 @@ const MyTimeLogs = () => {
     dateFrom: '',
     dateTo: ''
   });
+  // Multi-select states for comma-separated IDs
+  const [selectedClientIds, setSelectedClientIds] = useState<Set<string>>(new Set());
+  const [selectedJobNameIds, setSelectedJobNameIds] = useState<Set<string>>(new Set());
+  const [selectedJobTypeIds, setSelectedJobTypeIds] = useState<Set<string>>(new Set());
+  // Memoize CSV for jobType to ensure stable, comparable arg
+  const selectedJobTypeIdsCsv = useMemo(() => Array.from(selectedJobTypeIds).join(','), [selectedJobTypeIds]);
+  useEffect(() => {
+    // Reset to first page when job type filter changes
+    setPage(1);
+  }, [selectedJobTypeIdsCsv]);
+  const [selectedPurposeIds, setSelectedPurposeIds] = useState<Set<string>>(new Set());
   // Dropdown options via API
   const { data: clientOptionsResp } = useGetDropdownOptionsQuery('client');
   const { data: jobListOptionsResp } = useGetDropdownOptionsQuery('jobList');
@@ -68,48 +60,108 @@ const MyTimeLogs = () => {
   const timePurposeOptions = (timePurposeOptionsResp?.data?.times || []).map((p: any) => ({ value: p._id, label: p.name || p.title || 'Purpose' }));
   const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
   const [showTimeLogPopup, setShowTimeLogPopup] = useState(false);
+  const [editingLog, setEditingLog] = useState<TimeLog | null>(null);
+  const [settingsPopup, setSettingsPopup] = useState<{ logId: string; x: number; y: number } | null>(null);
   const [viewMode, setViewMode] = useState<'clients' | 'jobTypes' | 'jobNames' | 'category' | 'teamMembers' | 'flat'>('flat');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+   
+  // Get current user from API
+  const { data: user, isLoading: isUserLoading } = useGetCurrentUserQuery();
 
-  // Get current user from context
-  const { userInfo } = useAuthContext();
+  const userInfo = user?.data || null;
 
   // Column visibility state
   const [visibleColumns, setVisibleColumns] = useState({
     date: true,
+    clientRef: true,
+    clientName: true,
+    jobName: true,
     teamMember: true,
     jobType: true,
     category: true,
     description: true,
+    timePurpose: true,
+    billable: true,
     hours: true,
     rate: true,
     amount: true,
-    billable: true,
     status: true
   });
 
+  // Column order state
+  const [columnOrder, setColumnOrder] = useState([
+    'date',
+    'clientRef', 
+    'clientName',
+    'jobName',
+    'jobType',
+    'teamMember',
+    'description',
+    'timePurpose',
+    'billable',
+    'hours',
+    'rate',
+    'amount',
+    'status'
+  ]);
+
+  // Drag and drop state
+  const [draggedItem, setDraggedItem] = useState<string | null>(null);
+
+  // Column display names mapping
+  const columnDisplayNames: Record<string, string> = {
+    date: 'Date',
+    clientRef: 'Client Ref',
+    clientName: 'Client Name',
+    jobName: 'Job Name',
+    jobType: 'Job Type',
+    teamMember: 'Team Name',
+    description: 'Description',
+    timePurpose: 'Time Purpose',
+    billable: 'Billable',
+    hours: 'Duration',
+    rate: 'Billable Rate',
+    amount: 'Amount',
+    status: 'Status'
+  };
+
 
   // Fetch time logs from API (None view) - only current user's logs
-  const { data: listResp, isLoading: isLogsLoading } = useListTimeLogsQuery({
+  const { data: listResp, isLoading: isLogsLoading, error: logsError } = useListTimeLogsQuery({
     search: '',
     page,
     limit,
-    clientId: filters.clientId !== 'all' ? filters.clientId : undefined,
-    jobId: filters.jobNameId !== 'all' ? filters.jobNameId : undefined,
-    jobTypeId: filters.jobTypeId !== 'all' ? filters.jobTypeId : undefined,
-    userId: userInfo?.id, // Pass current user's ID
-    timeCategoryId: filters.purposeId !== 'all' ? filters.purposeId : undefined,
+    clientId: selectedClientIds.size > 0 ? Array.from(selectedClientIds).join(',') : (filters.clientId !== 'all' ? filters.clientId : undefined),
+    jobId: selectedJobNameIds.size > 0 ? Array.from(selectedJobNameIds).join(',') : (filters.jobNameId !== 'all' ? filters.jobNameId : undefined),
+    jobTypeId: selectedJobTypeIdsCsv ? selectedJobTypeIdsCsv : (filters.jobTypeId !== 'all' ? filters.jobTypeId : undefined),
+    userId: userInfo?._id || '', // Pass current user's ID - required for MyTimeLogs
+    timeCategoryId: selectedPurposeIds.size > 0 ? Array.from(selectedPurposeIds).join(',') : (filters.purposeId !== 'all' ? filters.purposeId : undefined),
     billable: filters.billable === 'all' ? undefined : filters.billable === 'true',
     status: filters.status !== 'all' ? (filters.status as any) : undefined,
     dateFrom: filters.dateFrom ? new Date(filters.dateFrom + 'T00:00:00.000Z').toISOString() : undefined,
     dateTo: filters.dateTo ? new Date(filters.dateTo + 'T23:59:59.999Z').toISOString() : undefined,
+  }, {
+    skip: !userInfo?._id || isUserLoading, // Skip the query if userInfo.id is not available or still loading
+  });
+
+  // Debug logging
+  console.log('MyTimeLogs API call:', {
+    userLoading: isUserLoading,
+    userData: user,
+    userInfo: userInfo,
+    userId: userInfo?._id,
+    logsLoading: isLogsLoading,
+    hasLogsData: listResp,
+    logsError: logsError,
+    skip: !userInfo?._id || isUserLoading
   });
   const apiLogs = listResp?.timeLogs || [];
   const apiSummary = listResp?.summary || {} as any;
   const apiPagination = listResp?.pagination;
   const [deleteTimeLogs, { isLoading: isDeleting }] = useDeleteTimeLogsMutation();
+  const [updateTimeLog, { isLoading: isUpdating }] = useUpdateTimeLogMutation();
 
   const timeLogsData: TimeLog[] = apiLogs.map((log: any) => ({
     id: log?._id,
@@ -125,7 +177,7 @@ const MyTimeLogs = () => {
     rate: Number(log?.rate || 0),
     amount: Number(log?.amount || 0),
     billable: Boolean(log?.billable),
-    status: 'not-invoiced',
+    status: (log?.status as 'notInvoiced' | 'invoiced' | 'paid') || 'notInvoiced',
     timePurpose: log?.timeCategory?.name || '',
   }));
 
@@ -143,7 +195,7 @@ const MyTimeLogs = () => {
   const filteredTimeLogs = useMemo(() => {
     return timeLogsData.filter(log => {
       if (filters.status && filters.status !== 'all') {
-        const statusMap: Record<string, string> = { notInvoiced: 'not-invoiced', invoiced: 'invoiced', paid: 'paid' };
+        const statusMap: Record<string, string> = { notInvoiced: 'notInvoiced', invoiced: 'invoiced', paid: 'paid' };
         const wanted = statusMap[filters.status] || filters.status;
         if (log.status !== wanted as any) return false;
       }
@@ -181,6 +233,34 @@ const MyTimeLogs = () => {
     } catch (e) {
       console.error('Failed to delete logs', e);
     }
+  };
+
+  const handleSettingsClick = (e: React.MouseEvent, logId: string) => {
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    setSettingsPopup({ logId, x: rect.left, y: rect.bottom + 5 });
+  };
+
+  const handleEditLog = (logId: string) => {
+    const log = timeLogsData.find(l => l.id === logId);
+    if (log) {
+      setEditingLog(log);
+      setShowTimeLogPopup(true);
+      setSettingsPopup(null);
+    }
+  };
+
+  const handleDeleteLog = async (logId: string) => {
+    try {
+      await deleteTimeLogs({ timeLogIds: [logId] }).unwrap();
+      setSettingsPopup(null);
+    } catch (e) {
+      console.error('Failed to delete log', e);
+    }
+  };
+
+  const handleCloseSettingsPopup = () => {
+    setSettingsPopup(null);
   };
 
 
@@ -279,7 +359,7 @@ const MyTimeLogs = () => {
 
   const getStatusBadge = (status: TimeLog['status']) => {
     switch (status) {
-      case 'not-invoiced':
+      case 'notInvoiced':
         return <Badge variant="secondary" className="bg-[#FEEBEA] text-[#F50000] border border-[#F50000] whitespace-nowrap">Not Invoiced</Badge>;
       case 'invoiced':
         return <Badge variant="secondary" className="bg-[#FEF8E7] text-[#F6B800] border border-[#F6B800]">Invoiced</Badge>;
@@ -325,17 +405,70 @@ const MyTimeLogs = () => {
     setVisibleColumns(prev => ({ ...prev, [column]: !prev[column] }));
   };
 
+  // Drag and drop handlers
+  const handleDragStart = (e: React.DragEvent, item: string) => {
+    setDraggedItem(item);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e: React.DragEvent, targetItem: string) => {
+    e.preventDefault();
+    if (!draggedItem || draggedItem === targetItem) return;
+
+    const newOrder = [...columnOrder];
+    const draggedIndex = newOrder.indexOf(draggedItem);
+    const targetIndex = newOrder.indexOf(targetItem);
+
+    // Remove dragged item and insert at target position
+    newOrder.splice(draggedIndex, 1);
+    newOrder.splice(targetIndex, 0, draggedItem);
+
+    setColumnOrder(newOrder);
+    setDraggedItem(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedItem(null);
+  };
+
+  // Deterministic color mapping for time purpose badges
+  const timePurposeColors = useMemo(() => [
+    { bg: 'bg-[#EBF6ED]', text: 'text-[#38A24B]', border: 'border-[#38A24B]' }, // green
+    { bg: 'bg-[#E6F0FF]', text: 'text-[#1D4ED8]', border: 'border-[#1D4ED8]' }, // blue
+    { bg: 'bg-[#FEF8E7]', text: 'text-[#F6B800]', border: 'border-[#F6B800]' }, // yellow
+    { bg: 'bg-[#FEEBEA]', text: 'text-[#F50000]', border: 'border-[#F50000]' }, // red
+    { bg: 'bg-[#F3E8FF]', text: 'text-[#7C3AED]', border: 'border-[#7C3AED]' }, // purple
+    { bg: 'bg-[#E7F6FB]', text: 'text-[#017DB9]', border: 'border-[#017DB9]' }, // cyan
+  ], []);
+
+  const getPurposeColorClasses = (purpose?: string) => {
+    const value = (purpose || '').toString();
+    if (!value) {
+      return `${timePurposeColors[0].bg} ${timePurposeColors[0].text} border ${timePurposeColors[0].border}`;
+    }
+    let hash = 0;
+    for (let i = 0; i < value.length; i++) {
+      hash = (hash * 31 + value.charCodeAt(i)) >>> 0;
+    }
+    const idx = hash % timePurposeColors.length;
+    const c = timePurposeColors[idx];
+    return `${c.bg} ${c.text} border ${c.border}`;
+  };
+
 
   const exportToPDF = () => {
     const doc = new jsPDF();
     doc.setFontSize(20);
     doc.text('Time Logs Report', 14, 22);
 
-
     // Build headers and data based on visible columns
     const headers = [];
     const dataMappers: ((log: TimeLog) => string)[] = [];
-
 
     if (viewMode === 'flat') {
       headers.push('Client Ref.', 'Client Name', 'Job Name');
@@ -346,10 +479,21 @@ const MyTimeLogs = () => {
       );
     }
 
-
     if (visibleColumns.date) {
       headers.push('Date');
       dataMappers.push((log) => new Date(log.date).toLocaleDateString('en-GB'));
+    }
+    if (visibleColumns.clientRef) {
+      headers.push('Client Ref');
+      dataMappers.push((log) => log.clientRef);
+    }
+    if (visibleColumns.clientName) {
+      headers.push('Client Name');
+      dataMappers.push((log) => log.clientName || '-');
+    }
+    if (visibleColumns.jobName) {
+      headers.push('Job Name');
+      dataMappers.push((log) => log.jobName || '-');
     }
     if (visibleColumns.teamMember) {
       headers.push('Team Member');
@@ -359,13 +503,17 @@ const MyTimeLogs = () => {
       headers.push('Job Type');
       dataMappers.push((log) => log.jobType);
     }
-    if (visibleColumns.category) {
-      headers.push('Category');
-      dataMappers.push((log) => log.category);
-    }
     if (visibleColumns.description) {
       headers.push('Description');
       dataMappers.push((log) => log.description);
+    }
+    if (visibleColumns.timePurpose) {
+      headers.push('Time Purpose');
+      dataMappers.push((log) => log.timePurpose || '-');
+    }
+    if (visibleColumns.billable) {
+      headers.push('Billable');
+      dataMappers.push((log) => log.billable ? 'Yes' : 'No');
     }
     if (visibleColumns.hours) {
       headers.push('Hours');
@@ -379,20 +527,14 @@ const MyTimeLogs = () => {
       headers.push('Amount');
       dataMappers.push((log) => formatCurrency(log.amount));
     }
-    if (visibleColumns.billable) {
-      headers.push('Billable');
-      dataMappers.push((log) => log.billable ? 'Yes' : 'No');
-    }
     if (visibleColumns.status) {
       headers.push('Status');
       dataMappers.push((log) => log.status);
     }
 
-
     const tableData = filteredTimeLogs.map(log =>
       dataMappers.map(mapper => mapper(log))
     );
-
 
     autoTable(doc, {
       head: [headers],
@@ -403,17 +545,16 @@ const MyTimeLogs = () => {
       alternateRowStyles: { fillColor: [245, 245, 245] }
     });
 
-
     doc.save('time-logs-report.pdf');
   };
 
 
   const exportToCSV = () => {
-    // Build headers and data based on visible columns
-    const headers = [];
+    // Build headers and data dynamically based on visible columns (current page only)
+    const headers: string[] = [];
     const dataMappers: ((log: TimeLog) => string)[] = [];
 
-
+    // Fixed leading columns depending on view mode
     if (viewMode === 'flat') {
       headers.push('Client Ref.', 'Client Name', 'Job Name');
       dataMappers.push(
@@ -423,53 +564,61 @@ const MyTimeLogs = () => {
       );
     }
 
-
-    if (visibleColumns.date) {
-      headers.push('Date');
-      dataMappers.push((log) => log.date);
-    }
-    if (visibleColumns.teamMember) {
-      headers.push('Team Member');
+    // Add columns in the order specified by columnOrder
+    columnOrder.forEach((key) => {
+      if (!visibleColumns[key as keyof typeof visibleColumns]) return;
+      
+      headers.push(columnDisplayNames[key]);
+      
+      switch (key) {
+        case 'date':
+          dataMappers.push((log) => new Date(log.date).toLocaleDateString('en-GB'));
+          break;
+        case 'clientRef':
+          dataMappers.push((log) => log.clientRef);
+          break;
+        case 'clientName':
+          dataMappers.push((log) => log.clientName || '-');
+          break;
+        case 'jobName':
+          dataMappers.push((log) => log.jobName || '-');
+          break;
+        case 'teamMember':
       dataMappers.push((log) => log.teamMember);
-    }
-    if (visibleColumns.jobType) {
-      headers.push('Job Type');
+          break;
+        case 'jobType':
       dataMappers.push((log) => log.jobType);
-    }
-    if (visibleColumns.category) {
-      headers.push('Category');
-      dataMappers.push((log) => log.category);
-    }
-    if (visibleColumns.description) {
-      headers.push('Description');
-      dataMappers.push((log) => `"${log.description}"`);
-    }
-    if (visibleColumns.hours) {
-      headers.push('Hours');
-      dataMappers.push((log) => log.hours.toString());
-    }
-    if (visibleColumns.rate) {
-      headers.push('Rate');
+          break;
+        case 'description':
+          dataMappers.push((log) => `"${(log.description || '').replace(/"/g, '""')}"`);
+          break;
+        case 'timePurpose':
+          dataMappers.push((log) => log.timePurpose || '-');
+          break;
+        case 'billable':
+          dataMappers.push((log) => (log.billable ? 'Yes' : 'No'));
+          break;
+        case 'hours':
+          dataMappers.push((log) => formatHoursToHHMMSS(log.hours));
+          break;
+        case 'rate':
       dataMappers.push((log) => formatCurrency(log.rate));
-    }
-    if (visibleColumns.amount) {
-      headers.push('Amount');
+          break;
+        case 'amount':
       dataMappers.push((log) => formatCurrency(log.amount));
-    }
-    if (visibleColumns.billable) {
-      headers.push('Billable');
-      dataMappers.push((log) => log.billable ? 'Yes' : 'No');
-    }
-    if (visibleColumns.status) {
-      headers.push('Status');
+          break;
+        case 'status':
       dataMappers.push((log) => log.status);
-    }
+          break;
+      }
+    });
 
-
-    const csvContent = `${headers.join(',')}\n${filteredTimeLogs.map(log =>
+    // Use current page logs only
+    const pageStart = (page - 1) * (apiPagination?.limit || limit);
+    const currentPageLogs = filteredTimeLogs.slice(pageStart, pageStart + (apiPagination?.limit || limit));
+    const csvContent = `${headers.join(',')}\n${currentPageLogs.map(log =>
       dataMappers.map(mapper => mapper(log)).join(',')
     ).join('\n')}`;
-
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -480,6 +629,19 @@ const MyTimeLogs = () => {
     window.URL.revokeObjectURL(url);
   };
 
+
+  // Show loading state if user info is not available
+  if (isUserLoading || !userInfo?._id) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center py-12">
+          <p className="text-lg text-muted-foreground">
+            {isUserLoading ? 'Loading user information...' : 'User information not available'}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -579,8 +741,8 @@ const MyTimeLogs = () => {
           </div>
 
         </div>
-        <button onClick={() => setShowTimeLogPopup(true)} className='bg-[#017DB9] text-white py-[8px] px-[12px] rounded-[4px] flex items-center gap-[4px] font-semibold'><Plus size={16} /> Time Log</button>
-
+        <button onClick={() => setShowTimeLogPopup(true)} className='bg-[#017DB9] w-[120px] text-white py-[8px] px-[12px] rounded-[4px] flex items-center gap-[4px] font-semibold'><Plus size={16} /> Time Log</button>
+        
       </div>
 
 
@@ -592,68 +754,160 @@ const MyTimeLogs = () => {
             <Input placeholder="Search..." className="pl-10 w-[200px] bg-white text-[#381980] font-semibold placeholder:text-[#381980]" />
           </div>
           <div className="space-y-2">
-            <Select
-              value={filters.clientId}
-              onValueChange={(value) => setFilters(prev => ({ ...prev, clientId: value }))}
-            >
-              <SelectTrigger className="w-32 bg-white text-[#381980] font-semibold">
-                <SelectValue placeholder="Client Name" />
-              </SelectTrigger>
-              <SelectContent className=''>
-                <SelectItem value="all">Client Name</SelectItem>
-                {clientOptions.map((o: any) => (
-                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="w-32 h-10 bg-white text-[#381980] font-semibold rounded-md border px-3 flex items-center justify-between">
+                  <span className="truncate">Client Name</span>
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 p-2" align="start">
+                <div className="max-h-64 overflow-auto">
+                  <div
+                    className={`px-2 py-1.5 rounded-[4px] cursor-pointer ${selectedClientIds.size === 0 ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                    onClick={() => setSelectedClientIds(new Set())}
+                  >
+                    All
+                  </div>
+                  {clientOptions.map((o: any) => {
+                    const active = selectedClientIds.has(o.value);
+                    return (
+                      <div
+                        key={o.value}
+                        className={`flex items-center justify-between px-2 py-1.5 rounded-[4px] cursor-pointer ${active ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                        onClick={() => {
+                          setSelectedClientIds(prev => {
+                            const next = new Set(prev);
+                            if (next.has(o.value)) next.delete(o.value); else next.add(o.value);
+                            return next;
+                          });
+                        }}
+                      >
+                        <span className="truncate">{o.label}</span>
+                        {active && <Check className="w-4 h-4" />}
+                      </div>
+                    );
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
           <div className="space-y-2">
-            <Select
-              value={filters.jobNameId}
-              onValueChange={(value) => setFilters(prev => ({ ...prev, jobNameId: value }))}
-            >
-              <SelectTrigger className="w-28 bg-white text-[#381980] font-semibold">
-                <SelectValue placeholder="Job Name" />
-              </SelectTrigger>
-              <SelectContent className=''>
-                <SelectItem value="all">Job Name</SelectItem>
-                {jobNameOptions.map((o: any) => (
-                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="w-28 h-10 bg-white text-[#381980] font-semibold rounded-md border px-3 flex items-center justify-between">
+                  <span className="truncate">Job Name</span>
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 p-2" align="start">
+                <div className="max-h-64 overflow-auto">
+                  <div
+                    className={`px-2 py-1.5 rounded-[4px] cursor-pointer ${selectedJobNameIds.size === 0 ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                    onClick={() => setSelectedJobNameIds(new Set())}
+                  >
+                    All
+                  </div>
+                  {jobNameOptions.map((o: any) => {
+                    const active = selectedJobNameIds.has(o.value);
+                    return (
+                      <div
+                        key={o.value}
+                        className={`flex items-center justify-between px-2 py-1.5 rounded-[4px] cursor-pointer ${active ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                        onClick={() => {
+                          setSelectedJobNameIds(prev => {
+                            const next = new Set(prev);
+                            if (next.has(o.value)) next.delete(o.value); else next.add(o.value);
+                            return next;
+                          });
+                        }}
+                      >
+                        <span className="truncate">{o.label}</span>
+                        {active && <Check className="w-4 h-4" />}
+                      </div>
+                    );
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
           <div className="space-y-2">
-            <Select
-              value={filters.jobTypeId}
-              onValueChange={(value) => setFilters(prev => ({ ...prev, jobTypeId: value }))}
-            >
-              <SelectTrigger className="w-28 bg-white text-[#381980] font-semibold">
-                <SelectValue placeholder="Job Type" />
-              </SelectTrigger>
-              <SelectContent className=''>
-                <SelectItem value="all">Job Type</SelectItem>
-                {jobTypeOptions.map((o: any) => (
-                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="w-28 h-10 bg-white text-[#381980] font-semibold rounded-md border px-3 flex items-center justify-between">
+                  <span className="truncate">Job Type</span>
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 p-2" align="start">
+                <div className="max-h-64 overflow-auto">
+                  <div
+                    className={`px-2 py-1.5 rounded-[4px] cursor-pointer ${selectedJobTypeIds.size === 0 ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                    onClick={() => setSelectedJobTypeIds(new Set())}
+                  >
+                    All
+                  </div>
+                  {jobTypeOptions.map((o: any) => {
+                    const active = selectedJobTypeIds.has(o.value);
+                    return (
+                      <div
+                        key={o.value}
+                        className={`flex items-center justify-between px-2 py-1.5 rounded-[4px] cursor-pointer ${active ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                        onClick={() => {
+                          setSelectedJobTypeIds(prev => {
+                            const next = new Set(prev);
+                            if (next.has(o.value)) next.delete(o.value); else next.add(o.value);
+                            return next;
+                          });
+                        }}
+                      >
+                        <span className="truncate">{o.label}</span>
+                        {active && <Check className="w-4 h-4" />}
+                      </div>
+                    );
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
           <div className="space-y-2">
-            <Select
-              value={filters.purposeId}
-              onValueChange={(value) => setFilters(prev => ({ ...prev, purposeId: value }))}
-            >
-              <SelectTrigger className="w-24 bg-white text-[#381980] font-semibold">
-                <SelectValue placeholder="Purpose" />
-              </SelectTrigger>
-              <SelectContent className=''>
-                <SelectItem value="all">Purpose</SelectItem>
-                {timePurposeOptions.map((o: any) => (
-                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="w-24 h-10 bg-white text-[#381980] font-semibold rounded-md border px-3 flex items-center justify-between">
+                  <span className="truncate">Purpose</span>
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 p-2" align="start">
+                <div className="max-h-64 overflow-auto">
+                  <div
+                    className={`px-2 py-1.5 rounded-[4px] cursor-pointer ${selectedPurposeIds.size === 0 ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                    onClick={() => setSelectedPurposeIds(new Set())}
+                  >
+                    All
+                  </div>
+                  {timePurposeOptions.map((o: any) => {
+                    const active = selectedPurposeIds.has(o.value);
+                    return (
+                      <div
+                        key={o.value}
+                        className={`flex items-center justify-between px-2 py-1.5 rounded-[4px] cursor-pointer ${active ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                        onClick={() => {
+                          setSelectedPurposeIds(prev => {
+                            const next = new Set(prev);
+                            if (next.has(o.value)) next.delete(o.value); else next.add(o.value);
+                            return next;
+                          });
+                        }}
+                      >
+                        <span className="truncate">{o.label}</span>
+                        {active && <Check className="w-4 h-4" />}
+                      </div>
+                    );
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
           <div className="space-y-2">
             <Select
@@ -663,10 +917,10 @@ const MyTimeLogs = () => {
               <SelectTrigger className="w-24 bg-white text-[#381980] font-semibold">
                 <SelectValue placeholder="Billable" />
               </SelectTrigger>
-              <SelectContent className=''>
-                <SelectItem value="all">Billable</SelectItem>
-                <SelectItem value="true">Billable</SelectItem>
-                <SelectItem value="false">Non Billable</SelectItem>
+              <SelectContent>
+                <SelectItem className="data-[state=checked]:bg-[#5f46b9] data-[state=checked]:text-white hover:data-[state=checked]:bg-[#5f46b9] hover:data-[state=checked]:text-white" value="all">Billable</SelectItem>
+                <SelectItem className="data-[state=checked]:bg-[#5f46b9] data-[state=checked]:text-white hover:data-[state=checked]:bg-[#5f46b9] hover:data-[state=checked]:text-white" value="true">Billable</SelectItem>
+                <SelectItem className="data-[state=checked]:bg-[#5f46b9] data-[state=checked]:text-white hover:data-[state=checked]:bg-[#5f46b9] hover:data-[state=checked]:text-white" value="false">Non Billable</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -678,24 +932,44 @@ const MyTimeLogs = () => {
               <SelectTrigger className="w-24 bg-white text-[#381980] font-semibold">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
-              <SelectContent className=''>
+              <SelectContent className='[&_div:focus]:bg-[#5f46b9] [&_div:focus]:text-white'>
                 <SelectItem value="all">Status</SelectItem>
-                <SelectItem value="notInvoiced">notInvoiced</SelectItem>
-                <SelectItem value="invoiced">invoiced</SelectItem>
-                <SelectItem value="paid">paid</SelectItem>
+                <SelectItem value="notInvoiced">Not Invoiced</SelectItem>
+                <SelectItem value="invoiced">Invoiced</SelectItem>
+                <SelectItem value="paid">Paid</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
-            {/* <Label htmlFor="date-to">Date To</Label> */}
-            <Input
-              id="date-to"
-              type="date"
-              placeholder='sisdis'
-              value={filters.dateTo}
-              onChange={(e) => setFilters(prev => ({ ...prev, dateTo: e.target.value }))}
-              className="w- bg-white"
-            />
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="w-full min-w-[200px] h-[40px] bg-white border border-input rounded-md px-3 py-2 text-left flex items-center justify-between">
+                  <span className="text-[#381980] font-semibold text-sm">
+                    {filters.dateFrom && filters.dateTo
+                      ? `${new Date(filters.dateFrom).toLocaleDateString()} — ${new Date(filters.dateTo).toLocaleDateString()}`
+                      : 'Date Range'}
+                  </span>
+                  <Calendar className="w-4 h-4 text-[#381980]" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[280px] p-3" align="start">
+                <div className="space-y-2">
+                  <div className="grid grid-cols-1 gap-2">
+                    <div className="flex flex-col gap-1">
+                      <Label htmlFor="dr-from">From</Label>
+                      <Input id="dr-from" type="date" value={filters.dateFrom} onChange={(e) => setFilters(prev => ({ ...prev, dateFrom: e.target.value }))} />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <Label htmlFor="dr-to">To</Label>
+                      <Input id="dr-to" type="date" value={filters.dateTo} onChange={(e) => setFilters(prev => ({ ...prev, dateTo: e.target.value }))} />
+                    </div>
+                  </div>
+                  <div className="flex justify-between pt-1">
+                    <Button variant="outline" size="sm" onClick={() => setFilters(prev => ({ ...prev, dateFrom: '', dateTo: '' }))}>Clear</Button>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
           <div className="space-y-2">
             <Button
@@ -712,6 +986,10 @@ const MyTimeLogs = () => {
                   dateFrom: '',
                   dateTo: ''
                 });
+                setSelectedClientIds(new Set());
+                setSelectedJobNameIds(new Set());
+                setSelectedJobTypeIds(new Set());
+                setSelectedPurposeIds(new Set());
                 setPage(1);
               }}
             >
@@ -720,15 +998,20 @@ const MyTimeLogs = () => {
           </div>
 
         </div>
-        <button onClick={handleDeleteSelected} disabled={isDeleting || selectedIds.size===0} className='text-[#fff] font-semibold bg-[#381980] w/[42px] h/[42px] flex items-center justify-center rounded-sm text-primary-foreground p-2 hover:bg-primary/90'><Trash2 size={16} /></button>
+        <div className="space-y-2">
+          <Button
+            onClick={handleDeleteSelected}
+            disabled={isDeleting || selectedIds.size===0}
+            className='bg-[#381980] w-[42px] rounded-sm text-primary-foreground p-2 hover:bg-primary/90 !text-[#fff] flex items-center justify-center'
+          >
+            <Trash2 size={16} />
+          </Button>
+        </div>
       </div>
 
 
       {/* Time Logs Table */}
       <Card>
-        {/* <CardHeader>
-    <CardTitle>Time Logs ({filteredTimeLogs.length} entries)</CardTitle>
-  </CardHeader> */}
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
@@ -737,71 +1020,84 @@ const MyTimeLogs = () => {
                   {viewMode === 'flat' ? (
                     <>
                       <TableHead className="p-3 text-foreground h-12 text-[#381980]"><input type="checkbox" onChange={(e) => toggleSelectAllVisible(e.target.checked, filteredTimeLogs)} /></TableHead>
-                      <TableHead className="p-3 text-foreground h-12 text-[#381980]">Date</TableHead>
-                      <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">Client Ref.</TableHead>
-                      <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">Client Name</TableHead>
-                      <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">Job Name</TableHead>
+                      {columnOrder.map((key) => {
+                        if (!visibleColumns[key as keyof typeof visibleColumns]) return null;
+                        return (
+                          <TableHead key={key} className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">
+                            {columnDisplayNames[key]}
+                          </TableHead>
+                        );
+                      })}
                     </>
                   ) : (
                     <>
                       <TableHead>
-                        <div className="bg-[#381980] text-white h-4 w-4 flex items-center justify-center rounded-sm" >
-                          <ChevronDown className="h-4 w-4" />
-                        </div>
+                       <div className="bg-[#381980] text-white h-4 w-4 flex items-center justify-center rounded-sm" >
+                         <ChevronDown className="h-4 w-4" />
+                       </div>
                       </TableHead>
-                      <TableHead className="p-3 text-foreground h-12 text-[#381980]">Date</TableHead>
-                      <TableHead className="p-3 text-foreground h-12 text-[#381980]">
-                        {viewMode === 'clients' ? 'Client Ref.' :
-                          viewMode === 'jobTypes' ? 'Job Type / Client' :
-                            viewMode === 'jobNames' ? 'Job Name / Client' :
-                              viewMode === 'teamMembers' ? 'Team Member / Client' :
-                                'Entry Details'}
+                      {columnOrder.map((key) => {
+                        if (!visibleColumns[key as keyof typeof visibleColumns]) return null;
+                        return (
+                          <TableHead key={key} className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">
+                            {columnDisplayNames[key]}
                       </TableHead>
-                      <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">Client Name</TableHead>
-                      <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">Job Name</TableHead>
+                        );
+                      })}
                     </>
 
                   )}
-                  {visibleColumns.jobType && <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">Job Type</TableHead>}
-                  {visibleColumns.teamMember && <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">Team Name</TableHead>}
-                  {visibleColumns.description && <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">Description</TableHead>}
-                  {visibleColumns.amount && <TableHead className="p-3 text-foreground h-12 text-left text-[#381980] whitespace-nowrap">Time Purpose</TableHead>}
-                  {visibleColumns.billable && <TableHead className="p-3 text-foreground h-12 text-left text-[#381980]">Billable</TableHead>}
-                  {visibleColumns.billable && <TableHead className="p-3 text-foreground h-12 text-left text-[#381980]">Duration</TableHead>}
-                  {visibleColumns.amount && <TableHead className="p-3 text-foreground h-12 text-left text-[#381980] whitespace-nowrap">Billable Rate</TableHead>}
-                  {visibleColumns.amount && <TableHead className="p-3 text-foreground h-12 text-left text-[#381980]">Amount</TableHead>}
-                  {visibleColumns.status && <TableHead className="p-3 text-foreground h-12 text-left text-[#381980]">Status</TableHead>}
 
                   {/* Column visibility toggle */}
                   <TableHead className="p-3 text-foreground h-12 text-center">
+                    <div className="flex gap-[6px] justify-center">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 bg-white rounded-full"
+                        onClick={exportToCSV}
+                        aria-label="Export CSV"
+                        title="Export CSV (current page, visible columns)"
+                      >
+                        <Download className="h-3 w-3" color='#381980' />
+                      </Button>
                     <Popover>
-                      <div className="flex gap-[6px]">
-                        <PopoverTrigger asChild className='mr-[4px]'>
-                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0 bg-white rounded-full">
-                            <Download className="h-3 w-3 bg-red" color='#381980' />
+                        <PopoverTrigger>
+                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0 bg-white rounded-full" aria-label="Show/Hide Columns" title="Show/Hide Columns">
+                            <Move className="h-3 w-3" color='#381980' />
                           </Button>
                         </PopoverTrigger>
-                        <PopoverTrigger >
-                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0 bg-white rounded-full">
-                            <Move className="h-3 w-3 bg-red" color='#381980' />
-                          </Button>
-                        </PopoverTrigger>
-                      </div>
-                      <PopoverContent className="w-64" align="end">
+                      <PopoverContent 
+                        className="w-64 max-h-96 overflow-y-auto z-50" 
+                        align="start" 
+                        side="bottom" 
+                        sideOffset={5}
+                        avoidCollisions={true}
+                        collisionPadding={10}
+                      >
                         <div className="space-y-3">
                           <h4 className="font-medium text-sm">Show/Hide Columns</h4>
                           <div className="space-y-2">
-                            {Object.entries(visibleColumns).map(([column, visible]) => (
-                              <div key={column} className="flex items-center space-x-2">
+                            {columnOrder.map((key) => (
+                              <div 
+                                key={key} 
+                                className={`flex items-center space-x-2 p-2 rounded-md cursor-move hover:bg-gray-50 transition-colors ${
+                                  draggedItem === key ? 'opacity-50' : ''
+                                }`}
+                                draggable
+                                onDragStart={(e) => handleDragStart(e, key)}
+                                onDragOver={handleDragOver}
+                                onDrop={(e) => handleDrop(e, key)}
+                                onDragEnd={handleDragEnd}
+                              >
+                                <GripVertical className="h-4 w-4 text-gray-400 cursor-move" />
                                 <Checkbox
-                                  id={column}
-                                  checked={visible}
-                                  onCheckedChange={() => toggleColumn(column as keyof typeof visibleColumns)}
+                                  id={key}
+                                  checked={(visibleColumns as any)[key]}
+                                  onCheckedChange={() => toggleColumn(key as keyof typeof visibleColumns)}
                                 />
-                                <Label htmlFor={column} className="text-sm capitalize">
-                                  {column === 'teamMember' ? 'Team Member' :
-                                    column === 'jobType' ? 'Job Type' :
-                                      column}
+                                <Label htmlFor={key} className="text-sm cursor-pointer flex-1">
+                                  {columnDisplayNames[key]}
                                 </Label>
                               </div>
                             ))}
@@ -809,6 +1105,7 @@ const MyTimeLogs = () => {
                         </div>
                       </PopoverContent>
                     </Popover>
+                    </div>
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -819,95 +1116,245 @@ const MyTimeLogs = () => {
                     {/* Group Header Row */}
                     {viewMode !== 'flat' && (
                       <TableRow
-                        className="border-b border-border bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors h-12"
+                        className={`cursor-pointer transition-colors h-12 parent-group-title ${expandedClients.has(groupName) ? 'bg-[#381980] hover:bg-[#381980] text-white border-[#381980] border-t-2 border-l-2 border-r-2 rounded-t-md' : 'bg-muted/30  border-b border-border'}`}
                         onClick={() => toggleClientExpansion(groupName)}
+                        {...(expandedClients.has(groupName) ? { onMouseEnter: undefined, onMouseLeave: undefined } : {})}
                       >
-                        <TableCell className="p-4 text-foreground text-sm">
+                        <TableCell className={`p-4 text-sm ${expandedClients.has(groupName) ? 'text-white' : 'text-foreground'}`}>
                           {expandedClients.has(groupName) ? (
-                            <div className="bg-[#381980] text-white h-4 w-4 flex items-center justify-center rounded-sm" >
-                              <ChevronDown className="h-4 w-4" />
-                            </div>
+                           <div className="bg-[#381980] text-white h-4 w-4 flex items-center justify-center rounded-sm" >
+                         <ChevronDown className="h-4 w-4" />
+                       </div>
                           ) : (
-                            <div className="bg-[#381980] text-white h-4 w-4 flex items-center justify-center rounded-sm" >
-                              <ChevronRight className="h-4 w-4" />
-                            </div>
+                           <div className="bg-[#381980] text-white h-4 w-4 flex items-center justify-center rounded-sm" >
+                         <ChevronRight className="h-4 w-4" />
+                       </div>
                           )}
 
                         </TableCell>
-                        <TableCell className="p-4 text-foreground text-sm"></TableCell>
-                        <TableCell className="p-4 text-foreground text-sm">
-                          <div className="flex items-center gap-2">
-                            {(() => {
+                        {columnOrder.map((key) => {
+                          if (!visibleColumns[key as keyof typeof visibleColumns]) return null;
+                          
+                          let cellContent;
+                          switch (key) {
+                            case 'date':
+                              cellContent = '';
+                              break;
+                            case 'clientRef':
                               const firstSub = Object.values(subGroups)[0] as any[] | undefined;
                               const firstLog = firstSub && firstSub[0];
-                              return firstLog?.clientRef || '-';
-                            })()}
+                              cellContent = firstLog?.clientRef || '-';
+                              break;
+                            case 'clientName':
+                              cellContent = viewMode === 'clients' ? (
+                                <div className="flex items-center gap-2 underline whitespace-nowrap">
+                                  {groupName} ({Object.values(subGroups).reduce((acc: number, logs: any) => acc + (logs as any[]).length, 0)})
                           </div>
-                        </TableCell>
-                        <TableCell className="p-4 text-foreground text-sm">
+                              ) : null;
+                              break;
+                            case 'jobName':
+                              cellContent = viewMode === 'jobNames' ? (
                           <div className="flex items-center gap-2 underline whitespace-nowrap">
-                            {groupName} ({Object.values(subGroups).reduce((acc: number, logs: any) => acc + (logs as any[]).length, 0)})
+                                  {groupName} ({Object.values(subGroups).reduce((acc: number, logs: any) => acc + (logs as any[]).length, 0)})
                           </div>
-                        </TableCell>
-                        {visibleColumns.teamMember && <TableCell className="p-4"></TableCell>}
-                        {visibleColumns.jobType && <TableCell className="p-4"></TableCell>}
-                        {visibleColumns.description && <TableCell className="p-4 whitespace-nowrap"></TableCell>}
-                        {visibleColumns.amount && (<TableCell className="p-4 text-left font-semibold"></TableCell>)}
-                        {visibleColumns.billable && <TableCell className="p-4"></TableCell>}
-                        {visibleColumns.status && <TableCell className="p-4"></TableCell>}
-                        <TableCell className="p-4 text-left">
-                          {(() => {
-                            const groupLogs = Object.values(subGroups).flat() as any[];
-                            const sumHrs = groupLogs.reduce((s, l: any) => s + (l.hours || 0), 0);
-                            return (
-                              <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold text-center">{formatHoursToHHMMSS(sumHrs)}</div>
-                            );
-                          })()}
-                        </TableCell>
-                        <TableCell className="p-4"></TableCell>
-                        <TableCell className="p-4 text-left">
-                          {(() => {
-                            const groupLogs = Object.values(subGroups).flat() as any[];
-                            const sumAmount = groupLogs.reduce((s, l: any) => s + Number(l.amount || 0), 0);
-                            return (
-                              <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold text-center">{formatCurrency(sumAmount)}</div>
-                            );
-                          })()}
-                        </TableCell>
-                        <TableCell className="p-4"></TableCell>
-                        <TableCell className="p-4">
-                          <div className="text-right text-red-50"><Settings className='text-[#381980] ml-auto' size={16} /> </div>
-                        </TableCell>
+                              ) : null;
+                              break;
+                            case 'jobType':
+                              cellContent = viewMode === 'jobTypes' ? (
+                                <div className="flex items-center gap-2 underline whitespace-nowrap">
+                                  {groupName} ({Object.values(subGroups).reduce((acc: number, logs: any) => acc + (logs as any[]).length, 0)})
+                                </div>
+                              ) : null;
+                              break;
+                            case 'teamMember':
+                              cellContent = viewMode === 'teamMembers' ? (
+                                <div className="flex items-center gap-2 underline whitespace-nowrap">
+                                  {groupName} ({Object.values(subGroups).reduce((acc: number, logs: any) => acc + (logs as any[]).length, 0)})
+                                </div>
+                              ) : null;
+                              break;
+                            case 'description':
+                              cellContent = '';
+                              break;
+                            case 'timePurpose':
+                              cellContent = viewMode === 'category' ? (
+                                <div className="flex items-center gap-2 underline whitespace-nowrap">
+                                  {groupName} ({Object.values(subGroups).reduce((acc: number, logs: any) => acc + (logs as any[]).length, 0)})
+                                </div>
+                              ) : null;
+                              break;
+                            case 'billable':
+                              cellContent = '';
+                              break;
+                            case 'hours':
+                              const groupLogs = Object.values(subGroups).flat() as any[];
+                              const sumHrs = groupLogs.reduce((s, l: any) => s + (l.hours || 0), 0);
+                              cellContent = (
+                                <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold text-center">{formatHoursToHHMMSS(sumHrs)}</div>
+                              );
+                              break;
+                            case 'rate':
+                              cellContent = '';
+                              break;
+                            case 'amount':
+                              const groupLogsAmount = Object.values(subGroups).flat() as any[];
+                              const sumAmount = groupLogsAmount.reduce((s, l: any) => s + Number(l.amount || 0), 0);
+                              cellContent = (
+                                <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold text-center">{formatCurrency(sumAmount)}</div>
+                              );
+                              break;
+                            case 'status':
+                              cellContent = '';
+                              break;
+                            default:
+                              cellContent = '';
+                          }
 
-                      </TableRow>
-                    )}
+                          return (
+                            <TableCell key={key} className={`p-4 text-sm ${expandedClients.has(groupName) ? 'text-white' : 'text-foreground'}`}>
+                              {cellContent}
+                            </TableCell>
+                          );
+                        })}
+                                <TableCell className="p-4">
+                          <div className="text-right">
+                            <div className="text-right text-red-50"><Settings className='text-[#381980] ml-auto' size={16} /> </div>
+                          </div>
+                              </TableCell>
+
+                            </TableRow>
+                          )}
 
                     {/* Logs under each group (no sub-groups) */}
                     {(viewMode === 'flat' || expandedClients.has(groupName)) && (
-                      Object.values(subGroups).flat().map((log: any) => (
-                            <TableRow key={log.id} className="border-b border-border hover:bg-muted/30 transition-colors h-12">
+                      (() => {
+                        const flatLogs = Object.values(subGroups).flat() as any[];
+                        return flatLogs.map((log: any, idx: number) => {
+                          const isExpanded = expandedClients.has(groupName);
+                          const isLastInGroup = idx === flatLogs.length - 1;
+                          const borderColor = isExpanded ? 'border-[#381980]' : '';
+                          return (
+                            <TableRow key={log.id} className={`border-b border-border hover:bg-muted/30 transition-colors h-12`}>
                               {viewMode === 'flat' ? (
                                 <>
-                                  <TableCell className="p-4"><input type="checkbox" checked={selectedIds.has(log.id)} onChange={(e) => toggleSelect(log.id, e.target.checked)} /></TableCell>
-                                  <TableCell className="p-4 text-muted-foreground">{new Date(log.date).toLocaleDateString('en-GB')}</TableCell>
-                                  <TableCell className="p-4 text-muted-foreground">{log.clientRef}</TableCell>
-                                  <TableCell className="p-4 text-muted-foreground underline whitespace-nowrap">{log.clientName || '-'}</TableCell>
-                                  <TableCell className="p-4 text-muted-foreground underline whitespace-nowrap">{log.jobName}</TableCell>
-                                  {visibleColumns.jobType && <TableCell className="p-4">{log.jobType}</TableCell>}
+                                  <TableCell className={`p-4 ${isExpanded ? `${borderColor} ${isLastInGroup ? 'border-b-2 rounded-bl-md' : ''} border-l-2` : ''}`}><input type="checkbox" checked={selectedIds.has(log.id)} onChange={(e) => toggleSelect(log.id, e.target.checked)} /></TableCell>
+                                  {columnOrder.map((key) => {
+                                    if (!visibleColumns[key as keyof typeof visibleColumns]) return null;
+                                    
+                                    let cellContent;
+                                    switch (key) {
+                                      case 'date':
+                                        cellContent = new Date(log.date).toLocaleDateString('en-GB');
+                                        break;
+                                      case 'clientRef':
+                                        cellContent = log.clientRef;
+                                        break;
+                                      case 'clientName':
+                                        cellContent = log.clientName || '-';
+                                        break;
+                                      case 'jobName':
+                                        cellContent = log.jobName;
+                                        break;
+                                      case 'jobType':
+                                        cellContent = log.jobType;
+                                        break;
+                                    case 'teamMember':
+                                      cellContent = (
+                                        <div className="flex items-center gap-2">
+                                          <Avatar className="h-8 w-8">
+                                            <AvatarImage
+                                              src={getProfileImage(log.teamMember)}
+                                              alt={log.teamMember}
+                                            />
+                                            <AvatarFallback className="text-xs">
+                                              {getUserInitials(log.teamMember)}
+                                            </AvatarFallback>
+                                          </Avatar>
+                                        </div>
+                                      );
+                                      break;
+                                      case 'description':
+                                        cellContent = log.description;
+                                        break;
+                                    case 'timePurpose':
+                                      cellContent = (
+                                        <Badge variant="secondary" className={`${getPurposeColorClasses(log.timePurpose)} whitespace-nowrap`}>{log.timePurpose || '-'}</Badge>
+                                      );
+                                      break;
+                                    case 'billable':
+                                      cellContent = log.billable ? (
+                                        <Badge variant="secondary" className="bg-[#EBF6ED] text-[#38A24B] border border-[#38A24B] whitespace-nowrap rounded-full !p-[4px]"><Check size={14} /></Badge>
+                                      ) : (
+                                        <Badge variant="secondary" className="bg-[#FEEBEA] text-[#F50000] border border-[#F50000] whitespace-nowrap rounded-full !p-[4px]"><X size={14} /></Badge>
+                                      );
+                                      break;
+                                    case 'hours':
+                                      cellContent = (
+                                        <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold text-center">{formatHoursToHHMMSS(log.hours)}</div>
+                                      );
+                                      break;
+                                    case 'rate':
+                                      cellContent = (
+                                        <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold text-center">{formatCurrency(log.rate)}</div>
+                                      );
+                                      break;
+                                    case 'amount':
+                                      cellContent = (
+                                        <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold text-center">{formatCurrency(log.amount)}</div>
+                                      );
+                                      break;
+                                    case 'status':
+                                      cellContent = getStatusBadge(log.status);
+                                      break;
+                                      default:
+                                        cellContent = '-';
+                                    }
 
+                                    return (
+                                      <TableCell
+                                        key={key}
+                                        className={`p-4 text-muted-foreground whitespace-nowrap ${isExpanded ? `${borderColor} ${isLastInGroup ? 'border-b-2' : ''}` : ''}`}
+                                      >
+                                        {cellContent}
+                                      </TableCell>
+                                    );
+                                  })}
+                                  <TableCell className={`p-4 ${isExpanded ? `${borderColor} ${isLastInGroup ? 'border-b-2 rounded-br-md' : ''} border-r-2` : ''}`}>
+                                    <div className="text-right">
+                                      <button 
+                                        onClick={(e) => handleSettingsClick(e, log.id)}
+                                        className="p-1 hover:bg-gray-100 rounded"
+                                      >
+                                        <Settings className='text-[#381980]' size={16} />
+                                      </button>
+                                    </div>
+                                  </TableCell>
                                 </>
                               ) : (
                               <>
-                                <TableCell className="p-4"><input type="checkbox" checked={selectedIds.has(log.id)} onChange={(e) => toggleSelect(log.id, e.target.checked)} /></TableCell>
-                                <TableCell className="p-4" />
-                                <TableCell className="p-4 text-left">{log.clientRef || '-'}</TableCell>
-                                <TableCell className="p-4 text-left underline">{log.clientName || '-'}</TableCell>
-                                <TableCell className="p-4 text-left underline whitespace-nowrap">{log.jobName || '-'}</TableCell>
-                                <TableCell className="p-4 text-left  whitespace-nowrap">{log.jobType || '-'}</TableCell>
-                              </>
-                              )}
-                              {visibleColumns.teamMember && (
-                                <TableCell className="p-4">
+                                <TableCell className={`p-4 ${isExpanded ? `${borderColor} ${isLastInGroup ? 'border-b-2 rounded-bl-md' : ''} border-l-2` : ''}`}><input type="checkbox" checked={selectedIds.has(log.id)} onChange={(e) => toggleSelect(log.id, e.target.checked)} /></TableCell>
+                                {columnOrder.map((key) => {
+                                  if (!visibleColumns[key as keyof typeof visibleColumns]) return null;
+                                  
+                                  let cellContent;
+                                  switch (key) {
+                                    case 'date':
+                                      cellContent = new Date(log.date).toLocaleDateString('en-GB');
+                                      break;
+                                    case 'clientRef':
+                                      cellContent = log.clientRef || '-';
+                                      break;
+                                    case 'clientName':
+                                      cellContent = log.clientName || '-';
+                                      break;
+                                    case 'jobName':
+                                      cellContent = log.jobName || '-';
+                                      break;
+                                    case 'jobType':
+                                      cellContent = log.jobType || '-';
+                                      break;
+                                    case 'teamMember':
+                                      cellContent = (
                                   <div className="flex items-center gap-2">
                                     <Avatar className="h-8 w-8">
                                       <AvatarImage
@@ -919,43 +1366,72 @@ const MyTimeLogs = () => {
                                       </AvatarFallback>
                                     </Avatar>
                                   </div>
+                                      );
+                                      break;
+                                    case 'description':
+                                      cellContent = log.description;
+                                      break;
+                                    case 'timePurpose':
+                                      cellContent = (
+                                        <Badge variant="secondary" className={`${getPurposeColorClasses(log.timePurpose)} whitespace-nowrap`}>{log.timePurpose || '-'}</Badge>
+                                      );
+                                      break;
+                                    case 'billable':
+                                      cellContent = log.billable ? (
+                                        <Badge variant="secondary" className="bg-[#EBF6ED] text-[#38A24B] border border-[#38A24B] whitespace-nowrap rounded-full !p-[4px]"><Check size={14} /></Badge>
+                                      ) : (
+                                        <Badge variant="secondary" className="bg-[#FEEBEA] text-[#F50000] border border-[#F50000] whitespace-nowrap rounded-full !p-[4px]"><X size={14} /></Badge>
+                                      );
+                                      break;
+                                    case 'hours':
+                                      cellContent = (
+                                        <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold text-center">{formatHoursToHHMMSS(log.hours)}</div>
+                                      );
+                                      break;
+                                    case 'rate':
+                                      cellContent = (
+                                        <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold text-center">{formatCurrency(log.rate)}</div>
+                                      );
+                                      break;
+                                    case 'amount':
+                                      cellContent = (
+                                        <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold text-center">
+                                          {formatCurrency(log.amount)}
+                                        </div>
+                                      );
+                                      break;
+                                    case 'status':
+                                      cellContent = getStatusBadge(log.status);
+                                      break;
+                                    default:
+                                      cellContent = '-';
+                                  }
+
+                                  return (
+                                    <TableCell
+                                      key={key}
+                                      className={`p-4 text-left whitespace-nowrap ${isExpanded ? `${borderColor} ${isLastInGroup ? 'border-b-2' : ''}` : ''}`}
+                                    >
+                                      {cellContent}
+                                    </TableCell>
+                                  );
+                                })}
+                                <TableCell className={`p-4 ${isExpanded ? `${borderColor} ${isLastInGroup ? 'border-b-2 rounded-br-md' : ''} border-r-2` : ''}`}>
+                                  <div className="text-right">
+                                    <button 
+                                      onClick={(e) => handleSettingsClick(e, log.id)}
+                                      className="p-1 hover:bg-gray-100 rounded"
+                                    >
+                                      <Settings className='text-[#381980]' size={16} />
+                                    </button>
+                                  </div>
                                 </TableCell>
+                              </>
                               )}
-                              {visibleColumns.description && <TableCell className="p-4 whitespace-nowrap">{log.description}</TableCell>}
-                              {visibleColumns.amount && <TableCell className="p-4">
-                                <Badge variant="secondary" className="bg-[#EBF6ED] text-[#38A24B] border border-[#38A24B] whitespace-nowrap">{log.timePurpose || '-'}</Badge>
-                              </TableCell>}
-                              {visibleColumns.billable && <TableCell className="p-4">
-                                {log.billable ? (
-                                  <Badge variant="secondary" className="bg-[#EBF6ED] text-[#38A24B] border border-[#38A24B] whitespace-nowrap  rounded-full !p-[4px]"><Check size={14} /></Badge>
-                                ) : (
-                                  <span className="text-[#666666] text-sm">—</span>
-                                )}
-                              </TableCell>}
-                              {visibleColumns.billable && (
-                                <TableCell className="p-4 text-left">
-                                  <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold">{formatHoursToHHMMSS(log.hours)}</div>
-                                </TableCell>
-                              )}
-                              {visibleColumns.amount && (
-                                <TableCell className="p-4 text-left">
-                                  <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold text-center">{formatCurrency(log.rate)}</div>
-                                </TableCell>
-                              )}
-                              {visibleColumns.amount && (
-                                <TableCell className="p-4 text-left "><div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold">
-                                  {formatCurrency(log.amount)}</div></TableCell>
-                              )}
-                              {visibleColumns.status && (
-                                <TableCell className="p-4 text-left">
-                                  {getStatusBadge(log.status)}
-                                </TableCell>
-                              )}
-                              <TableCell className="p-4">
-                                <div className="text-right text-red-50"><Settings className='text-[#381980] ml-auto' size={16} /> </div>
-                              </TableCell>
                             </TableRow>
-                      ))
+                          );
+                        });
+                      })()
                     )}
                   </React.Fragment>
                 ))}
@@ -997,7 +1473,47 @@ const MyTimeLogs = () => {
       )}
 
       {showTimeLogPopup && (
-        <TimeLogPopup onClose={() => setShowTimeLogPopup(false)} />
+        <TimeLogPopup 
+          onClose={() => {
+            setShowTimeLogPopup(false);
+            setEditingLog(null);
+          }} 
+          editingLog={editingLog}
+        />
+      )}
+
+      {/* Settings Popup */}
+      {settingsPopup && (
+        <div 
+          className="fixed z-50 bg-white border border-gray-200 rounded-md shadow-lg py-1 min-w-[120px]"
+          style={{ 
+            left: settingsPopup.x, 
+            top: settingsPopup.y 
+          }}
+        >
+          <button
+            onClick={() => handleEditLog(settingsPopup.logId)}
+            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
+          >
+            <Edit2 size={14} />
+            Edit
+          </button>
+          <button
+            onClick={() => handleDeleteLog(settingsPopup.logId)}
+            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 text-red-600 flex items-center gap-2"
+          >
+            <Trash2 size={14} />
+            Delete
+          </button>
+        </div>
+      )}
+
+      {/* Click outside to close popup */}
+      {settingsPopup && (
+        <div 
+          className="fixed inset-0 z-40" 
+          onClick={handleCloseSettingsPopup}
+        />
       )}
 
     </div>

@@ -31,6 +31,7 @@ export interface ApprovalsTeamMember extends BaseTeamMember {
     editServices: boolean;
     editJobBuilder: boolean;
     editJobTemplates: boolean;
+    bulkDeleteLogs: boolean;
   };
 }
 
@@ -96,6 +97,7 @@ export const transformToApprovals = (apiMember: ApiTeamMember): ApprovalsTeamMem
     editServices: apiMember.permission?.editServices || false,
     editJobBuilder: apiMember.permission?.editJobBuilder || false,
     editJobTemplates: apiMember.permission?.editJobTemplates || false,
+    bulkDeleteLogs: apiMember.permission?.bulkDeleteLogs || false,
   }
 });
 

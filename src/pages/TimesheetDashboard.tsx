@@ -1,16 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Search, Filter, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, RotateCcw, RefreshCw, ArrowLeft, Plus, X, Trash2, Edit2 } from "lucide-react";
-import { StatusBadge, FilterBadge } from "@/components/StatusBadge";
-import { WeekNavigation } from "@/components/WeekNavigation";
+import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Switch } from "@/components/ui/switch";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
-import { DashboardCard, DashboardGrid } from "@/components/ui/dashboard-card";
 import { MyTimeSheet } from "@/components/TimeDashboard/MyTimeSheet";
 import CustomTabs from "@/components/Tabs";
-import { getCurrentWeekRange } from "@/utils/timesheetUtils";
+import { getCurrentWeekRange, formatSeconds } from "@/utils/timesheetUtils";
 type SortField = 'name' | 'department' | 'capacity' | 'logged' | 'variance' | 'submitted';
 type SortDirection = 'asc' | 'desc' | null;
 import { usePermissionTabs } from "@/hooks/usePermissionTabs";
@@ -18,10 +15,10 @@ import AllTimeLogsTab from "@/components/AllTimeLogsTab";
 import MyTimeLogs from "@/components/MyTimeLogs";
 import { Card, CardContent } from "@/components/ui/card";
 import { useGetTabAccessQuery, useLazyGetTabAccessQuery, useGetCurrentUserQuery } from "@/store/authApi";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@radix-ui/react-tooltip";
 import { useGetDropdownOptionsQuery } from "@/store/teamApi";
 import Avatars from "@/components/Avatars";
 import { useSearchParams } from "react-router-dom";
+
 type ApiTimesheet = {
   _id: string;
   userId: string;
@@ -43,7 +40,7 @@ type ApiResponse = {
   message: string;
   data: ApiTimesheet[];
   pagination?: { currentPage: number; totalPages: number; totalItems: number; limit: number };
-  summary?: { totalTeam: number; forReview: number; rejected: number; approved: number; draft: number; totalHours?: number; totalBillableHours?: number };
+  summary?: { totalTeam: number; forReview: number; rejected: number; approved: number; autoApproved?: number; draft: number; totalHours?: number; totalBillableHours?: number };
 };
 
 type TableItem = {
@@ -57,6 +54,7 @@ type TableItem = {
   notes: number;
   submitted: string;
   avatar?: string;
+  displayStatus: string;
 };
 
 const normalizeSubmissionStatus = (status?: string): TableItem['status'] => {
@@ -93,6 +91,7 @@ export function TimesheetDashboard() {
   const { data: currentUserData } = useGetCurrentUserQuery<any>();
   const currentUser = currentUserData?.data;
   const isCompanyRole = currentUser?.role === 'company';
+  const autoApproveTimesheets = currentUser?.settings?.[0]?.autoApproveTimesheets || false;
   
   // Get URL parameters
   const timesheetId = searchParams.get('timesheetId');
@@ -286,18 +285,19 @@ export function TimesheetDashboard() {
         const statusFromTab = activeFilter !== 'allTimesheets' ? activeFilter : '';
         const statusKey = (statusFromDropdown || statusFromTab);
         const statusLabelMap: Record<string, string> = {
-          'approved': 'Approved',
-          'review': 'For Review',
-          'rejected': 'Rejected',
-          'not-submitted': 'Not Submitted',
+          'approved': 'approved',
+          'review': 'reviewed',
+          'rejected': 'rejected',
+          'not-submitted': 'draft',
+          'autoApproved': 'autoApproved',
         };
         if (statusKey) params.set('status', statusLabelMap[statusKey] || statusKey);
-        if (currentWeek?.weekStart) params.set('weekStart', currentWeek.weekStart);
-        if (currentWeek?.weekEnd) params.set('weekEnd', currentWeek.weekEnd);
+        // if (currentWeek?.weekStart) params.set('weekStart', currentWeek.weekStart);
+        // if (currentWeek?.weekEnd) params.set('weekEnd', currentWeek.weekEnd);
         if (selectedTeamIds[0]) params.set('userId', selectedTeamIds[0]);
         if (selectedDepartmentIds[0]) params.set('departmentId', selectedDepartmentIds[0]);
 
-        const url = `${import.meta.env.VITE_API_URL}/timesheet/all`;
+        const url = `${import.meta.env.VITE_API_URL}/timesheet/all${params ? `?${params}` : ''}`;
         const res = await fetch(url, {
           method: 'GET',
           headers: {
@@ -342,6 +342,16 @@ export function TimesheetDashboard() {
       const loggedSec = Number(t?.totalLogged || 0);
       const varianceSec = Math.max(0, capacitySec - loggedSec);
       const status = normalizeSubmissionStatus(t?.submissionStatus);
+      const raw = t?.submissionStatus || '';
+      const displayStatus = /auto\s*approved/i.test(raw)
+        ? 'Auto Approved'
+        : /approved/i.test(raw)
+          ? 'Approved'
+          : /review/i.test(raw)
+            ? 'For Review'
+            : /reject/i.test(raw)
+              ? 'Rejected'
+              : 'Not Submitted';
       return {
         id: t?._id,
         userId: t?.userId || '',
@@ -351,7 +361,8 @@ export function TimesheetDashboard() {
         loggedSec,
         varianceSec,
         status,
-        notes: Number(t?.entriesCount || 0),
+        displayStatus,
+        notes: Number((t as any)?.notes ?? 0),
         submitted: status === 'not-submitted' ? '-' : new Date(t?.weekEnd || Date.now()).toLocaleDateString(),
         avatar: ''
       } as const;
@@ -361,10 +372,9 @@ export function TimesheetDashboard() {
   const statusCounts = useMemo(() => {
     const total = tableData.length;
     const approved = apiSummary?.approved ?? tableData.filter(i => i.status === 'approved').length;
-    const forReview = apiSummary?.forReview ?? tableData.filter(i => i.status === 'review').length;
-    const rejected = apiSummary?.rejected ?? tableData.filter(i => i.status === 'rejected').length;
+    const autoApproved = apiSummary?.autoApproved ?? 0;
     const notSubmitted = apiSummary?.draft ?? tableData.filter(i => i.status === 'not-submitted').length;
-    return { total, forReview, rejected, approved, allTimesheets: total, notSubmitted };
+    return { total, approved, autoApproved, allTimesheets: total, notSubmitted } as const;
   }, [tableData, apiSummary]);
   // Handle URL parameters for timesheet viewing
   useEffect(() => {
@@ -532,11 +542,11 @@ export function TimesheetDashboard() {
     };
   };
   const totals = calculateTotals();
-  const formatVariance = (timeObj: any) => {
-    const formattedTime = formatTime(timeObj);
-    if (timeObj.total < 0) {
+  const formatVariance = (varianceSec: number) => {
+    const formattedTime = formatSeconds(Math.abs(varianceSec));
+    if (varianceSec < 0) {
       return <span className="text-red-600">-{formattedTime}</span>;
-    } else if (timeObj.total > 0) {
+    } else if (varianceSec > 0) {
       return <span className="text-green-600">+{formattedTime}</span>;
     } else {
       return <span>{formattedTime}</span>;
@@ -575,17 +585,17 @@ export function TimesheetDashboard() {
         <Card className="h-full">
           <CardContent className="p-4">
             <div className="text-2xl font-bold !text-[#381980]">
-              {statusCounts.forReview}
+              {statusCounts.notSubmitted}
             </div>
-            <p className="text-sm text-muted-foreground">For Review</p>
+            <p className="text-sm text-muted-foreground">Not Submitted</p>
           </CardContent>
         </Card>
         <Card className="h-full">
           <CardContent className="p-4">
             <div className="text-2xl font-bold !text-[#381980]">
-              {statusCounts.rejected}
+              {statusCounts.autoApproved}
             </div>
-            <p className="text-sm text-muted-foreground">Rejected</p>
+            <p className="text-sm text-muted-foreground">Auto-Approved</p>
           </CardContent>
         </Card>
         <Card className="h-full">
@@ -602,33 +612,76 @@ export function TimesheetDashboard() {
 
     {/* Filter Badges - Only show in allTimesheets tab */}
     {activeTab === "allTimesheets" && <div className="flex flex-col sm:flex-row gap-2 mb-3">
-      <div className="flex bg-muted/30 rounded-full p-1 overflow-x-auto">
-        <button onClick={() => setActiveFilter("allTimesheets")} className={`inline-flex items-center gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium transition-colors rounded-full whitespace-nowrap flex-shrink-0 ${activeFilter === "allTimesheets" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted/50"}`}>
-          All Timesheets
-          <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${activeFilter === "allTimesheets" ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted-foreground/20 text-muted-foreground"}`}>{statusCounts.allTimesheets}</span>
-        </button>
-      </div>
-
-      <div className="flex bg-muted/30 rounded-full p-1 overflow-x-auto">
-        <button onClick={() => setActiveFilter("not-submitted")} className={`inline-flex items-center gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium transition-colors rounded-l-full whitespace-nowrap flex-shrink-0 ${activeFilter === "not-submitted" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted/50"}`}>
-          Not Submitted
-          <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${activeFilter === "not-submitted" ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted-foreground/20 text-muted-foreground"}`}>{statusCounts.notSubmitted}</span>
-        </button>
-
-        <button onClick={() => setActiveFilter("review")} className={`inline-flex items-center gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0 ${activeFilter === "review" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted/50"}`}>
-          For Review
-          <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${activeFilter === "review" ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted-foreground/20 text-muted-foreground"}`}>{statusCounts.forReview}</span>
-        </button>
-
-        <button onClick={() => setActiveFilter("rejected")} className={`inline-flex items-center gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0 ${activeFilter === "rejected" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted/50"}`}>
-          Rejected
-          <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${activeFilter === "rejected" ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted-foreground/20 text-muted-foreground"}`}>{statusCounts.rejected}</span>
-        </button>
-
-        <button onClick={() => setActiveFilter("approved")} className={`inline-flex items-center gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium transition-colors rounded-r-full whitespace-nowrap flex-shrink-0 ${activeFilter === "approved" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted/50"}`}>
-          Approved
-          <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${activeFilter === "approved" ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted-foreground/20 text-muted-foreground"}`}>{statusCounts.approved}</span>
-        </button>
+      <div className="flex items-center gap-3 mt-4 border border-[#381980] w-max p-[6px] rounded-sm pl-4">
+        <p className='text-[#381980] font-semibold text-[14px]'>Filter by:</p>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setActiveFilter("allTimesheets")}
+            className={`px-3 py-1 text-sm font-medium transition-colors rounded-sm ${
+              activeFilter === "allTimesheets" 
+                ? 'bg-[#381980] text-white' 
+                : 'bg-[#E7E5F2] text-[#381980ac] hover:bg-[#381980] hover:text-white'
+            }`}
+          >
+            All Timesheets
+          </button>
+          <button
+            onClick={() => setActiveFilter("not-submitted")}
+            className={`px-3 py-1 text-sm font-medium transition-colors rounded-sm ${
+              activeFilter === "not-submitted" 
+                ? 'bg-[#381980] text-white' 
+                : 'bg-[#E7E5F2] text-[#381980ac] hover:bg-[#381980] hover:text-white'
+            }`}
+          >
+            Not Submitted
+          </button>
+          {autoApproveTimesheets && (
+            <button
+              onClick={() => setActiveFilter("autoApproved")}
+              className={`px-3 py-1 text-sm font-medium transition-colors rounded-sm ${
+                activeFilter === "autoApproved" 
+                  ? 'bg-[#381980] text-white' 
+                  : 'bg-[#E7E5F2] text-[#381980ac] hover:bg-[#381980] hover:text-white'
+              }`}
+            >
+              Auto-Approve
+            </button>
+          )}
+          {!autoApproveTimesheets && (
+            <>
+              <button
+                onClick={() => setActiveFilter("review")}
+                className={`px-3 py-1 text-sm font-medium transition-colors rounded-sm ${
+                  activeFilter === "review" 
+                    ? 'bg-[#381980] text-white' 
+                    : 'bg-[#E7E5F2] text-[#381980ac] hover:bg-[#381980] hover:text-white'
+                }`}
+              >
+                For Review
+              </button>
+              <button
+                onClick={() => setActiveFilter("rejected")}
+                className={`px-3 py-1 text-sm font-medium transition-colors rounded-sm ${
+                  activeFilter === "rejected" 
+                    ? 'bg-[#381980] text-white' 
+                    : 'bg-[#E7E5F2] text-[#381980ac] hover:bg-[#381980] hover:text-white'
+                }`}
+              >
+                Rejected
+              </button>
+              <button
+                onClick={() => setActiveFilter("approved")}
+                className={`px-3 py-1 text-sm font-medium transition-colors rounded-sm ${
+                  activeFilter === "approved" 
+                    ? 'bg-[#381980] text-white' 
+                    : 'bg-[#E7E5F2] text-[#381980ac] hover:bg-[#381980] hover:text-white'
+                }`}
+              >
+                Approved
+              </button>
+            </>
+          )}
+        </div>
       </div>
     </div>}
 
@@ -775,7 +828,7 @@ export function TimesheetDashboard() {
             <tbody>
               {isFetching && <tr><td className="px-4 py-6 text-sm" colSpan={9}>Loading timesheets...</td></tr>}
               {fetchError && !isFetching && <tr><td className="px-4 py-6 text-sm text-red-600" colSpan={9}>{fetchError}</td></tr>}
-              {!isFetching && !fetchError && filteredData.map(item => <tr key={item.id} className="border-t border-border hover:bg-muted/25">
+              {!isFetching && !fetchError && filteredData.map((item:any) => <tr key={item.id} className="border-t border-border hover:bg-muted/25">
                 <td className="px-2 sm:px-4 py-2">
                   <div className="flex items-center gap-2 sm:gap-3">
                     <Avatar className="w-6 h-6 sm:w-8 sm:h-8 flex-shrink-0">
@@ -786,19 +839,16 @@ export function TimesheetDashboard() {
                   </div>
                 </td>
                 <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm text-muted-foreground">{item.department || '-'}</td>
-                <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm text-foreground">{formatTime(item.capacitySec)}</td>
-                <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm text-foreground">{formatTime(item.loggedSec)}</td>
+                <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm text-foreground">{formatSeconds(item.capacitySec)}</td>
+                <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm text-foreground">{formatSeconds(item.loggedSec)}</td>
                 <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm text-foreground">{formatVariance(item.varianceSec)}</td>
                 <td className="px-2 sm:px-4 py-2">
                   <StatusBadge status={item.status}>
-                    {item.status === "approved" && "Approved"}
-                    {item.status === "review" && "For Review"}
-                    {item.status === "rejected" && "Rejected"}
-                    {item.status === "not-submitted" && "Not Submitted"}
+                    {item.displayStatus}
                   </StatusBadge>
                 </td>
                 <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm text-muted-foreground">
-                  {item.notes > 0 ? item.notes : "-"}
+                  {typeof item.notes === 'number' ? item.notes : 0}
                 </td>
                 <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm text-muted-foreground">{item.submitted}</td>
                 <td className="px-2 sm:px-4 py-2">
@@ -812,7 +862,7 @@ export function TimesheetDashboard() {
                       <span className="hidden sm:inline">View Timesheet</span>
                       <span className="sm:hidden">View</span>
                     </Button>
-                    {item.status === "review" && <Button variant="outline" size="sm" className="text-xs">Remind</Button>}
+                    {item.status === "not-submitted" && <Button variant="outline" size="sm" className="text-xs">Remind</Button>}
                   </div>
                 </td>
               </tr>)}

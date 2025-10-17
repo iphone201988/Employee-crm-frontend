@@ -124,7 +124,9 @@ export const convertTimeEntriesToRows = (
   id: string;
   ref: string;
   client: string;
+  clientId: string;
   job: string;
+  jobId: string;
   category: string;
   description: string;
   billable: boolean;
@@ -176,7 +178,9 @@ export const convertTimeEntriesToRows = (
       id: entry._id,
       ref: client?.clientRef || 'N/A',
       client: client?.name || 'Unknown Client',
+      clientId: entry.clientId,
       job: job?.name || 'Unknown Job',
+      jobId: entry.jobId,
       category: category?.name || 'Unknown Category',
       description: entry.description || '',
       billable: entry.isbillable,
@@ -246,7 +250,9 @@ export const convertRowsToTimeEntries = (
     id: string;
     ref: string;
     client: string;
+    clientId: string;
     job: string;
+    jobId: string;
     category: string;
     description: string;
     billable: boolean;
@@ -281,8 +287,9 @@ export const convertRowsToTimeEntries = (
   const weekStartDate = new Date(weekStart);
   
   return rows.map((row) => {
-    const client = clients.find(c => c.name === row.client);
-    const job = jobs.find(j => j.name === row.job);
+    // Use the stored IDs if available, otherwise fallback to name lookup
+    const client = clients.find(c => c._id === row.clientId) || clients.find(c => c.name === row.client);
+    const job = jobs.find(j => j._id === row.jobId) || jobs.find(j => j.name === row.job);
     const category = jobCategories.find(c => c.name === row.category);
     
     const logs: Array<{ date: string; duration: number }> = [];

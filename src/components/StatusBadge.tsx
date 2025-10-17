@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-type StatusType = "approved" | "review" | "rejected" | "not-submitted";
+type StatusType = "approved" | "review" | "rejected" | "not-submitted" | "Auto Approved";
 
 interface StatusBadgeProps {
   status: StatusType;
@@ -12,6 +12,7 @@ const statusStyles: Record<StatusType, string> = {
   review: "bg-orange-50 text-orange-700 border border-orange-200", 
   rejected: "bg-red-50 text-red-700 border border-red-200",
   "not-submitted": "bg-slate-50 text-slate-700 border border-slate-200",
+  "Auto Approved": "bg-green-50 text-green-700 border border-green-200",
 };
 
 export function StatusBadge({ status, children }: StatusBadgeProps) {

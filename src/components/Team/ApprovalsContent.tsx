@@ -14,7 +14,8 @@ const permissions = [
   { key: 'editS ervices', label: 'Unlock Job Types' },
   { key: 'editJobBuilder', label: 'Edit Job Builder' },
   { key: 'editJobTemplates', label: 'Edit Job Templates' },
-  { key: 'bulkDelete', label: 'Bulk Delete' }
+  { key: 'bulkDelete', label: 'Bulk Delete' },
+  { key: 'bulkDeleteLogs', label: 'Bulk Delete Logs' }
 ];
 
 interface ApprovalsContentProps {
@@ -98,6 +99,7 @@ const ApprovalsContent: React.FC<ApprovalsContentProps> = ({ onUnsavedChangesCha
       editServices: !allChecked,
       editJobBuilder: !allChecked,
       editJobTemplates: !allChecked,
+      bulkDeleteLogs: !allChecked,
     };
 
     setTeamMembers(prev =>
@@ -118,12 +120,13 @@ const ApprovalsContent: React.FC<ApprovalsContentProps> = ({ onUnsavedChangesCha
 
     try {
 
-      const permissionUpdates = teamMembersRef.current.map(member => ({
+      const permissionUpdates = teamMembersRef.current.map((member: ApprovalsTeamMember) => ({
         userId: member.id,
         approveTimesheets: member.permissions.approveTimesheets,
         editServices: member.permissions.editServices,
         editJobBuilder: member.permissions.editJobBuilder,
         editJobTemplates: member.permissions.editJobTemplates,
+        bulkDeleteLogs: member.permissions.bulkDeleteLogs,
       }));
 
 

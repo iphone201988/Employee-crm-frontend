@@ -41,7 +41,7 @@ export interface TimesheetData {
   companyId: string;
   weekStart: string;
   weekEnd: string;
-  status: 'draft' | 'submitted' | 'approved' | 'rejected' | 'reviewed';
+  status: 'draft' | 'submitted' | 'approved' | 'rejected' | 'reviewed' | 'Auto Approved';
   timeEntries: TimeEntry[];
   dailySummary: DailySummary[];
   totalBillable: number; // in minutes
@@ -156,6 +156,20 @@ export interface DeleteTimeLogsRequest {
   timeLogIds: string[];
 }
 
+export interface UpdateTimeLogRequest {
+  date: string; // ISO
+  status: 'notInvoiced' | 'invoiced' | 'paid';
+  clientId: string;
+  jobId: string;
+  jobTypeId: string;
+  timeCategoryId: string;
+  description: string;
+  billable: boolean;
+  rate: number;
+  userId: string;
+  duration: number; // seconds
+}
+
 export interface ListedTimeLogItem {
   _id: string;
   date: string;
@@ -164,6 +178,7 @@ export interface ListedTimeLogItem {
   duration: number; // seconds
   rate: number;
   amount?: number;
+  status?: 'notInvoiced' | 'invoiced' | 'paid';
   client?: { _id: string; clientRef?: string; name: string };
   job?: { _id: string; name: string; jobTypeId?: string };
   jobCategory?: { _id: string; name: string };
@@ -257,6 +272,14 @@ export const timesheetApi = createApi({
       }),
       invalidatesTags: ['TimeEntry'],
     }),
+    updateTimeLog: builder.mutation<{ success: boolean; message: string }, { id: string; data: UpdateTimeLogRequest }>({
+      query: ({ id, data }) => ({
+        url: `/update-time-log/${id}`,
+        method: 'PUT',
+        body: data,
+      }),
+      invalidatesTags: ['TimeEntry'],
+    }),
     changeTimesheetStatus: builder.mutation<{ success: boolean; message: string }, ChangeTimesheetStatusRequest>({
       query: (body) => ({
         url: '/change-time-sheet-status',
@@ -301,5 +324,6 @@ export const {
   useAddTimeLogMutation,
   useListTimeLogsQuery,
   useDeleteTimeLogsMutation,
+  useUpdateTimeLogMutation,
   useChangeTimesheetStatusMutation,
 } = timesheetApi;

@@ -15,7 +15,7 @@ import { usePermissionTabs } from '@/hooks/usePermissionTabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@radix-ui/react-tooltip';
 import { useLazyGetTabAccessQuery } from '@/store/authApi';
 import { useGetDropdownOptionsQuery } from '@/store/teamApi';
-import { useAddClientExpenseMutation } from '@/store/expensesApi';
+import { useAddClientExpenseMutation, useListExpensesQuery } from '@/store/expensesApi';
 import { useGetCurrentUserQuery } from '@/store/authApi';
 import Avatars from '@/components/Avatars';
 interface Expense {
@@ -466,7 +466,6 @@ const tabs = [
 ]
 
 const ExpensesLogTab = () => {
-  const [expenses, setExpenses] = useState<Expense[]>(sampleExpenses);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'invoiced' | 'not invoiced' | 'paid' | 'not paid'>('all');
   const [activeTab, setActiveTab] = useState('');
@@ -474,9 +473,23 @@ const ExpensesLogTab = () => {
   const [selectedInvoice, setSelectedInvoice] = useState<string | null>(null);
   const [addClientExpenseOpen, setAddClientExpenseOpen] = useState(false);
   const [addTeamExpenseOpen, setAddTeamExpenseOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   const { data: clientOptionsResp } = useGetDropdownOptionsQuery('client');
+  const { data: teamOptionsResp } = useGetDropdownOptionsQuery('team');
   const clientOptions = (clientOptionsResp?.data?.clients || []).map((c: any) => ({ value: c._id, label: c.name }));
+  const teamOptions = (teamOptionsResp?.data?.teams || []).map((t: any) => ({ value: t._id, label: t.name }));
   const [addClientExpense, { isLoading: isAddingClientExpense }] = useAddClientExpenseMutation();
+  const [addTeamExpense, { isLoading: isAddingTeamExpense }] = useAddClientExpenseMutation();
+  
+  // API query for expenses
+  const { data: expensesResp, isLoading: isExpensesLoading } = useListExpensesQuery({
+    status: statusFilter === 'all' ? 'all' : (statusFilter === 'invoiced' || statusFilter === 'paid' ? 'yes' : 'no'),
+    type: activeTab === 'clientExpenses' ? 'client' : activeTab === 'teamExpenses' ? 'team' : 'all',
+    search: searchTerm || undefined,
+    page,
+    limit,
+  });
   const [clientExpenseForm, setClientExpenseForm] = useState({
     date: '',
     clientId: '',
@@ -484,8 +497,16 @@ const ExpensesLogTab = () => {
     expreseCategory: '',
     netAmount: '',
     vatPercentage: '',
-    vatAmount: '',
-    totalAmount: '',
+    status: 'no',
+    file: null as File | null,
+  });
+  const [teamExpenseForm, setTeamExpenseForm] = useState({
+    date: '',
+    teamId: '',
+    description: '',
+    expreseCategory: '',
+    netAmount: '',
+    vatPercentage: '',
     status: 'no',
     file: null as File | null,
   });
@@ -496,17 +517,38 @@ const ExpensesLogTab = () => {
         description: clientExpenseForm.description,
         clientId: clientExpenseForm.clientId,
         date: clientExpenseForm.date,
-        expreseCategory: clientExpenseForm.expreseCategory,
+        expreseCategory: clientExpenseForm.expreseCategory.charAt(0).toUpperCase() + clientExpenseForm.expreseCategory.slice(1).toLowerCase(),
         netAmount: Number(clientExpenseForm.netAmount || 0),
         vatPercentage: Number(clientExpenseForm.vatPercentage || 0),
-        vatAmount: Number(clientExpenseForm.vatAmount || 0),
-        totalAmount: Number(clientExpenseForm.totalAmount || 0),
+        vatAmount: undefined,
+        totalAmount: undefined,
         status: clientExpenseForm.status as 'yes' | 'no',
         file: clientExpenseForm.file,
       }).unwrap();
       setAddClientExpenseOpen(false);
     } catch (e) {
       console.error('Failed to add client expense', e);
+    }
+  };
+  const submitTeamExpense = async () => {
+    try {
+      await addTeamExpense({
+        type: 'team',
+        description: teamExpenseForm.description,
+        clientId: undefined, // No client for team expenses
+        userId: teamExpenseForm.teamId, // Pass selected team's ID
+        date: teamExpenseForm.date,
+        expreseCategory: teamExpenseForm.expreseCategory.charAt(0).toUpperCase() + teamExpenseForm.expreseCategory.slice(1).toLowerCase(),
+        netAmount: Number(teamExpenseForm.netAmount || 0),
+        vatPercentage: Number(teamExpenseForm.vatPercentage || 0),
+        vatAmount: undefined,
+        totalAmount: undefined,
+        status: teamExpenseForm.status as 'yes' | 'no',
+        file: teamExpenseForm.file,
+      }).unwrap();
+      setAddTeamExpenseOpen(false);
+    } catch (e) {
+      console.error('Failed to add team expense', e);
     }
   };
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
@@ -526,7 +568,10 @@ const ExpensesLogTab = () => {
   }, [visibleTabs, activeTab]);
 
   const formatDate = (dateString: string) => {
-    const [year, month, day] = dateString.split('-');
+    const date = new Date(dateString);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
     return `${day}/${month}/${year}`;
   };
 
@@ -580,20 +625,40 @@ const ExpensesLogTab = () => {
     );
   }
 
-  const clientExpenses = expenses.filter(expense => expense.client);
-  const teamExpenses = expenses.filter(expense => !expense.client);
+  // Process API data
+  const apiExpenses = expensesResp?.data?.expenses || [];
+  const apiStatistics = expensesResp?.data?.statistics || {
+    totalAmount: 0,
+    approvedTotalAmount: 0,
+    pendingTotalAmount: 0,
+    totalExpenses: 0,
+  };
+  const apiPagination = expensesResp?.data?.pagination || {
+    page: 1,
+    limit: 10,
+    total: 0,
+  };
 
-  const currentExpenses = activeTab === 'clientExpenses' ? clientExpenses : teamExpenses;
+  // Transform API data to match existing interface
+  const expenses: Expense[] = apiExpenses.map((expense: any) => ({
+    id: expense._id,
+    date: expense.date,
+    client: expense.client?.name,
+    description: expense.description,
+    category: expense.expreseCategory as any,
+    netAmount: expense.netAmount,
+    vatRate: expense.vatPercentage,
+    vatAmount: expense.vatAmount,
+    amount: expense.totalAmount,
+    status: expense.status === 'yes' ? (activeTab === 'clientExpenses' ? 'invoiced' : 'paid') : (activeTab === 'clientExpenses' ? 'not invoiced' : 'not paid'),
+    invoiceNumber: expense.status === 'yes' ? `INV-${expense._id.slice(-6)}` : undefined,
+    submittedBy: activeTab === 'teamExpenses' ? (expense.user?.name || 'Unknown') : (expense.submittedDetails?.name || 'Unknown'),
+    submitterAvatar: activeTab === 'teamExpenses' ? (expense.user?.avatarUrl ? `${import.meta.env.VITE_BACKEND_BASE_URL}${expense.user.avatarUrl}` : '/lovable-uploads/2a629138-9746-40f3-ad13-33c9c4d4b180.png') : '/lovable-uploads/2a629138-9746-40f3-ad13-33c9c4d4b180.png',
+    attachments: expense.attachments || [],
+  }));
 
-  const filteredExpenses = currentExpenses.filter(expense => {
-    const matchesSearch = (expense.client?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-      expense.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      expense.submittedBy.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesStatus = statusFilter === 'all' || expense.status === statusFilter;
-
-    return matchesSearch && matchesStatus;
-  });
+  const currentExpenses = expenses;
+  const filteredExpenses = currentExpenses;
 
   // Group expenses by client (for client tab) or by team member (for team tab)
   const groupedExpenses = filteredExpenses.reduce((acc, expense) => {
@@ -625,8 +690,8 @@ const ExpensesLogTab = () => {
     setInvoiceDialogOpen(true);
   };
 
-  const handleReceiptClick = (receiptName: string) => {
-    setSelectedReceipt(receiptName);
+  const handleReceiptClick = (receiptUrl: string) => {
+    setSelectedReceipt(receiptUrl);
     setReceiptDialogOpen(true);
   };
 
@@ -667,16 +732,10 @@ const ExpensesLogTab = () => {
     document.body.removeChild(link);
   };
 
-  // Calculate totals based on filtered expenses
-  const totalPaid = filteredExpenses
-    .filter(expense => activeTab === 'clientExpenses' ? expense.status === 'invoiced' : expense.status === 'paid')
-    .reduce((sum, expense) => sum + expense.amount, 0);
-
-  const totalUnpaid = filteredExpenses
-    .filter(expense => activeTab === 'clientExpenses' ? expense.status === 'not invoiced' : expense.status === 'not paid')
-    .reduce((sum, expense) => sum + expense.amount, 0);
-
-  const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+  // Calculate totals based on API statistics
+  const totalExpenses = apiStatistics.totalAmount || 0;
+  const totalPaid = apiStatistics.approvedTotalAmount || 0;
+  const totalUnpaid = apiStatistics.pendingTotalAmount || 0;
 
   return (
     <div className="space-y-6 p-6">
@@ -712,7 +771,7 @@ const ExpensesLogTab = () => {
         </Card>
         <Card>
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-foreground !text-[#381980]">{filteredExpenses.length}</div>
+            <div className="text-2xl font-bold text-foreground !text-[#381980]">{apiStatistics.totalExpenses || 0}</div>
             <p className="text-sm text-muted-foreground">Total Items</p>
           </CardContent>
         </Card>
@@ -939,13 +998,63 @@ const ExpensesLogTab = () => {
               ))}
             </TableBody>
           </Table>
-          {Object.keys(groupedExpenses).length === 0 && (
+          {isExpensesLoading && (
+            <div className="text-center py-8 text-muted-foreground">
+              Loading expenses...
+            </div>
+          )}
+          {!isExpensesLoading && Object.keys(groupedExpenses).length === 0 && (
             <div className="text-center py-8 text-muted-foreground">
               No expenses found matching the current filters
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Pagination Controls */}
+      {apiPagination && apiPagination.total > 0 && (
+        <div className="space-y-4 mt-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">Show:</span>
+              <select 
+                value={limit} 
+                onChange={(e) => { setPage(1); setLimit(Number(e.target.value)); }} 
+                className="border border-gray-300 rounded px-2 py-1 text-sm" 
+                disabled={isExpensesLoading}
+              >
+                <option value={5}>5 per page</option>
+                <option value={10}>10 per page</option>
+                <option value={20}>20 per page</option>
+                <option value={50}>50 per page</option>
+              </select>
+            </div>
+            <div className="text-sm text-gray-500">
+              Showing {apiPagination.total > 0 ? ((page - 1) * limit) + 1 : 0} to {Math.min(page * limit, apiPagination.total)} of {apiPagination.total} expenses
+            </div>
+          </div>
+          {Math.ceil(apiPagination.total / limit) > 1 && (
+            <div className="flex justify-center items-center gap-2">
+              <Button 
+                onClick={() => setPage(p => Math.max(1, p - 1))} 
+                disabled={page === 1 || isExpensesLoading} 
+                variant="outline" 
+                size="sm"
+              >
+                Previous
+              </Button>
+              <Button 
+                onClick={() => setPage(p => p + 1)} 
+                disabled={page >= Math.ceil(apiPagination.total / limit) || isExpensesLoading} 
+                variant="outline" 
+                size="sm"
+              >
+                Next
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Invoice Preview Dialog */}
       <Dialog open={invoiceDialogOpen} onOpenChange={setInvoiceDialogOpen}>
@@ -1039,25 +1148,29 @@ const ExpensesLogTab = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium">Category</label>
-                <Input placeholder="Enter category" value={clientExpenseForm.expreseCategory} onChange={(e) => setClientExpenseForm(f => ({ ...f, expreseCategory: e.target.value }))} />
+                <Select value={clientExpenseForm.expreseCategory} onValueChange={(v) => setClientExpenseForm(f => ({ ...f, expreseCategory: v }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cro-filing-fee">CRO filing fee</SelectItem>
+                    <SelectItem value="subsistence">Subsistence</SelectItem>
+                    <SelectItem value="accommodation">Accommodation</SelectItem>
+                    <SelectItem value="mileage">Mileage</SelectItem>
+                    <SelectItem value="software">Software</SelectItem>
+                    <SelectItem value="stationary">Stationary</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <label className="text-sm font-medium">Amount</label>
                 <Input type="number" placeholder="Net" step="0.01" value={clientExpenseForm.netAmount} onChange={(e) => setClientExpenseForm(f => ({ ...f, netAmount: e.target.value }))} />
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               <div>
                 <label className="text-sm font-medium">VAT %</label>
                 <Input type="number" placeholder="0" step="0.01" value={clientExpenseForm.vatPercentage} onChange={(e) => setClientExpenseForm(f => ({ ...f, vatPercentage: e.target.value }))} />
-              </div>
-              <div>
-                <label className="text-sm font-medium">VAT Amount</label>
-                <Input type="number" placeholder="0.00" step="0.01" value={clientExpenseForm.vatAmount} onChange={(e) => setClientExpenseForm(f => ({ ...f, vatAmount: e.target.value }))} />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Total Amount</label>
-                <Input type="number" placeholder="0.00" step="0.01" value={clientExpenseForm.totalAmount} onChange={(e) => setClientExpenseForm(f => ({ ...f, totalAmount: e.target.value }))} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -1078,22 +1191,6 @@ const ExpensesLogTab = () => {
                 <Input type="file" onChange={(e) => setClientExpenseForm(f => ({ ...f, file: e.target.files && e.target.files[0] ? e.target.files[0] : null }))} />
               </div>
             </div>
-            <div>
-              <label className="text-sm font-medium">Status</label>
-              <Select>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="invoiced">Invoiced</SelectItem>
-                  <SelectItem value="not invoiced">Not Invoiced</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-sm font-medium">Attachments</label>
-              <Input type="file" multiple />
-            </div>
             <div className="flex justify-end gap-2 pt-4">
               <Button variant="outline" onClick={() => setAddClientExpenseOpen(false)}>
                 Cancel
@@ -1113,18 +1210,33 @@ const ExpensesLogTab = () => {
             <DialogTitle>Add Team Expense</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium">Date</label>
-              <Input type="date" />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium">Date</label>
+                <Input type="date" value={teamExpenseForm.date} onChange={(e) => setTeamExpenseForm(f => ({ ...f, date: e.target.value }))} />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Team</label>
+                <Select value={teamExpenseForm.teamId} onValueChange={(v) => setTeamExpenseForm(f => ({ ...f, teamId: v }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select team" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {teamOptions.map(o => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div>
               <label className="text-sm font-medium">Description</label>
-              <Input placeholder="Enter expense description" />
+              <Input placeholder="Enter expense description" value={teamExpenseForm.description} onChange={(e) => setTeamExpenseForm(f => ({ ...f, description: e.target.value }))} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium">Category</label>
-                <Select>
+                <Select value={teamExpenseForm.expreseCategory} onValueChange={(v) => setTeamExpenseForm(f => ({ ...f, expreseCategory: v }))}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
@@ -1140,31 +1252,37 @@ const ExpensesLogTab = () => {
               </div>
               <div>
                 <label className="text-sm font-medium">Amount</label>
-                <Input type="number" placeholder="0.00" step="0.01" />
+                <Input type="number" placeholder="0.00" step="0.01" value={teamExpenseForm.netAmount} onChange={(e) => setTeamExpenseForm(f => ({ ...f, netAmount: e.target.value }))} />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-4">
+              <div>
+                <label className="text-sm font-medium">VAT %</label>
+                <Input type="number" placeholder="0" step="0.01" value={teamExpenseForm.vatPercentage} onChange={(e) => setTeamExpenseForm(f => ({ ...f, vatPercentage: e.target.value }))} />
               </div>
             </div>
             <div>
               <label className="text-sm font-medium">Status</label>
-              <Select>
+              <Select value={teamExpenseForm.status} onValueChange={(v) => setTeamExpenseForm(f => ({ ...f, status: v }))}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="paid">Paid</SelectItem>
-                  <SelectItem value="not paid">Not Paid</SelectItem>
+                  <SelectItem value="yes">Paid</SelectItem>
+                  <SelectItem value="no">Not Paid</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <label className="text-sm font-medium">Attachments</label>
-              <Input type="file" multiple />
+              <label className="text-sm font-medium">Attachment</label>
+              <Input type="file" onChange={(e) => setTeamExpenseForm(f => ({ ...f, file: e.target.files && e.target.files[0] ? e.target.files[0] : null }))} />
             </div>
             <div className="flex justify-end gap-2 pt-4">
               <Button variant="outline" onClick={() => setAddTeamExpenseOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={() => setAddTeamExpenseOpen(false)}>
-                Save Expense
+              <Button onClick={submitTeamExpense} disabled={isAddingTeamExpense}>
+                {isAddingTeamExpense ? 'Saving...' : 'Save Expense'}
               </Button>
             </div>
           </div>
@@ -1175,13 +1293,16 @@ const ExpensesLogTab = () => {
       <Dialog open={receiptDialogOpen} onOpenChange={setReceiptDialogOpen}>
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Receipt Preview - {selectedReceipt}</DialogTitle>
+            <DialogTitle>Receipt Preview - {selectedReceipt?.split('/').pop()}</DialogTitle>
           </DialogHeader>
           <div className="flex justify-center p-6">
             <img
-              src={sampleReceipt}
+              src={selectedReceipt ? `${import.meta.env.VITE_BACKEND_BASE_URL}${selectedReceipt}` : sampleReceipt}
               alt="Receipt"
               className="max-w-full h-auto border border-gray-200 rounded-lg shadow-lg"
+              onError={(e) => {
+                e.currentTarget.src = sampleReceipt;
+              }}
             />
           </div>
         </DialogContent>
