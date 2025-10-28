@@ -19,6 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import TimeLogPopup from './TimeLogPopup';
 import AddClient from '@/components/client/AddClient';
 import { JobForm } from '@/components/JobForm';
+import { ExpenseFormDialog } from './ExpenseFormDialog';
 
 interface AvatarsProps {
   activeTab: string;
@@ -30,6 +31,9 @@ const Avatars = ({ activeTab, title }: AvatarsProps) => {
   const [showTimeLogPopup, setShowTimeLogPopup] = useState(false);
   const [showAddClient, setShowAddClient] = useState(false);
   const [showAddJob, setShowAddJob] = useState(false);
+  const [showExpenseTypeDialog, setShowExpenseTypeDialog] = useState(false);
+  const [showAddClientExpense, setShowAddClientExpense] = useState(false);
+  const [showAddTeamExpense, setShowAddTeamExpense] = useState(false);
 
   useEffect(() => {
     if (activeTab) {
@@ -96,6 +100,7 @@ const Avatars = ({ activeTab, title }: AvatarsProps) => {
           if (v === '1') setShowTimeLogPopup(true);
           if (v === '2') setShowAddClient(true);
           if (v === '3') setShowAddJob(true);
+          if (v === '4') setShowExpenseTypeDialog(true);
         }}> 
                     <SelectTrigger className="bg-[#017DB9] w-[120px] text-[16px] text-white py-[8px] px-[12px] rounded-[4px] flex items-center gap-[4px] font-semibold h-auto">
                       <SelectValue placeholder="Create" />
@@ -105,7 +110,7 @@ const Avatars = ({ activeTab, title }: AvatarsProps) => {
                       <SelectItem value="1" className="p-2 hover:!bg-[#017DB9] hover:!text-white">Time Log</SelectItem>
                       <SelectItem value="2" className="p-2 hover:!bg-[#017DB9] hover:!text-white">Client</SelectItem>
                       <SelectItem value="3" className="p-2 hover:!bg-[#017DB9] hover:!text-white">Job</SelectItem>
-                      <SelectItem value="4" className="p-2 hover:!bg-[#017DB9] hover:!text-white" disabled>Expense</SelectItem>
+                      <SelectItem value="4" className="p-2 hover:!bg-[#017DB9] hover:!text-white">Expense</SelectItem>
                     </SelectContent>
                   </Select>
      </div>
@@ -127,6 +132,51 @@ const Avatars = ({ activeTab, title }: AvatarsProps) => {
          <JobForm job={null} onSubmit={() => {}} onCancel={() => setShowAddJob(false)} />
        </DialogContent>
      </Dialog>
+
+     {/* Expense Type Selection Dialog */}
+     <Dialog open={showExpenseTypeDialog} onOpenChange={setShowExpenseTypeDialog}>
+       <DialogContent className="max-w-md">
+         <DialogHeader>
+           <DialogTitle>Select Expense Type</DialogTitle>
+         </DialogHeader>
+         <div className="space-y-3">
+           <button
+             onClick={() => {
+               setShowExpenseTypeDialog(false);
+               setShowAddClientExpense(true);
+             }}
+             className="w-full p-4 border-2 border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors text-left"
+           >
+             <div className="font-semibold text-lg">Client Expense</div>
+             <div className="text-sm text-gray-600">Create an expense for a client</div>
+           </button>
+           <button
+             onClick={() => {
+               setShowExpenseTypeDialog(false);
+               setShowAddTeamExpense(true);
+             }}
+             className="w-full p-4 border-2 border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors text-left"
+           >
+             <div className="font-semibold text-lg">Team Expense</div>
+             <div className="text-sm text-gray-600">Create an expense for a team member</div>
+           </button>
+         </div>
+       </DialogContent>
+     </Dialog>
+
+     {/* Client Expense Form */}
+     <ExpenseFormDialog 
+       isOpen={showAddClientExpense} 
+       onClose={() => setShowAddClientExpense(false)} 
+       expenseType="client" 
+     />
+
+     {/* Team Expense Form */}
+     <ExpenseFormDialog 
+       isOpen={showAddTeamExpense} 
+       onClose={() => setShowAddTeamExpense(false)} 
+       expenseType="team" 
+     />
     </div>
   );
 };

@@ -15,8 +15,10 @@ export type TimeLog = {
   date: string;
   teamMember: string;
   clientName: string;
+  clientId?: string;
   clientRef: string;
   jobName: string;
+  jobId?: string;
   jobType: string;
   category: 'client work' | 'meeting' | 'phone call' | 'event' | 'training' | 'other';
   description: string;

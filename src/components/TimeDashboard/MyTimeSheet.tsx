@@ -229,7 +229,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
             const nonBill = hoursToSeconds((totals.nonBillable as any)[key] || 0);
             const dateObj = new Date(currentWeek.weekStart);
             dateObj.setDate(new Date(currentWeek.weekStart).getDate() + offset);
-            return {
+    return {
                 date: dateObj.toISOString(),
                 billable: bill,
                 nonBillable: nonBill,
@@ -348,17 +348,17 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
             jobId: jobs[0]._id,
             category: categories[0].name,
             description: "",
-            billable: true,
+        billable: true,
             rate: `€${billableRate.toFixed(2)}`,
-            hours: {
-                mon: 0,
+        hours: {
+            mon: 0,
                 tue: 0,
-                wed: 0,
-                thu: 0,
-                fri: 0,
-                sat: 0,
-                sun: 0
-            }
+            wed: 0,
+            thu: 0,
+            fri: 0,
+            sat: 0,
+            sun: 0
+        }
         };
 
         setTimesheetRows([...timesheetRows, newRow]);
@@ -612,7 +612,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                             disabled={isSubmittingStatus}
                         >
                             {isSubmittingStatus ? 'Submitting...' : 'Submit for Approval'}
-                        </Button>
+                    </Button>
                     ) : (
                         <div className="flex items-center px-3 py-1 border rounded text-sm">
                             {timesheet?.status === 'submitted' && <span className="text-amber-600">Submitted</span>}
@@ -738,7 +738,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
             {/* Action Buttons */}
             <div className={`flex flex-col sm:flex-row items-stretch sm:items-center gap-3 ${shouldShowApproveRejectButtons ? 'justify-between' : 'justify-end'}`}>
                 {shouldShowApproveRejectButtons && (
-                    <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
                         <Button 
                             variant="outline" 
                             className="text-green-600 border-green-600 hover:bg-green-50 h-9 text-sm"
@@ -754,7 +754,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                             }}
                         >
                             {isSubmittingStatus ? 'Approving...' : 'Approve'}
-                        </Button>
+                    </Button>
                         <Button 
                             variant="outline" 
                             className="text-red-600 border-red-600 hover:bg-red-50 h-9 text-sm"
@@ -770,8 +770,8 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                             }}
                         >
                             {isSubmittingStatus ? 'Rejecting...' : 'Reject'}
-                        </Button>
-                    </div>
+                    </Button>
+                </div>
                 )}
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                     <div className="flex items-center justify-between sm:justify-start gap-2">
@@ -801,10 +801,10 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                         ) : (
                             <>
                                 <RefreshCw className="w-4 h-4" />
-                                Save Changes
+                       Save Changes
                             </>
                         )}
-                    </Button>
+                      </Button>
                 </div>
             </div>
 
@@ -1005,10 +1005,10 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                         const timeStr = e.target.value;
                                         const value = timeToSeconds(timeStr) / 3600; // Convert seconds to hours
                                         updateRow(row.id, {
-                                            hours: {
+                                                hours: {
                                                 ...row.hours,
-                                                mon: value
-                                            }
+                                                    mon: value
+                                                }
                                         });
                                     }} placeholder="HH:mm:ss" className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
                                 </td>
@@ -1017,10 +1017,10 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                         const timeStr = e.target.value;
                                         const value = timeToSeconds(timeStr) / 3600;
                                         updateRow(row.id, {
-                                            hours: {
+                                                hours: {
                                                 ...row.hours,
-                                                tue: value
-                                            }
+                                                    tue: value
+                                                }
                                         });
                                     }} placeholder="HH:mm:ss" className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
                                 </td>
@@ -1029,10 +1029,10 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                         const timeStr = e.target.value;
                                         const value = timeToSeconds(timeStr) / 3600;
                                         updateRow(row.id, {
-                                            hours: {
+                                                hours: {
                                                 ...row.hours,
-                                                wed: value
-                                            }
+                                                    wed: value
+                                                }
                                         });
                                     }} placeholder="HH:mm:ss" className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
                                 </td>
@@ -1041,10 +1041,10 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                         const timeStr = e.target.value;
                                         const value = timeToSeconds(timeStr) / 3600;
                                         updateRow(row.id, {
-                                            hours: {
+                                                hours: {
                                                 ...row.hours,
-                                                thu: value
-                                            }
+                                                    thu: value
+                                                }
                                         });
                                     }} placeholder="HH:mm:ss" className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
                                 </td>
@@ -1053,10 +1053,10 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                         const timeStr = e.target.value;
                                         const value = timeToSeconds(timeStr) / 3600;
                                         updateRow(row.id, {
-                                            hours: {
+                                                hours: {
                                                 ...row.hours,
-                                                fri: value
-                                            }
+                                                    fri: value
+                                                }
                                         });
                                     }} placeholder="HH:mm:ss" className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
                                 </td>
@@ -1065,10 +1065,10 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                         const timeStr = e.target.value;
                                         const value = timeToSeconds(timeStr) / 3600;
                                         updateRow(row.id, {
-                                            hours: {
+                                                hours: {
                                                 ...row.hours,
-                                                sat: value
-                                            }
+                                                    sat: value
+                                                }
                                         });
                                     }} placeholder="HH:mm:ss" className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
                                 </td>}
@@ -1077,10 +1077,10 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                         const timeStr = e.target.value;
                                         const value = timeToSeconds(timeStr) / 3600;
                                         updateRow(row.id, {
-                                            hours: {
+                                                hours: {
                                                 ...row.hours,
-                                                sun: value
-                                            }
+                                                    sun: value
+                                                }
                                         });
                                     }} placeholder="HH:mm:ss" className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
                                 </td>}

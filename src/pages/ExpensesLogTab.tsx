@@ -8,16 +8,17 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CreditCard, Search, Filter, Eye, Edit, Download, Upload, Paperclip, ExternalLink, Plus } from "lucide-react";
+import { CreditCard, Search, Filter, Eye, Edit, Download, Upload, Paperclip, ExternalLink, Plus, Settings, Trash2 } from "lucide-react";
 import sampleReceipt from "@/assets/sample-receipt.png";
 import CustomTabs from '@/components/Tabs';
 import { usePermissionTabs } from '@/hooks/usePermissionTabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@radix-ui/react-tooltip';
 import { useLazyGetTabAccessQuery } from '@/store/authApi';
 import { useGetDropdownOptionsQuery } from '@/store/teamApi';
-import { useAddClientExpenseMutation, useListExpensesQuery } from '@/store/expensesApi';
+import { useAddClientExpenseMutation, useUpdateExpenseMutation, useDeleteExpenseMutation, useListExpensesQuery } from '@/store/expensesApi';
 import { useGetCurrentUserQuery } from '@/store/authApi';
 import Avatars from '@/components/Avatars';
+import { validateExpenseForm, validateSingleField, ExpenseFormData, ValidationResult } from '@/utils/validation/expenseValidation';
 interface Expense {
   id: string;
   date: string;
@@ -54,405 +55,6 @@ const calculateVATDetails = (netAmount: number, category: string) => {
   return { vatRate, vatAmount, grossAmount };
 };
 
-const sampleExpenses: Expense[] = [
-  {
-    id: '1',
-    date: '2024-01-15',
-    client: 'ABC Corp Ltd',
-    description: 'Mileage for client meeting in Dublin',
-    category: 'Mileage',
-    netAmount: 69.51,
-    vatRate: 23,
-    vatAmount: 15.99,
-    amount: 85.50,
-    status: 'not invoiced',
-    submittedBy: 'Sarah Johnson',
-    submitterAvatar: '/lovable-uploads/2a629138-9746-40f3-ad13-33c9c4d4b180.png',
-    attachments: ['mileage_receipt_001.pdf']
-  },
-  {
-    id: '2',
-    date: '2024-01-14',
-    client: 'XYZ Holdings',
-    description: 'Software subscription for project analysis',
-    category: 'Software',
-    netAmount: 243.09,
-    vatRate: 23,
-    vatAmount: 55.91,
-    amount: 299.00,
-    status: 'invoiced',
-    invoiceNumber: 'INV-2024-001',
-    submittedBy: 'Michael Chen',
-    submitterAvatar: '/lovable-uploads/379fa9c7-8b08-43d9-958a-2037e951a111.png',
-    attachments: ['software_invoice.pdf']
-  },
-  {
-    id: '3',
-    date: '2024-01-13',
-    client: 'Smith & Associates',
-    description: 'Meal expenses during client consultation',
-    category: 'Subsistence',
-    netAmount: 40.31,
-    vatRate: 13.5,
-    vatAmount: 5.44,
-    amount: 45.75,
-    status: 'not invoiced',
-    submittedBy: 'Emily Davis',
-    submitterAvatar: '/lovable-uploads/69b009d6-9e34-4be5-b5f7-e4f487c247d1.png',
-    attachments: ['restaurant_receipt.jpg']
-  },
-  {
-    id: '23',
-    date: '2024-01-16',
-    client: 'Tech Solutions Ltd',
-    description: 'Office supplies for project documentation',
-    category: 'Stationary',
-    netAmount: 97.56,
-    vatRate: 23,
-    vatAmount: 22.44,
-    amount: 120.00,
-    status: 'not invoiced',
-    submittedBy: 'Sarah Johnson',
-    submitterAvatar: '/lovable-uploads/2a629138-9746-40f3-ad13-33c9c4d4b180.png',
-    attachments: ['supplies_receipt.pdf']
-  },
-  {
-    id: '24',
-    date: '2024-01-17',
-    client: 'Manufacturing Corp',
-    description: 'Client dinner meeting',
-    category: 'Subsistence',
-    netAmount: 88.11,
-    vatRate: 13.5,
-    vatAmount: 11.89,
-    amount: 100.00,
-    status: 'invoiced',
-    invoiceNumber: 'INV-2024-006',
-    submittedBy: 'Michael Chen',
-    submitterAvatar: '/lovable-uploads/379fa9c7-8b08-43d9-958a-2037e951a111.png',
-    attachments: ['dinner_receipt.pdf']
-  },
-  {
-    id: '25',
-    date: '2024-01-18',
-    client: 'Finance Partners',
-    description: 'Professional software license',
-    category: 'Software',
-    netAmount: 162.60,
-    vatRate: 23,
-    vatAmount: 37.40,
-    amount: 200.00,
-    status: 'not invoiced',
-    submittedBy: 'Emily Davis',
-    submitterAvatar: '/lovable-uploads/69b009d6-9e34-4be5-b5f7-e4f487c247d1.png',
-    attachments: ['license_receipt.pdf']
-  },
-  {
-    id: '26',
-    date: '2024-01-19',
-    client: 'Global Services Inc',
-    description: 'Company formation filing fee',
-    category: 'CRO filing fee',
-    netAmount: 150.00,
-    vatRate: 0,
-    vatAmount: 0.00,
-    amount: 150.00,
-    status: 'invoiced',
-    invoiceNumber: 'INV-2024-007',
-    submittedBy: 'David Wilson',
-    submitterAvatar: '/lovable-uploads/585eab8a-4417-41e5-9f7d-d353e3d174ba.png',
-    attachments: ['filing_receipt.pdf']
-  },
-  {
-    id: '27',
-    date: '2024-01-20',
-    client: 'Business Registrations Ltd',
-    description: 'Travel expenses to client site',
-    category: 'Mileage',
-    netAmount: 73.17,
-    vatRate: 23,
-    vatAmount: 16.83,
-    amount: 90.00,
-    status: 'not invoiced',
-    submittedBy: 'Lisa Thompson',
-    submitterAvatar: '/lovable-uploads/85fbd059-f53e-48f2-9cb6-691d0c4ba899.png',
-    attachments: ['travel_receipt.pdf']
-  },
-  {
-    id: '4',
-    date: '2024-01-12',
-    description: 'Personal office supplies',
-    category: 'Stationary',
-    netAmount: 97.80,
-    vatRate: 23,
-    vatAmount: 22.49,
-    amount: 120.30,
-    status: 'not paid',
-    submittedBy: 'David Wilson',
-    submitterAvatar: '/lovable-uploads/585eab8a-4417-41e5-9f7d-d353e3d174ba.png',
-    attachments: ['stationary_receipt.pdf']
-  },
-  {
-    id: '5',
-    date: '2024-01-11',
-    client: 'Global Services Inc',
-    description: 'Hotel accommodation for site visit',
-    category: 'Accommodation',
-    netAmount: 260.16,
-    vatRate: 23,
-    vatAmount: 59.84,
-    amount: 320.00,
-    status: 'not invoiced',
-    submittedBy: 'Lisa Thompson',
-    submitterAvatar: '/lovable-uploads/85fbd059-f53e-48f2-9cb6-691d0c4ba899.png',
-    attachments: ['hotel_invoice.pdf']
-  },
-  {
-    id: '6',
-    date: '2024-01-10',
-    client: 'Business Registrations Ltd',
-    description: 'Company registration filing fee',
-    category: 'CRO filing fee',
-    netAmount: 150.00,
-    vatRate: 0,
-    vatAmount: 0.00,
-    amount: 150.00,
-    status: 'invoiced',
-    invoiceNumber: 'INV-2024-003',
-    submittedBy: 'Michael Chen',
-    submitterAvatar: '/lovable-uploads/379fa9c7-8b08-43d9-958a-2037e951a111.png'
-  },
-  {
-    id: '7',
-    date: '2024-01-09',
-    description: 'Personal training software subscription',
-    category: 'Software',
-    netAmount: 40.65,
-    vatRate: 23,
-    vatAmount: 9.35,
-    amount: 49.99,
-    status: 'not paid',
-    submittedBy: 'Sarah Johnson',
-    submitterAvatar: '/lovable-uploads/2a629138-9746-40f3-ad13-33c9c4d4b180.png',
-    attachments: ['software_receipt.pdf']
-  },
-  {
-    id: '8',
-    date: '2024-01-08',
-    client: 'Tech Solutions Ltd',
-    description: 'Client lunch meeting',
-    category: 'Subsistence',
-    netAmount: 66.26,
-    vatRate: 13.5,
-    vatAmount: 8.95,
-    amount: 75.20,
-    status: 'invoiced',
-    invoiceNumber: 'INV-2024-004',
-    submittedBy: 'Emily Davis',
-    submitterAvatar: '/lovable-uploads/69b009d6-9e34-4be5-b5f7-e4f487c247d1.png',
-    attachments: ['lunch_receipt.jpg']
-  },
-  {
-    id: '9',
-    date: '2024-01-07',
-    client: 'Finance Partners',
-    description: 'Mileage to client offices in Cork',
-    category: 'Mileage',
-    netAmount: 102.11,
-    vatRate: 23,
-    vatAmount: 23.49,
-    amount: 125.60,
-    status: 'not invoiced',
-    submittedBy: 'David Wilson',
-    submitterAvatar: '/lovable-uploads/585eab8a-4417-41e5-9f7d-d353e3d174ba.png',
-    attachments: ['mileage_log.pdf']
-  },
-  {
-    id: '10',
-    date: '2024-01-06',
-    client: 'Manufacturing Corp',
-    description: 'Overnight accommodation for audit',
-    category: 'Accommodation',
-    netAmount: 146.34,
-    vatRate: 23,
-    vatAmount: 33.66,
-    amount: 180.00,
-    status: 'invoiced',
-    invoiceNumber: 'INV-2024-005',
-    submittedBy: 'Lisa Thompson',
-    submitterAvatar: '/lovable-uploads/85fbd059-f53e-48f2-9cb6-691d0c4ba899.png',
-    attachments: ['hotel_bill.pdf']
-  },
-  // Additional team expenses
-  {
-    id: '11',
-    date: '2024-01-05',
-    description: 'Personal office equipment',
-    category: 'Stationary',
-    netAmount: 73.16,
-    vatRate: 23,
-    vatAmount: 16.83,
-    amount: 89.99,
-    status: 'paid',
-    submittedBy: 'Sarah Johnson',
-    submitterAvatar: '/lovable-uploads/2a629138-9746-40f3-ad13-33c9c4d4b180.png',
-    attachments: ['equipment_receipt.pdf']
-  },
-  {
-    id: '12',
-    date: '2024-01-04',
-    description: 'Professional development course',
-    category: 'Software',
-    netAmount: 161.79,
-    vatRate: 23,
-    vatAmount: 37.21,
-    amount: 199.00,
-    status: 'not paid',
-    submittedBy: 'Michael Chen',
-    submitterAvatar: '/lovable-uploads/379fa9c7-8b08-43d9-958a-2037e951a111.png',
-    attachments: ['course_invoice.pdf']
-  },
-  {
-    id: '13',
-    date: '2024-01-03',
-    description: 'Home office supplies',
-    category: 'Stationary',
-    netAmount: 36.75,
-    vatRate: 23,
-    vatAmount: 8.45,
-    amount: 45.20,
-    status: 'paid',
-    submittedBy: 'Emily Davis',
-    submitterAvatar: '/lovable-uploads/69b009d6-9e34-4be5-b5f7-e4f487c247d1.png',
-    attachments: ['supplies_receipt.jpg']
-  },
-  {
-    id: '14',
-    date: '2024-01-02',
-    description: 'Personal laptop upgrade',
-    category: 'Software',
-    netAmount: 243.89,
-    vatRate: 23,
-    vatAmount: 56.09,
-    amount: 299.99,
-    status: 'not paid',
-    submittedBy: 'David Wilson',
-    submitterAvatar: '/lovable-uploads/585eab8a-4417-41e5-9f7d-d353e3d174ba.png',
-    attachments: ['laptop_receipt.pdf']
-  },
-  {
-    id: '15',
-    date: '2024-01-01',
-    description: 'Annual software license',
-    category: 'Software',
-    netAmount: 121.95,
-    vatRate: 23,
-    vatAmount: 28.05,
-    amount: 149.99,
-    status: 'paid',
-    submittedBy: 'Lisa Thompson',
-    submitterAvatar: '/lovable-uploads/85fbd059-f53e-48f2-9cb6-691d0c4ba899.png',
-    attachments: ['license_receipt.pdf']
-  },
-  {
-    id: '16',
-    date: '2023-12-30',
-    description: 'Office desk accessories',
-    category: 'Stationary',
-    netAmount: 54.88,
-    vatRate: 23,
-    vatAmount: 12.62,
-    amount: 67.50,
-    status: 'not paid',
-    submittedBy: 'Sarah Johnson',
-    submitterAvatar: '/lovable-uploads/2a629138-9746-40f3-ad13-33c9c4d4b180.png',
-    attachments: ['desk_receipt.pdf']
-  },
-  {
-    id: '17',
-    date: '2023-12-29',
-    description: 'Personal training materials',
-    category: 'Stationary',
-    netAmount: 28.29,
-    vatRate: 23,
-    vatAmount: 6.51,
-    amount: 34.80,
-    status: 'paid',
-    submittedBy: 'Michael Chen',
-    submitterAvatar: '/lovable-uploads/379fa9c7-8b08-43d9-958a-2037e951a111.png',
-    attachments: ['materials_receipt.jpg']
-  },
-  {
-    id: '18',
-    date: '2023-12-28',
-    description: 'Personal productivity software',
-    category: 'Software',
-    netAmount: 65.04,
-    vatRate: 23,
-    vatAmount: 14.96,
-    amount: 79.99,
-    status: 'not paid',
-    submittedBy: 'Emily Davis',
-    submitterAvatar: '/lovable-uploads/69b009d6-9e34-4be5-b5f7-e4f487c247d1.png',
-    attachments: ['software_receipt.pdf']
-  },
-  {
-    id: '19',
-    date: '2023-12-27',
-    description: 'Home office furniture',
-    category: 'Stationary',
-    netAmount: 199.19,
-    vatRate: 23,
-    vatAmount: 45.81,
-    amount: 245.00,
-    status: 'paid',
-    submittedBy: 'David Wilson',
-    submitterAvatar: '/lovable-uploads/585eab8a-4417-41e5-9f7d-d353e3d174ba.png',
-    attachments: ['furniture_receipt.pdf']
-  },
-  {
-    id: '20',
-    date: '2023-12-26',
-    description: 'Professional certification exam',
-    category: 'Software',
-    netAmount: 129.27,
-    vatRate: 23,
-    vatAmount: 29.73,
-    amount: 159.00,
-    status: 'not paid',
-    submittedBy: 'Lisa Thompson',
-    submitterAvatar: '/lovable-uploads/85fbd059-f53e-48f2-9cb6-691d0c4ba899.png',
-    attachments: ['exam_receipt.pdf']
-  },
-  {
-    id: '21',
-    date: '2023-12-25',
-    description: 'Personal workspace setup',
-    category: 'Stationary',
-    netAmount: 100.37,
-    vatRate: 23,
-    vatAmount: 23.08,
-    amount: 123.45,
-    status: 'paid',
-    submittedBy: 'Sarah Johnson',
-    submitterAvatar: '/lovable-uploads/2a629138-9746-40f3-ad13-33c9c4d4b180.png',
-    attachments: ['setup_receipt.jpg']
-  },
-  {
-    id: '22',
-    date: '2023-12-24',
-    description: 'Professional development tools',
-    category: 'Software',
-    netAmount: 72.76,
-    vatRate: 23,
-    vatAmount: 16.73,
-    amount: 89.50,
-    status: 'not paid',
-    submittedBy: 'Michael Chen',
-    submitterAvatar: '/lovable-uploads/379fa9c7-8b08-43d9-958a-2037e951a111.png',
-    attachments: ['tools_receipt.pdf']
-  }
-];
 
 const tabs = [
   {
@@ -475,12 +77,16 @@ const ExpensesLogTab = () => {
   const [addTeamExpenseOpen, setAddTeamExpenseOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
+  const [settingsPopup, setSettingsPopup] = useState<{ expenseId: string; x: number; y: number } | null>(null);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const { data: clientOptionsResp } = useGetDropdownOptionsQuery('client');
   const { data: teamOptionsResp } = useGetDropdownOptionsQuery('team');
   const clientOptions = (clientOptionsResp?.data?.clients || []).map((c: any) => ({ value: c._id, label: c.name }));
   const teamOptions = (teamOptionsResp?.data?.teams || []).map((t: any) => ({ value: t._id, label: t.name }));
   const [addClientExpense, { isLoading: isAddingClientExpense }] = useAddClientExpenseMutation();
   const [addTeamExpense, { isLoading: isAddingTeamExpense }] = useAddClientExpenseMutation();
+  const [updateExpense, { isLoading: isUpdatingExpense }] = useUpdateExpenseMutation();
+  const [deleteExpense, { isLoading: isDeletingExpense }] = useDeleteExpenseMutation();
   
   // API query for expenses
   const { data: expensesResp, isLoading: isExpensesLoading } = useListExpensesQuery({
@@ -490,7 +96,7 @@ const ExpensesLogTab = () => {
     page,
     limit,
   });
-  const [clientExpenseForm, setClientExpenseForm] = useState({
+  const [clientExpenseForm, setClientExpenseForm] = useState<ExpenseFormData>({
     date: '',
     clientId: '',
     description: '',
@@ -498,9 +104,10 @@ const ExpensesLogTab = () => {
     netAmount: '',
     vatPercentage: '',
     status: 'no',
-    file: null as File | null,
+    file: null,
+    teamId: '', // Not used for client expenses but needed for type compatibility
   });
-  const [teamExpenseForm, setTeamExpenseForm] = useState({
+  const [teamExpenseForm, setTeamExpenseForm] = useState<ExpenseFormData>({
     date: '',
     teamId: '',
     description: '',
@@ -508,12 +115,65 @@ const ExpensesLogTab = () => {
     netAmount: '',
     vatPercentage: '',
     status: 'no',
-    file: null as File | null,
+    file: null,
+    clientId: '', // Not used for team expenses but needed for type compatibility
   });
+
+  // Validation errors state
+  const [clientFormErrors, setClientFormErrors] = useState<Partial<Record<keyof ExpenseFormData, string>>>({});
+  const [teamFormErrors, setTeamFormErrors] = useState<Partial<Record<keyof ExpenseFormData, string>>>({});
+
+  // Validation functions
+  const validateClientForm = (): boolean => {
+    const validationResult = validateExpenseForm(clientExpenseForm, 'client');
+    setClientFormErrors(validationResult.errors);
+    return validationResult.isValid;
+  };
+
+  const validateTeamForm = (): boolean => {
+    const validationResult = validateExpenseForm(teamExpenseForm, 'team');
+    setTeamFormErrors(validationResult.errors);
+    return validationResult.isValid;
+  };
+
+  // Real-time validation for individual fields
+  const handleClientFieldChange = (field: keyof ExpenseFormData, value: any) => {
+    setClientExpenseForm(prev => ({ ...prev, [field]: value }));
+    
+    // Clear error for this field
+    if (clientFormErrors[field]) {
+      setClientFormErrors(prev => ({ ...prev, [field]: undefined }));
+    }
+    
+    // Validate field in real-time
+    const error = validateSingleField(field, value, 'client');
+    if (error) {
+      setClientFormErrors(prev => ({ ...prev, [field]: error }));
+    }
+  };
+
+  const handleTeamFieldChange = (field: keyof ExpenseFormData, value: any) => {
+    setTeamExpenseForm(prev => ({ ...prev, [field]: value }));
+    
+    // Clear error for this field
+    if (teamFormErrors[field]) {
+      setTeamFormErrors(prev => ({ ...prev, [field]: undefined }));
+    }
+    
+    // Validate field in real-time
+    const error = validateSingleField(field, value, 'team');
+    if (error) {
+      setTeamFormErrors(prev => ({ ...prev, [field]: error }));
+    }
+  };
+
   const submitClientExpense = async () => {
+    if (!validateClientForm()) {
+      return;
+    }
     try {
-      await addClientExpense({
-        type: 'client',
+      const expenseData = {
+        type: 'client' as const,
         description: clientExpenseForm.description,
         clientId: clientExpenseForm.clientId,
         date: clientExpenseForm.date,
@@ -524,16 +184,43 @@ const ExpensesLogTab = () => {
         totalAmount: undefined,
         status: clientExpenseForm.status as 'yes' | 'no',
         file: clientExpenseForm.file,
-      }).unwrap();
+      };
+
+      if (editingExpense) {
+        // Update existing expense
+        await updateExpense({ expenseId: editingExpense.id, expenseData }).unwrap();
+      } else {
+        // Add new expense
+        await addClientExpense(expenseData).unwrap();
+      }
+
       setAddClientExpenseOpen(false);
+      setEditingExpense(null);
+      // Reset form and errors
+      setClientExpenseForm({
+        date: '',
+        clientId: '',
+        description: '',
+        expreseCategory: '',
+        netAmount: '',
+        vatPercentage: '',
+        status: 'no',
+        file: null,
+        teamId: '',
+      });
+      setClientFormErrors({});
     } catch (e) {
-      console.error('Failed to add client expense', e);
+      console.error('Failed to save client expense', e);
     }
   };
+
   const submitTeamExpense = async () => {
+    if (!validateTeamForm()) {
+      return;
+    }
     try {
-      await addTeamExpense({
-        type: 'team',
+      const expenseData = {
+        type: 'team' as const,
         description: teamExpenseForm.description,
         clientId: undefined, // No client for team expenses
         userId: teamExpenseForm.teamId, // Pass selected team's ID
@@ -545,10 +232,33 @@ const ExpensesLogTab = () => {
         totalAmount: undefined,
         status: teamExpenseForm.status as 'yes' | 'no',
         file: teamExpenseForm.file,
-      }).unwrap();
+      };
+
+      if (editingExpense) {
+        // Update existing expense
+        await updateExpense({ expenseId: editingExpense.id, expenseData }).unwrap();
+      } else {
+        // Add new expense
+        await addTeamExpense(expenseData).unwrap();
+      }
+
       setAddTeamExpenseOpen(false);
+      setEditingExpense(null);
+      // Reset form and errors
+      setTeamExpenseForm({
+        date: '',
+        teamId: '',
+        description: '',
+        expreseCategory: '',
+        netAmount: '',
+        vatPercentage: '',
+        status: 'no',
+        file: null,
+        clientId: '',
+      });
+      setTeamFormErrors({});
     } catch (e) {
-      console.error('Failed to add team expense', e);
+      console.error('Failed to save team expense', e);
     }
   };
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
@@ -693,6 +403,95 @@ const ExpensesLogTab = () => {
   const handleReceiptClick = (receiptUrl: string) => {
     setSelectedReceipt(receiptUrl);
     setReceiptDialogOpen(true);
+  };
+
+  const handleSettingsClick = (e: React.MouseEvent, expenseId: string) => {
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    setSettingsPopup({ expenseId, x: rect.left, y: rect.bottom + 5 });
+  };
+
+  const handleEditExpense = (expenseId: string) => {
+    const expense = expenses.find(e => e.id === expenseId);
+    if (expense) {
+      setEditingExpense(expense);
+      
+      // Convert date to YYYY-MM-DD format for date input
+      const formatDateForInput = (dateString: string) => {
+        const date = new Date(dateString);
+        return date.toISOString().split('T')[0];
+      };
+      
+      // Find client ID from client name
+      const findClientId = (clientName?: string) => {
+        if (!clientName) return '';
+        const client = clientOptions.find(c => c.label === clientName);
+        return client?.value || '';
+      };
+      
+      // Find team ID from team member name
+      const findTeamId = (teamMemberName?: string) => {
+        if (!teamMemberName) return '';
+        const team = teamOptions.find(t => t.label === teamMemberName);
+        return team?.value || '';
+      };
+      
+      // Convert category to form format
+      const convertCategoryToForm = (category: string) => {
+        const categoryMap: Record<string, string> = {
+          'CRO filing fee': 'cro-filing-fee',
+          'Subsistence': 'subsistence',
+          'Accommodation': 'accommodation',
+          'Mileage': 'mileage',
+          'Software': 'software',
+          'Stationary': 'stationary'
+        };
+        return categoryMap[category] || 'subsistence';
+      };
+      
+      // Open the appropriate form based on expense type
+      if (activeTab === 'clientExpenses') {
+        setClientExpenseForm({
+          date: formatDateForInput(expense.date),
+          clientId: findClientId(expense.client),
+          description: expense.description,
+          expreseCategory: convertCategoryToForm(expense.category),
+          netAmount: expense.netAmount.toString(),
+          vatPercentage: expense.vatRate.toString(),
+          status: expense.status === 'invoiced' ? 'yes' : 'no',
+          file: null, // File inputs can't be pre-filled for security reasons
+          teamId: '',
+        });
+        setAddClientExpenseOpen(true);
+      } else {
+        setTeamExpenseForm({
+          date: formatDateForInput(expense.date),
+          teamId: findTeamId(expense.submittedBy),
+          description: expense.description,
+          expreseCategory: convertCategoryToForm(expense.category),
+          netAmount: expense.netAmount.toString(),
+          vatPercentage: expense.vatRate.toString(),
+          status: expense.status === 'paid' ? 'yes' : 'no',
+          file: null, // File inputs can't be pre-filled for security reasons
+          clientId: '',
+        });
+        setAddTeamExpenseOpen(true);
+      }
+      setSettingsPopup(null);
+    }
+  };
+
+  const handleDeleteExpense = async (expenseId: string) => {
+    try {
+      await deleteExpense(expenseId).unwrap();
+      setSettingsPopup(null);
+    } catch (e) {
+      console.error('Failed to delete expense', e);
+    }
+  };
+
+  const handleCloseSettingsPopup = () => {
+    setSettingsPopup(null);
   };
 
   const handleExport = () => {
@@ -916,6 +715,7 @@ const ExpensesLogTab = () => {
                 <TableHead className="w-20 text-left">Gross</TableHead>
                 <TableHead className="w-32 text-left">Status</TableHead>
                 <TableHead className="w-20 text-left">Receipt</TableHead>
+                <TableHead className="w-20 text-left"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -923,7 +723,7 @@ const ExpensesLogTab = () => {
                 <React.Fragment key={groupName}>
                   {/* Group header row */}
                   <TableRow className="bg-muted/50">
-                    <TableCell colSpan={activeTab === 'clientExpenses' ? 11 : 10} className="font-semibold py-3">
+                    <TableCell colSpan={activeTab === 'clientExpenses' ? 12 : 11} className="font-semibold py-3">
                       {groupName} ({expenses.length} expense{expenses.length > 1 ? 's' : ''})
                     </TableCell>
                   </TableRow>
@@ -970,12 +770,12 @@ const ExpensesLogTab = () => {
                               onClick={() => handleInvoiceClick(expense.invoiceNumber!)}
                               title={`View Invoice: ${expense.invoiceNumber}`}
                             >
-                              <ExternalLink className="h-3 w-3" />
+                              {/* <ExternalLink className="h-3 w-3" /> */}
                             </Button>
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="text-left">
+                      <TableCell className="text-center">
                         {expense.attachments && expense.attachments.length > 0 ? (
                           <Button
                             variant="ghost"
@@ -987,10 +787,21 @@ const ExpensesLogTab = () => {
                             <Paperclip className="h-4 w-4" />
                           </Button>
                         ) : (
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground">
-                            <Upload className="h-4 w-4" />
-                          </Button>
+                          // <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground">
+                          //   <Upload className="h-4 w-4" />
+                          // </Button>
+                          <div>N/A</div>
                         )}
+                      </TableCell>
+                      <TableCell className="text-left">
+                        <div className="text-right">
+                          <button 
+                            onClick={(e) => handleSettingsClick(e, expense.id)}
+                            className="p-1 hover:bg-gray-100 rounded"
+                          >
+                            <Settings className='text-[#381980]' size={16} />
+                          </button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -1116,21 +927,38 @@ const ExpensesLogTab = () => {
       </Dialog>
 
       {/* Add Client Expense Dialog */}
-      <Dialog open={addClientExpenseOpen} onOpenChange={setAddClientExpenseOpen}>
+      <Dialog open={addClientExpenseOpen} onOpenChange={(open) => {
+        setAddClientExpenseOpen(open);
+        if (!open) {
+          setEditingExpense(null);
+          setClientFormErrors({});
+        }
+      }}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Add Client Expense</DialogTitle>
+            <DialogTitle>{editingExpense ? 'Edit Client Expense' : 'Add Client Expense'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium">Date</label>
-                <Input type="date" value={clientExpenseForm.date} onChange={(e) => setClientExpenseForm(f => ({ ...f, date: e.target.value }))} />
+                <Input 
+                  type="date" 
+                  value={clientExpenseForm.date} 
+                  onChange={(e) => handleClientFieldChange('date', e.target.value)}
+                  className={clientFormErrors.date ? 'border-red-500' : ''}
+                />
+                {clientFormErrors.date && (
+                  <p className="text-red-500 text-xs mt-1">{clientFormErrors.date}</p>
+                )}
               </div>
               <div>
                 <label className="text-sm font-medium">Client</label>
-                <Select value={clientExpenseForm.clientId} onValueChange={(v) => setClientExpenseForm(f => ({ ...f, clientId: v }))}>
-                  <SelectTrigger>
+                <Select 
+                  value={clientExpenseForm.clientId} 
+                  onValueChange={(v) => handleClientFieldChange('clientId', v)}
+                >
+                  <SelectTrigger className={clientFormErrors.clientId ? 'border-red-500' : ''}>
                     <SelectValue placeholder="Select client" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1139,17 +967,31 @@ const ExpensesLogTab = () => {
                     ))}
                   </SelectContent>
                 </Select>
+                {clientFormErrors.clientId && (
+                  <p className="text-red-500 text-xs mt-1">{clientFormErrors.clientId}</p>
+                )}
               </div>
             </div>
             <div>
               <label className="text-sm font-medium">Description</label>
-              <Input placeholder="Enter expense description" value={clientExpenseForm.description} onChange={(e) => setClientExpenseForm(f => ({ ...f, description: e.target.value }))} />
+              <Input 
+                placeholder="Enter expense description" 
+                value={clientExpenseForm.description} 
+                onChange={(e) => handleClientFieldChange('description', e.target.value)}
+                className={clientFormErrors.description ? 'border-red-500' : ''}
+              />
+              {clientFormErrors.description && (
+                <p className="text-red-500 text-xs mt-1">{clientFormErrors.description}</p>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium">Category</label>
-                <Select value={clientExpenseForm.expreseCategory} onValueChange={(v) => setClientExpenseForm(f => ({ ...f, expreseCategory: v }))}>
-                  <SelectTrigger>
+                <Select 
+                  value={clientExpenseForm.expreseCategory} 
+                  onValueChange={(v) => handleClientFieldChange('expreseCategory', v)}
+                >
+                  <SelectTrigger className={clientFormErrors.expreseCategory ? 'border-red-500' : ''}>
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1161,23 +1003,49 @@ const ExpensesLogTab = () => {
                     <SelectItem value="stationary">Stationary</SelectItem>
                   </SelectContent>
                 </Select>
+                {clientFormErrors.expreseCategory && (
+                  <p className="text-red-500 text-xs mt-1">{clientFormErrors.expreseCategory}</p>
+                )}
               </div>
               <div>
                 <label className="text-sm font-medium">Amount</label>
-                <Input type="number" placeholder="Net" step="0.01" value={clientExpenseForm.netAmount} onChange={(e) => setClientExpenseForm(f => ({ ...f, netAmount: e.target.value }))} />
+                <Input 
+                  type="number" 
+                  placeholder="Net" 
+                  step="0.01" 
+                  value={clientExpenseForm.netAmount} 
+                  onChange={(e) => handleClientFieldChange('netAmount', e.target.value)}
+                  className={clientFormErrors.netAmount ? 'border-red-500' : ''}
+                />
+                {clientFormErrors.netAmount && (
+                  <p className="text-red-500 text-xs mt-1">{clientFormErrors.netAmount}</p>
+                )}
               </div>
             </div>
             <div className="grid grid-cols-1 gap-4">
               <div>
                 <label className="text-sm font-medium">VAT %</label>
-                <Input type="number" placeholder="0" step="0.01" value={clientExpenseForm.vatPercentage} onChange={(e) => setClientExpenseForm(f => ({ ...f, vatPercentage: e.target.value }))} />
+                <Input 
+                  type="number" 
+                  placeholder="0" 
+                  step="0.01" 
+                  value={clientExpenseForm.vatPercentage} 
+                  onChange={(e) => handleClientFieldChange('vatPercentage', e.target.value)}
+                  className={clientFormErrors.vatPercentage ? 'border-red-500' : ''}
+                />
+                {clientFormErrors.vatPercentage && (
+                  <p className="text-red-500 text-xs mt-1">{clientFormErrors.vatPercentage}</p>
+                )}
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium">Status</label>
-                <Select value={clientExpenseForm.status} onValueChange={(v) => setClientExpenseForm(f => ({ ...f, status: v }))}>
-                  <SelectTrigger>
+                <Select 
+                  value={clientExpenseForm.status} 
+                  onValueChange={(v) => handleClientFieldChange('status', v)}
+                >
+                  <SelectTrigger className={clientFormErrors.status ? 'border-red-500' : ''}>
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1185,18 +1053,35 @@ const ExpensesLogTab = () => {
                     <SelectItem value="yes">Invoiced</SelectItem>
                   </SelectContent>
                 </Select>
+                {clientFormErrors.status && (
+                  <p className="text-red-500 text-xs mt-1">{clientFormErrors.status}</p>
+                )}
               </div>
               <div>
                 <label className="text-sm font-medium">Attachment</label>
-                <Input type="file" onChange={(e) => setClientExpenseForm(f => ({ ...f, file: e.target.files && e.target.files[0] ? e.target.files[0] : null }))} />
+                {editingExpense && editingExpense.attachments && editingExpense.attachments.length > 0 && (
+                  <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm text-blue-700">
+                    <strong>Current attachment:</strong> {editingExpense.attachments[0].split('/').pop()}
+                    <br />
+                    <span className="text-xs text-blue-600">Upload a new file to replace the current attachment</span>
+                  </div>
+                )}
+                <Input 
+                  type="file" 
+                  onChange={(e) => handleClientFieldChange('file', e.target.files && e.target.files[0] ? e.target.files[0] : null)} 
+                />
               </div>
             </div>
             <div className="flex justify-end gap-2 pt-4">
-              <Button variant="outline" onClick={() => setAddClientExpenseOpen(false)}>
+              <Button variant="outline" onClick={() => {
+                setAddClientExpenseOpen(false);
+                setEditingExpense(null);
+                setClientFormErrors({});
+              }}>
                 Cancel
               </Button>
-              <Button onClick={submitClientExpense} disabled={isAddingClientExpense}>
-                {isAddingClientExpense ? 'Saving...' : 'Save Expense'}
+              <Button onClick={submitClientExpense} disabled={isAddingClientExpense || isUpdatingExpense}>
+                {isAddingClientExpense || isUpdatingExpense ? 'Saving...' : (editingExpense ? 'Update Expense' : 'Save Expense')}
               </Button>
             </div>
           </div>
@@ -1204,21 +1089,38 @@ const ExpensesLogTab = () => {
       </Dialog>
 
       {/* Add Team Expense Dialog */}
-      <Dialog open={addTeamExpenseOpen} onOpenChange={setAddTeamExpenseOpen}>
+      <Dialog open={addTeamExpenseOpen} onOpenChange={(open) => {
+        setAddTeamExpenseOpen(open);
+        if (!open) {
+          setEditingExpense(null);
+          setTeamFormErrors({});
+        }
+      }}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Add Team Expense</DialogTitle>
+            <DialogTitle>{editingExpense ? 'Edit Team Expense' : 'Add Team Expense'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium">Date</label>
-                <Input type="date" value={teamExpenseForm.date} onChange={(e) => setTeamExpenseForm(f => ({ ...f, date: e.target.value }))} />
+                <Input 
+                  type="date" 
+                  value={teamExpenseForm.date} 
+                  onChange={(e) => handleTeamFieldChange('date', e.target.value)}
+                  className={teamFormErrors.date ? 'border-red-500' : ''}
+                />
+                {teamFormErrors.date && (
+                  <p className="text-red-500 text-xs mt-1">{teamFormErrors.date}</p>
+                )}
               </div>
               <div>
                 <label className="text-sm font-medium">Team</label>
-                <Select value={teamExpenseForm.teamId} onValueChange={(v) => setTeamExpenseForm(f => ({ ...f, teamId: v }))}>
-                  <SelectTrigger>
+                <Select 
+                  value={teamExpenseForm.teamId} 
+                  onValueChange={(v) => handleTeamFieldChange('teamId', v)}
+                >
+                  <SelectTrigger className={teamFormErrors.teamId ? 'border-red-500' : ''}>
                     <SelectValue placeholder="Select team" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1227,17 +1129,31 @@ const ExpensesLogTab = () => {
                     ))}
                   </SelectContent>
                 </Select>
+                {teamFormErrors.teamId && (
+                  <p className="text-red-500 text-xs mt-1">{teamFormErrors.teamId}</p>
+                )}
               </div>
             </div>
             <div>
               <label className="text-sm font-medium">Description</label>
-              <Input placeholder="Enter expense description" value={teamExpenseForm.description} onChange={(e) => setTeamExpenseForm(f => ({ ...f, description: e.target.value }))} />
+              <Input 
+                placeholder="Enter expense description" 
+                value={teamExpenseForm.description} 
+                onChange={(e) => handleTeamFieldChange('description', e.target.value)}
+                className={teamFormErrors.description ? 'border-red-500' : ''}
+              />
+              {teamFormErrors.description && (
+                <p className="text-red-500 text-xs mt-1">{teamFormErrors.description}</p>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium">Category</label>
-                <Select value={teamExpenseForm.expreseCategory} onValueChange={(v) => setTeamExpenseForm(f => ({ ...f, expreseCategory: v }))}>
-                  <SelectTrigger>
+                <Select 
+                  value={teamExpenseForm.expreseCategory} 
+                  onValueChange={(v) => handleTeamFieldChange('expreseCategory', v)}
+                >
+                  <SelectTrigger className={teamFormErrors.expreseCategory ? 'border-red-500' : ''}>
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1249,22 +1165,48 @@ const ExpensesLogTab = () => {
                     <SelectItem value="stationary">Stationary</SelectItem>
                   </SelectContent>
                 </Select>
+                {teamFormErrors.expreseCategory && (
+                  <p className="text-red-500 text-xs mt-1">{teamFormErrors.expreseCategory}</p>
+                )}
               </div>
               <div>
                 <label className="text-sm font-medium">Amount</label>
-                <Input type="number" placeholder="0.00" step="0.01" value={teamExpenseForm.netAmount} onChange={(e) => setTeamExpenseForm(f => ({ ...f, netAmount: e.target.value }))} />
+                <Input 
+                  type="number" 
+                  placeholder="0.00" 
+                  step="0.01" 
+                  value={teamExpenseForm.netAmount} 
+                  onChange={(e) => handleTeamFieldChange('netAmount', e.target.value)}
+                  className={teamFormErrors.netAmount ? 'border-red-500' : ''}
+                />
+                {teamFormErrors.netAmount && (
+                  <p className="text-red-500 text-xs mt-1">{teamFormErrors.netAmount}</p>
+                )}
               </div>
             </div>
             <div className="grid grid-cols-1 gap-4">
               <div>
                 <label className="text-sm font-medium">VAT %</label>
-                <Input type="number" placeholder="0" step="0.01" value={teamExpenseForm.vatPercentage} onChange={(e) => setTeamExpenseForm(f => ({ ...f, vatPercentage: e.target.value }))} />
+                <Input 
+                  type="number" 
+                  placeholder="0" 
+                  step="0.01" 
+                  value={teamExpenseForm.vatPercentage} 
+                  onChange={(e) => handleTeamFieldChange('vatPercentage', e.target.value)}
+                  className={teamFormErrors.vatPercentage ? 'border-red-500' : ''}
+                />
+                {teamFormErrors.vatPercentage && (
+                  <p className="text-red-500 text-xs mt-1">{teamFormErrors.vatPercentage}</p>
+                )}
               </div>
             </div>
             <div>
               <label className="text-sm font-medium">Status</label>
-              <Select value={teamExpenseForm.status} onValueChange={(v) => setTeamExpenseForm(f => ({ ...f, status: v }))}>
-                <SelectTrigger>
+              <Select 
+                value={teamExpenseForm.status} 
+                onValueChange={(v) => handleTeamFieldChange('status', v)}
+              >
+                <SelectTrigger className={teamFormErrors.status ? 'border-red-500' : ''}>
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1272,17 +1214,34 @@ const ExpensesLogTab = () => {
                   <SelectItem value="no">Not Paid</SelectItem>
                 </SelectContent>
               </Select>
+              {teamFormErrors.status && (
+                <p className="text-red-500 text-xs mt-1">{teamFormErrors.status}</p>
+              )}
             </div>
             <div>
               <label className="text-sm font-medium">Attachment</label>
-              <Input type="file" onChange={(e) => setTeamExpenseForm(f => ({ ...f, file: e.target.files && e.target.files[0] ? e.target.files[0] : null }))} />
+              {editingExpense && editingExpense.attachments && editingExpense.attachments.length > 0 && (
+                <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm text-blue-700">
+                  <strong>Current attachment:</strong> {editingExpense.attachments[0].split('/').pop()}
+                  <br />
+                  <span className="text-xs text-blue-600">Upload a new file to replace the current attachment</span>
+                </div>
+              )}
+              <Input 
+                type="file" 
+                onChange={(e) => handleTeamFieldChange('file', e.target.files && e.target.files[0] ? e.target.files[0] : null)} 
+              />
             </div>
             <div className="flex justify-end gap-2 pt-4">
-              <Button variant="outline" onClick={() => setAddTeamExpenseOpen(false)}>
+              <Button variant="outline" onClick={() => {
+                setAddTeamExpenseOpen(false);
+                setEditingExpense(null);
+                setTeamFormErrors({});
+              }}>
                 Cancel
               </Button>
-              <Button onClick={submitTeamExpense} disabled={isAddingTeamExpense}>
-                {isAddingTeamExpense ? 'Saving...' : 'Save Expense'}
+              <Button onClick={submitTeamExpense} disabled={isAddingTeamExpense || isUpdatingExpense}>
+                {isAddingTeamExpense || isUpdatingExpense ? 'Saving...' : (editingExpense ? 'Update Expense' : 'Save Expense')}
               </Button>
             </div>
           </div>
@@ -1297,7 +1256,7 @@ const ExpensesLogTab = () => {
           </DialogHeader>
           <div className="flex justify-center p-6">
             <img
-              src={selectedReceipt ? `${import.meta.env.VITE_BACKEND_BASE_URL}${selectedReceipt}` : sampleReceipt}
+              src={selectedReceipt ? `${import.meta.env.VITE_BACKEND_BASE_URL}${selectedReceipt}` : ""}
               alt="Receipt"
               className="max-w-full h-auto border border-gray-200 rounded-lg shadow-lg"
               onError={(e) => {
@@ -1307,6 +1266,40 @@ const ExpensesLogTab = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Settings Popup */}
+      {settingsPopup && (
+        <div 
+          className="fixed z-50 bg-white border border-gray-200 rounded-md shadow-lg py-1 min-w-[120px]"
+          style={{ 
+            left: settingsPopup.x, 
+            top: settingsPopup.y 
+          }}
+        >
+          <button
+            onClick={() => handleEditExpense(settingsPopup.expenseId)}
+            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
+          >
+            <Edit size={14} />
+            Edit
+          </button>
+          <button
+            onClick={() => handleDeleteExpense(settingsPopup.expenseId)}
+            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 text-red-600 flex items-center gap-2"
+          >
+            <Trash2 size={14} />
+            Delete
+          </button>
+        </div>
+      )}
+
+      {/* Click outside to close popup */}
+      {settingsPopup && (
+        <div 
+          className="fixed inset-0 z-40" 
+          onClick={handleCloseSettingsPopup}
+        />
+      )}
     </div>
   );
 };

@@ -30,7 +30,7 @@ type ApiTimesheet = {
   totalLogged: number;
   totalCapacity: number;
   totalVariance: number;
-  user?: { _id: string; name: string; email: string; departmentId?: string };
+  user?: { _id: string; name: string; email: string; departmentId?: string, avatarUrl?: string };
   submissionStatus?: string;
   entriesCount?: number;
 };
@@ -252,7 +252,6 @@ export function TimesheetDashboard() {
   }]);
 
 
-  const [currentTabsUsersData, setCurrentTabsUsersData] = useState()
 
   const [getTabAccess, { data: currentTabsUsers }] = useLazyGetTabAccessQuery()
 
@@ -307,8 +306,10 @@ export function TimesheetDashboard() {
           },
           signal: controller.signal,
         });
+
         if (!res.ok) throw new Error(`Failed to fetch timesheets (${res.status})`);
         const json: ApiResponse = await res.json();
+        console.log('res=============', json);
         setApiTimesheets(json?.data || []);
         setApiSummary(json?.summary);
         if (json?.pagination) setApiPagination(json.pagination);
@@ -356,6 +357,7 @@ export function TimesheetDashboard() {
         id: t?._id,
         userId: t?.userId || '',
         name,
+        avatarUrl: t?.user?.avatarUrl || '',
         department,
         capacitySec,
         loggedSec,
@@ -831,8 +833,9 @@ export function TimesheetDashboard() {
               {!isFetching && !fetchError && filteredData.map((item:any) => <tr key={item.id} className="border-t border-border hover:bg-muted/25">
                 <td className="px-2 sm:px-4 py-2">
                   <div className="flex items-center gap-2 sm:gap-3">
+                    {/* {item.avatarUrl} */}
                     <Avatar className="w-6 h-6 sm:w-8 sm:h-8 flex-shrink-0">
-                      <AvatarImage src={item.avatar || ''} />
+                      <AvatarImage src={import.meta.env.VITE_BACKEND_BASE_URL + item.avatarUrl || ''} />
                       <AvatarFallback className="text-xs">{item.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
                     </Avatar>
                     <span className="text-sm sm:text-base text-foreground truncate">{item.name}</span>

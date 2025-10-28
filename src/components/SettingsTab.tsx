@@ -52,11 +52,13 @@ const SettingsTab = ({
   const [newService, setNewService] = useState('');
   const [newTimeTag, setNewTimeTag] = useState('');
   const [newBusinessType, setNewBusinessType] = useState('');
+  const [newWipAmount, setNewWipAmount] = useState('');
   const [isServiceDialogOpen, setIsServiceDialogOpen] = useState(false);
   const [isTimeDialogOpen, setIsTimeDialogOpen] = useState(false);
   const [isBusinessDialogOpen, setIsBusinessDialogOpen] = useState(false);
   const [isJobDialogOpen, setIsJobDialogOpen] = useState(false);
   const [isDepartmentDialogOpen, setIsDepartmentDialogOpen] = useState(false);
+  const [isWipDialogOpen, setIsWipDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isCannotDeletePopupOpen, setIsCannotDeletePopupOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<{ type: string; id: string } | null>(null);
@@ -89,7 +91,7 @@ const SettingsTab = ({
 
 
 
-  const handleAddNewCategory = async (type: 'service' | 'department' | 'time' | 'bussiness' | 'job') => {
+  const handleAddNewCategory = async (type: 'service' | 'department' | 'time' | 'bussiness' | 'job' | 'wipTargetAmount') => {
     let name = '';
     let resetInput: () => void;
     let closeDialog: (isOpen: boolean) => void;
@@ -121,14 +123,24 @@ const SettingsTab = ({
         resetInput = () => setNewJobType('');
         closeDialog = setIsJobDialogOpen;
         break;
+      case 'wipTargetAmount':
+        // For WIP amounts, we send amount instead of name
+        name = newWipAmount;
+        resetInput = () => setNewWipAmount('');
+        closeDialog = setIsWipDialogOpen;
+        break;
     }
 
 
     if (!name.trim()) return;
 
-
     try {
-      await addCategory({ type, name }).unwrap();
+      if (type === 'wipTargetAmount') {
+        // For WIP, send amount as a number
+        await addCategory({ type, amount: Number(name) } as any).unwrap();
+      } else {
+        await addCategory({ type, name } as any).unwrap();
+      }
       toast.success('Category added successfully!');
       resetInput();
       closeDialog(false);
@@ -299,6 +311,63 @@ const SettingsTab = ({
             </CardContent>
           </Card>
           <Card>
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <CardTitle>WIP Target Amounts ({categories?.data?.wipTargetAmount?.length ?? 0})</CardTitle>
+                <Dialog open={isWipDialogOpen} onOpenChange={setIsWipDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" className="w-full sm:w-auto">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add WIP Amount
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add WIP Amount</DialogTitle>
+                    </DialogHeader>
+                    <Input 
+                      type="number"
+                      placeholder="Enter amount" 
+                      value={newWipAmount} 
+                      onChange={(e) => setNewWipAmount(e.target.value)} 
+                    />
+                    <Button 
+                      onClick={() => handleAddNewCategory('wipTargetAmount')} 
+                      disabled={isAdding} 
+                      className="w-full"
+                    >
+                      {isAdding ? 'Adding...' : 'Add WIP Amount'}
+                    </Button>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </CardHeader>
+            <CardContent className="flex flex-wrap gap-2">
+              {categories?.data?.wipTargetAmount?.map((item: any) => (
+                <Badge
+                  key={item._id}
+                  variant="secondary"
+                  className={`border ${item.count === 0
+                    ? "bg-gray-200 text-gray-700 border-gray-400"
+                    : "bg-blue-100 text-blue-800 border-blue-200"
+                  }`}
+                >
+                  ${item.amount?.toLocaleString()}
+                  <span className="mr-2 font-semibold">
+                    &nbsp;({item.count})
+                  </span>
+                  <button
+                    onClick={() => openDeleteConfirmation('wipTargetAmount', item._id, item.count)}
+                    disabled={isDeleting}
+                    className="ml-2 cursor-pointer"
+                  >
+                    <X size={14} />
+                  </button>
+                </Badge>
+              ))}
+            </CardContent>
+          </Card>
+          <Card>
             <CardContent className="pt-6">
               <Button 
                 onClick={handleUpdateSettings} 
@@ -323,7 +392,7 @@ const SettingsTab = ({
               {renderCategoryCard('Business Types', 'bussiness', categories?.data?.bussiness ?? [], isBusinessDialogOpen, setIsBusinessDialogOpen, newBusinessType, setNewBusinessType)}
               {renderCategoryCard('Departments', 'department', categories?.data?.departments ?? [], isDepartmentDialogOpen, setIsDepartmentDialogOpen, newDepartment, setNewDepartment)}
               {renderCategoryCard('Job Types', 'job', categories?.data?.jobs ?? [], isJobDialogOpen, setIsJobDialogOpen, newJobType, setNewJobType)}
-              {renderCategoryCard('Services', 'service', categories?.data?.services ?? [], isServiceDialogOpen, setIsServiceDialogOpen, newService, setNewService)}
+              {/* {renderCategoryCard('Services', 'service', categories?.data?.services ?? [], isServiceDialogOpen, setIsServiceDialogOpen, newService, setNewService)} */}
               {renderCategoryCard('Time Purpose ', 'time', categories?.data?.times ?? [], isTimeDialogOpen, setIsTimeDialogOpen, newTimeTag, setNewTimeTag)}
             </div>
           )}

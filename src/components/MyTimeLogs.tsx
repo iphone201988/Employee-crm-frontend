@@ -21,6 +21,9 @@ import TimeLogPopup, { TimeLog } from './TimeLogPopup';
 import { useGetDropdownOptionsQuery } from '@/store/teamApi';
 import { useListTimeLogsQuery, useDeleteTimeLogsMutation, useUpdateTimeLogMutation } from '@/store/timesheetApi';
 import { useAuthContext } from '@/context/AuthContext';
+import ClientDetailsDialog from './ClientDetailsDialog';
+import { useGetClientQuery } from '@/store/clientApi';
+import { JobDetailsDialog } from './JobDetailsDialog';
 
 
 
@@ -63,6 +66,10 @@ const MyTimeLogs = () => {
   const [editingLog, setEditingLog] = useState<TimeLog | null>(null);
   const [settingsPopup, setSettingsPopup] = useState<{ logId: string; x: number; y: number } | null>(null);
   const [viewMode, setViewMode] = useState<'clients' | 'jobTypes' | 'jobNames' | 'category' | 'teamMembers' | 'flat'>('flat');
+  const [showClientDetailsDialog, setShowClientDetailsDialog] = useState(false);
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [showJobDetailsDialog, setShowJobDetailsDialog] = useState(false);
+  const [selectedJobData, setSelectedJobData] = useState<{ jobName: string; jobFee: number; wipAmount: number; hoursLogged: number } | null>(null);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -162,14 +169,21 @@ const MyTimeLogs = () => {
   const apiPagination = listResp?.pagination;
   const [deleteTimeLogs, { isLoading: isDeleting }] = useDeleteTimeLogsMutation();
   const [updateTimeLog, { isLoading: isUpdating }] = useUpdateTimeLogMutation();
+  
+  // Fetch client data for the dialog
+  const { data: selectedClientData } = useGetClientQuery(selectedClientId || '', {
+    skip: !selectedClientId
+  });
 
   const timeLogsData: TimeLog[] = apiLogs.map((log: any) => ({
     id: log?._id,
     date: log?.date,
     teamMember: log?.user?.name || '',
     clientName: log?.client?.name || '',
+    clientId: log?.client?._id || '',
     clientRef: log?.client?.clientRef || '',
     jobName: log?.job?.name || '',
+    jobId: log?.job?._id || '',
     jobType: log?.jobCategory?.name || '',
     category: 'client work',
     description: log?.description || '',
@@ -261,6 +275,21 @@ const MyTimeLogs = () => {
 
   const handleCloseSettingsPopup = () => {
     setSettingsPopup(null);
+  };
+
+  const handleClientNameClick = (clientId: string) => {
+    setSelectedClientId(clientId);
+    setShowClientDetailsDialog(true);
+  };
+
+  const handleJobNameClick = (log: TimeLog) => {
+    setSelectedJobData({
+      jobName: log.jobName,
+      jobFee: log.amount, // Using amount as job fee for now
+      wipAmount: 0, // Default value
+      hoursLogged: log.hours
+    });
+    setShowJobDetailsDialog(true);
   };
 
 
@@ -1250,10 +1279,28 @@ const MyTimeLogs = () => {
                                         cellContent = log.clientRef;
                                         break;
                                       case 'clientName':
-                                        cellContent = log.clientName || '-';
+                                        cellContent = log.clientName && log.clientId ? (
+                                          <button
+                                            onClick={() => handleClientNameClick(log.clientId!)}
+                                            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium text-left"
+                                          >
+                                            {log.clientName}
+                                          </button>
+                                        ) : (
+                                          log.clientName || '-'
+                                        );
                                         break;
                                       case 'jobName':
-                                        cellContent = log.jobName;
+                                        cellContent = log.jobName && log.jobId ? (
+                                          <button
+                                            onClick={() => handleJobNameClick(log)}
+                                            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium text-left"
+                                          >
+                                            {log.jobName}
+                                          </button>
+                                        ) : (
+                                          log.jobName || '-'
+                                        );
                                         break;
                                       case 'jobType':
                                         cellContent = log.jobType;
@@ -1345,10 +1392,28 @@ const MyTimeLogs = () => {
                                       cellContent = log.clientRef || '-';
                                       break;
                                     case 'clientName':
-                                      cellContent = log.clientName || '-';
+                                      cellContent = log.clientName && log.clientId ? (
+                                        <button
+                                          onClick={() => handleClientNameClick(log.clientId!)}
+                                          className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium text-left"
+                                        >
+                                          {log.clientName}
+                                        </button>
+                                      ) : (
+                                        log.clientName || '-'
+                                      );
                                       break;
                                     case 'jobName':
-                                      cellContent = log.jobName || '-';
+                                      cellContent = log.jobName && log.jobId ? (
+                                        <button
+                                          onClick={() => handleJobNameClick(log)}
+                                          className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium text-left"
+                                        >
+                                          {log.jobName}
+                                        </button>
+                                      ) : (
+                                        log.jobName || '-'
+                                      );
                                       break;
                                     case 'jobType':
                                       cellContent = log.jobType || '-';
@@ -1513,6 +1578,27 @@ const MyTimeLogs = () => {
         <div 
           className="fixed inset-0 z-40" 
           onClick={handleCloseSettingsPopup}
+        />
+      )}
+
+      {/* Client Details Dialog */}
+      {selectedClientData && (
+        <ClientDetailsDialog
+          open={showClientDetailsDialog}
+          onOpenChange={setShowClientDetailsDialog}
+          clientData={selectedClientData.data}
+        />
+      )}
+
+      {/* Job Details Dialog */}
+      {selectedJobData && (
+        <JobDetailsDialog
+          isOpen={showJobDetailsDialog}
+          onClose={() => setShowJobDetailsDialog(false)}
+          jobName={selectedJobData.jobName}
+          jobFee={selectedJobData.jobFee}
+          wipAmount={selectedJobData.wipAmount}
+          hoursLogged={selectedJobData.hoursLogged}
         />
       )}
 

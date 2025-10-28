@@ -13,14 +13,18 @@ import { useGetCurrentUserQuery } from '@/store/authApi';
 import { useLazyGetTabAccessQuery } from '@/store/authApi';
 import { get } from 'http';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@radix-ui/react-tooltip';
+import { useGetReportsQuery } from '@/store/teamApi';
 interface ReportData {
   name: string;
+  avatarUrl?: string;
+  hourlyRate?: number;
   capacity: number;
   logged: number;
   nonBillable: number;
   billable: number;
   wroteOff: number;
   rate: number;
+  billableAmount?: number;
   resourceCost: number;
   profit: number;
 }
@@ -53,24 +57,88 @@ const generateMockData = (weekOffset: number = 0, timeFilter: string = 'weekly')
 };
 
 const ReportsTab = () => {
-  const [timeFilter, setTimeFilter] = useState('weekly');
+  const [timeFilter, setTimeFilter] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('yearly');
   const [currentPeriodOffset, setCurrentPeriodOffset] = useState(0);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   const { data: currentUserData }: any = useGetCurrentUserQuery();
   const [sortConfig, setSortConfig] = useState<{ key: keyof ReportData | null; direction: 'asc' | 'desc' }>({ key: null, direction: 'asc' });
   const [timeFormat, setTimeFormat] = useState<TimeFormat>('0:00');
   const [getTabAccess, { data: currentTabsUsers }] = useLazyGetTabAccessQuery()
-  const reportData = useMemo(() => generateMockData(currentPeriodOffset, timeFilter), [currentPeriodOffset, timeFilter]);
 
 
   const hasReportPermission = currentUserData?.data?.features?.reports;
 
+  // Calculate date range based on time filter and offset
+  const { startDate, endDate } = useMemo(() => {
+    const now = new Date();
+    
+    if (timeFilter === 'daily') {
+      const targetDate = new Date();
+      targetDate.setDate(now.getDate() + currentPeriodOffset);
+      const start = new Date(targetDate.setHours(0, 0, 0, 0));
+      const end = new Date(targetDate.setHours(23, 59, 59, 999));
+      return { 
+        startDate: start.toISOString(), 
+        endDate: end.toISOString() 
+      };
+    }
+    
+    if (timeFilter === 'weekly') {
+      const startOfWeek = new Date();
+      startOfWeek.setDate(now.getDate() - now.getDay() + 1 + currentPeriodOffset * 7);
+      startOfWeek.setHours(0, 0, 0, 0);
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 6);
+      endOfWeek.setHours(23, 59, 59, 999);
+      return { 
+        startDate: startOfWeek.toISOString(), 
+        endDate: endOfWeek.toISOString() 
+      };
+    }
+    
+    if (timeFilter === 'monthly') {
+      const d = new Date(now.getFullYear(), now.getMonth() + currentPeriodOffset, 1);
+      const start = new Date(d.getFullYear(), d.getMonth(), 1);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+      end.setHours(23, 59, 59, 999);
+      return { 
+        startDate: start.toISOString(), 
+        endDate: end.toISOString() 
+      };
+    }
+    
+    // Yearly
+    const year = now.getFullYear() + currentPeriodOffset;
+    const start = new Date(year, 0, 1);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(year, 11, 31);
+    end.setHours(23, 59, 59, 999);
+    return { 
+      startDate: start.toISOString(), 
+      endDate: end.toISOString() 
+    };
+  }, [timeFilter, currentPeriodOffset]);
+
+  // Fetch reports data from API
+  const { data: reportsData, isLoading, isError } = useGetReportsQuery({
+    startDate,
+    endDate,
+    periodType: timeFilter,
+    page,
+    limit
+  });
+
   const handlePeriodChange = (direction: 'prev' | 'next') => {
     setCurrentPeriodOffset(prev => direction === 'prev' ? prev - 1 : prev + 1);
+    setPage(1); // Reset to first page when changing period
   };
 
   const handleTimeFilterChange = (newFilter: string) => {
-    setTimeFilter(newFilter);
+    setTimeFilter(newFilter as 'daily' | 'weekly' | 'monthly' | 'yearly');
     setCurrentPeriodOffset(0); // Reset to the current period
+    setPage(1); // Reset to first page when changing filter
   };
 
   const handleSort = (key: keyof ReportData) => {
@@ -85,7 +153,40 @@ const ReportsTab = () => {
     console.log('usersForTab=================sncbdsjh,csdhjkcbgdsfvkjdsfjk', usersForTab)
   }, [currentUserData])
 
-
+  // Convert API data to ReportData format
+  const reportData = useMemo(() => {
+    if (!reportsData?.data?.reports) return [];
+    
+    return reportsData.data.reports.map(member => {
+      // Calculate values from seconds
+      const capacityHours = member.capacity / 3600;
+      const loggedHours = member.logged / 3600;
+      const billableHours = member.billable / 3600;
+      const nonBillableHours = member.nonBillable / 3600;
+      const writeOffHours = member.writeOff / 3600;
+      
+      // Calculate resource cost: hourlyRate * logged hours
+      const resourceCost = member.hourlyRate * loggedHours;
+      
+      // Calculate profit: billableAmount - resourceCost
+      const profit = member.billableAmount - resourceCost;
+      
+      return {
+        name: member.name,
+        avatarUrl: member.avatarUrl,
+        hourlyRate: member.hourlyRate,
+        capacity: capacityHours,
+        logged: loggedHours,
+        billable: billableHours,
+        nonBillable: nonBillableHours,
+        wroteOff: writeOffHours,
+        rate: member.hourlyRate,
+        billableAmount: member.billableAmount,
+        resourceCost,
+        profit
+      };
+    });
+  }, [reportsData]);
 
   const sortedData = useMemo(() => {
     if (!sortConfig.key) return reportData;
@@ -130,14 +231,28 @@ const ReportsTab = () => {
     return { label: `${now.getFullYear() + currentPeriodOffset}` };
   }, [timeFilter, currentPeriodOffset]);
 
-  const totals = useMemo(() => ({
-    capacity: reportData.reduce((sum, item) => sum + item.capacity, 0),
-    logged: reportData.reduce((sum, item) => sum + item.logged, 0),
-    revenue: reportData.reduce((sum, item) => sum + item.billable * item.rate, 0),
-  }), [reportData]);
+  const totals = useMemo(() => {
+    if (!reportsData?.data) return { capacity: 0, logged: 0, revenue: 0, teamMembers: 0 };
+    
+    const totalCapacity = reportsData.data.totalCapacity / 3600; // Convert seconds to hours
+    const totalLogged = reportsData.data.totalLogged / 3600; // Convert seconds to hours
+    const totalRevenue = reportsData.data.totalRevenue;
+    const teamMembers = reportsData.data.teamMembers;
+    
+    return { capacity: totalCapacity, logged: totalLogged, revenue: totalRevenue, teamMembers };
+  }, [reportsData]);
 
   const getPercentage = (value: number, total: number) => (total > 0 ? (value / total) * 100 : 0);
   const formatHours = (hours: number) => formatTime(hours, timeFormat);
+  
+  // Format time as HH:MM:SS
+  const formatHoursToHHMMSS = (hours: number) => {
+    const totalSeconds = Math.max(0, Math.round((hours || 0) * 3600));
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  };
 
   // Use a guard clause for permission checking
   if (!hasReportPermission) {
@@ -182,7 +297,7 @@ const ReportsTab = () => {
       </div>
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card><CardContent className="p-4"><div className="text-2xl font-bold text-[#381980]">{reportData.length}</div><p className="text-sm text-muted-foreground">Team Members</p></CardContent></Card>
+        <Card><CardContent className="p-4"><div className="text-2xl font-bold text-[#381980]">{totals.teamMembers}</div><p className="text-sm text-muted-foreground">Team Members</p></CardContent></Card>
         <Card><CardContent className="p-4"><div className="text-2xl font-bold text-[#381980]">{formatHours(totals.capacity)}</div><p className="text-sm text-muted-foreground">Total Capacity</p></CardContent></Card>
         <Card><CardContent className="p-4"><div className="text-2xl font-bold text-[#381980]">{formatHours(totals.logged)}</div><p className="text-sm text-muted-foreground">Total Logged</p></CardContent></Card>
         <Card><CardContent className="p-4"><div className="text-2xl font-bold text-[#381980]">{formatCurrency(totals.revenue)}</div><p className="text-sm text-muted-foreground">Total Revenue</p></CardContent></Card>
@@ -222,15 +337,41 @@ const ReportsTab = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sortedData.map((member) => (
+                {isLoading && (
+                  <TableRow>
+                    <TableCell colSpan={10} className="text-center py-10">
+                      Loading reports...
+                    </TableCell>
+                  </TableRow>
+                )}
+                {isError && (
+                  <TableRow>
+                    <TableCell colSpan={10} className="text-center py-10 text-red-500">
+                      Failed to load reports.
+                    </TableCell>
+                  </TableRow>
+                )}
+                {!isLoading && !isError && sortedData.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={10} className="text-center py-10">
+                      No data available for this period.
+                    </TableCell>
+                  </TableRow>
+                )}
+                {!isLoading && sortedData.map((member: any) => (
                   <TableRow key={member.name} className="h-8">
-                    <TableCell className="p-1 px-4"><Avatar className="h-6 w-6"><AvatarImage src={getProfileImage(member.name)} /><AvatarFallback className="text-xs">{getUserInitials(member.name)}</AvatarFallback></Avatar></TableCell>
+                    <TableCell className="p-1 px-4">
+                      <Avatar className="h-6 w-6">
+                        <AvatarImage src={member.avatarUrl ? import.meta.env.VITE_BACKEND_BASE_URL + member.avatarUrl : getProfileImage(member.name)} />
+                        <AvatarFallback className="text-xs">{getUserInitials(member.name)}</AvatarFallback>
+                      </Avatar>
+                    </TableCell>
                     <TableCell className="font-medium p-1 text-xs">{member.name}</TableCell>
-                    <TableCell className="text-center border-l p-1"><div className="text-xs font-medium">{formatHours(member.capacity)}</div></TableCell>
-                    <TableCell className="text-center border-l p-1"><div className="flex flex-col items-center space-y-1"><div className="text-xs">{formatHours(member.logged)} ({getPercentage(member.logged, member.capacity).toFixed(1)}%)</div><Progress value={getPercentage(member.logged, member.capacity)} className="h-1 w-14" /></div></TableCell>
-                    <TableCell className="text-center border-l p-1"><div className="flex flex-col items-center space-y-1"><div className="text-xs">{formatHours(member.billable)} ({getPercentage(member.billable, member.logged).toFixed(1)}%) - {formatCurrency(member.billable * member.rate)}</div><Progress value={getPercentage(member.billable, member.logged)} className="h-1 w-14" /></div></TableCell>
-                    <TableCell className="text-center border-l p-1"><div className="flex flex-col items-center space-y-1"><div className="text-xs">{formatHours(member.nonBillable)} ({getPercentage(member.nonBillable, member.logged).toFixed(1)}%)</div><Progress value={getPercentage(member.nonBillable, member.logged)} className="h-1 w-14" /></div></TableCell>
-                    <TableCell className="text-center border-l p-1"><div className="flex flex-col items-center space-y-1"><div className="text-xs">{formatHours(member.wroteOff)} ({getPercentage(member.wroteOff, member.logged).toFixed(1)}%) - {formatCurrency(member.wroteOff * member.rate)}</div><Progress value={getPercentage(member.wroteOff, member.logged)} className="h-1 w-14" /></div></TableCell>
+                    <TableCell className="text-center border-l p-1"><div className="text-xs font-medium">{formatHoursToHHMMSS(member.capacity)}</div></TableCell>
+                    <TableCell className="text-center border-l p-1"><div className="flex flex-col items-center space-y-1"><div className="text-xs">{formatHoursToHHMMSS(member.logged)} ({getPercentage(member.logged, member.capacity).toFixed(1)}%)</div><Progress value={getPercentage(member.logged, member.capacity)} className="h-1 w-14" /></div></TableCell>
+                    <TableCell className="text-center border-l p-1"><div className="flex flex-col items-center space-y-1"><div className="text-xs">{formatHoursToHHMMSS(member.billable)} ({getPercentage(member.billable, member.logged).toFixed(1)}%) - {formatCurrency(member.billableAmount)}</div><Progress value={getPercentage(member.billable, member.logged)} className="h-1 w-14" /></div></TableCell>
+                    <TableCell className="text-center border-l p-1"><div className="flex flex-col items-center space-y-1"><div className="text-xs">{formatHoursToHHMMSS(member.nonBillable)} ({getPercentage(member.nonBillable, member.logged).toFixed(1)}%)</div><Progress value={getPercentage(member.nonBillable, member.logged)} className="h-1 w-14" /></div></TableCell>
+                    <TableCell className="text-center border-l p-1"><div className="flex flex-col items-center space-y-1"><div className="text-xs">{formatHoursToHHMMSS(member.wroteOff)} ({getPercentage(member.wroteOff, member.logged).toFixed(1)}%)</div><Progress value={getPercentage(member.wroteOff, member.logged)} className="h-1 w-14" /></div></TableCell>
                     <TableCell className="text-center border-l p-1"><div className="text-xs font-medium text-red-600">{formatCurrency(member.resourceCost)}</div></TableCell>
                     <TableCell className="text-center border-l p-1"><div className={`text-xs font-medium ${member.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(member.profit)}</div></TableCell>
                   </TableRow>
@@ -240,6 +381,82 @@ const ReportsTab = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Pagination */}
+      {reportsData?.data?.pagination && reportsData.data.pagination.total > 0 && (
+        <div className="space-y-4 mt-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">Show:</span>
+              <select
+                value={limit}
+                onChange={(e) => { setPage(1); setLimit(Number(e.target.value)); }}
+                className="border border-gray-300 rounded px-2 py-1 text-sm"
+                disabled={isLoading}
+              >
+                <option value={5}>5 per page</option>
+                <option value={10}>10 per page</option>
+                <option value={20}>20 per page</option>
+                <option value={50}>50 per page</option>
+              </select>
+            </div>
+            <div className="text-sm text-gray-500">
+              Showing {((page - 1) * limit) + 1} to {Math.min(page * limit, reportsData.data.pagination.total)} of {reportsData.data.pagination.total} members
+            </div>
+          </div>
+          
+          {Math.ceil(reportsData.data.pagination.total / limit) > 1 && (
+            <div className="flex justify-center items-center gap-2">
+              <Button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1 || isLoading}
+                variant="outline"
+                size="sm"
+              >
+                <ChevronLeft className="h-4 w-4" /> Previous
+              </Button>
+
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, Math.ceil(reportsData.data.pagination.total / limit)) }, (_, i) => {
+                  let pageNum;
+                  const totalPages = Math.ceil(reportsData.data.pagination.total / limit);
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (page <= 3) {
+                    pageNum = i + 1;
+                  } else if (page >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = page - 2 + i;
+                  }
+
+                  return (
+                    <Button
+                      key={pageNum}
+                      onClick={() => setPage(pageNum)}
+                      disabled={isLoading}
+                      variant={page === pageNum ? "default" : "outline"}
+                      size="sm"
+                      className="w-8 h-8 p-0"
+                    >
+                      {pageNum}
+                    </Button>
+                  );
+                })}
+              </div>
+
+              <Button
+                onClick={() => setPage(p => p + 1)}
+                disabled={page >= Math.ceil(reportsData.data.pagination.total / limit) || isLoading}
+                variant="outline"
+                size="sm"
+              >
+                Next <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

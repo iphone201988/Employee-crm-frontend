@@ -44,6 +44,46 @@ export interface UpdateSettingsResponse {
     message: string;
 }
 
+export interface GetReportsRequest {
+    startDate: string;
+    endDate: string;
+    periodType: 'daily' | 'weekly' | 'monthly' | 'yearly';
+    page: number;
+    limit: number;
+}
+
+export interface ReportMember {
+    name: string;
+    userId: string;
+    avatarUrl: string;
+    hourlyRate: number;
+    capacity: number; // in seconds
+    logged: number; // in seconds
+    billable: number; // in seconds
+    billableAmount: number;
+    nonBillable: number; // in seconds
+    writeOff: number; // in seconds
+}
+
+export interface GetReportsResponse {
+    success: boolean;
+    data: {
+        periodType: string;
+        startDate: string;
+        endDate: string;
+        totalCapacity: number; // in seconds
+        totalLogged: number; // in seconds
+        totalRevenue: number;
+        teamMembers: number;
+        reports: ReportMember[];
+        pagination: {
+            total: number;
+            page: number;
+            limit: number;
+        };
+    };
+}
+
 type UploadImageRequest = File;
 export const teamApi = createApi({
     reducerPath: 'teamApi',
@@ -195,6 +235,19 @@ export const teamApi = createApi({
                 body: settingsData,
             }),
         }),
+        getReports: builder.query<GetReportsResponse, GetReportsRequest>({
+            query: ({ startDate, endDate, periodType, page, limit }) => {
+                const params = new URLSearchParams();
+                params.append('startDate', startDate);
+                params.append('endDate', endDate);
+                params.append('periodType', periodType);
+                params.append('page', String(page));
+                params.append('limit', String(limit));
+                return {
+                    url: `/reports?${params.toString()}`
+                };
+            },
+        }),
 
     }),
 });
@@ -210,5 +263,6 @@ export const {
     useGetAllCompanyMembersQuery,
     useGetCompanyByIdQuery,
     useGetTeamMembersByCompanyIdQuery,
-    useUpdateSettingsMutation
+    useUpdateSettingsMutation,
+    useGetReportsQuery
 } = teamApi;

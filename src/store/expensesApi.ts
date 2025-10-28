@@ -15,6 +15,33 @@ export interface AddClientExpenseRequest {
   file?: File | null;
 }
 
+export interface UpdateExpenseRequest {
+  type?: 'client' | 'team';
+  description?: string;
+  clientId?: string; // For client expenses only
+  userId?: string; // For team expenses only
+  date?: string; // YYYY-MM-DD
+  expreseCategory?: string; // keeping key as provided
+  netAmount?: number;
+  vatPercentage?: number; // vatPercentage
+  vatAmount?: number;
+  totalAmount?: number;
+  status?: 'yes' | 'no'; // yes => Invoiced/Paid, no => Not Invoiced/Not Paid
+  file?: File | null;
+}
+
+export interface UpdateExpenseResponse {
+  success: boolean;
+  message: string;
+  data: any;
+}
+
+export interface DeleteExpenseResponse {
+  success: boolean;
+  message: string;
+  data: any;
+}
+
 export interface AddClientExpenseResponse {
   success: boolean;
   message: string;
@@ -134,6 +161,39 @@ export const expensesApi = createApi({
       },
       invalidatesTags: ['Expense'],
     }),
+    updateExpense: builder.mutation<UpdateExpenseResponse, { expenseId: string; expenseData: UpdateExpenseRequest }>({
+      query: ({ expenseId, expenseData }) => {
+        const formData = new FormData();
+        
+        // Only append fields that are provided
+        if (expenseData.type) formData.append('type', expenseData.type);
+        if (expenseData.description) formData.append('description', expenseData.description);
+        if (expenseData.clientId) formData.append('clientId', expenseData.clientId);
+        if (expenseData.userId) formData.append('userId', expenseData.userId);
+        if (expenseData.date) formData.append('date', expenseData.date);
+        if (expenseData.expreseCategory) formData.append('expreseCategory', expenseData.expreseCategory);
+        if (expenseData.netAmount !== undefined) formData.append('netAmount', String(expenseData.netAmount));
+        if (expenseData.vatPercentage !== undefined) formData.append('vatPercentage', String(expenseData.vatPercentage));
+        if (expenseData.vatAmount !== undefined) formData.append('vatAmount', String(expenseData.vatAmount));
+        if (expenseData.totalAmount !== undefined) formData.append('totalAmount', String(expenseData.totalAmount));
+        if (expenseData.status) formData.append('status', expenseData.status);
+        if (expenseData.file) formData.append('file', expenseData.file);
+
+        return {
+          url: `/update/${expenseId}`,
+          method: 'PUT',
+          body: formData,
+        };
+      },
+      invalidatesTags: ['Expense'],
+    }),
+    deleteExpense: builder.mutation<DeleteExpenseResponse, string>({
+      query: (expenseId) => ({
+        url: `/delete/${expenseId}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Expense'],
+    }),
     listExpenses: builder.query<ListExpensesResponse, ListExpensesRequest>({
       query: (params) => {
         const searchParams = new URLSearchParams();
@@ -162,6 +222,11 @@ export const expensesApi = createApi({
   }),
 });
 
-export const { useAddClientExpenseMutation, useListExpensesQuery } = expensesApi;
+export const { 
+  useAddClientExpenseMutation, 
+  useUpdateExpenseMutation,
+  useDeleteExpenseMutation,
+  useListExpensesQuery 
+} = expensesApi;
 
 

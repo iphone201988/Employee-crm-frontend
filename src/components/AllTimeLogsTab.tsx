@@ -20,6 +20,9 @@ import autoTable from 'jspdf-autotable';
 import TimeLogPopup, { TimeLog } from './TimeLogPopup';
 import { useGetDropdownOptionsQuery } from '@/store/teamApi';
 import { useListTimeLogsQuery, useDeleteTimeLogsMutation, useUpdateTimeLogMutation } from '@/store/timesheetApi';
+import ClientDetailsDialog from './ClientDetailsDialog';
+import { useGetClientQuery } from '@/store/clientApi';
+import { JobDetailsDialog } from './JobDetailsDialog';
 
 
 
@@ -67,10 +70,14 @@ const AllTimeLogsTab = () => {
   const [editingLog, setEditingLog] = useState<TimeLog | null>(null);
   const [settingsPopup, setSettingsPopup] = useState<{ logId: string; x: number; y: number } | null>(null);
   const [viewMode, setViewMode] = useState<'clients' | 'jobTypes' | 'jobNames' | 'category' | 'teamMembers' | 'flat'>('flat');
+  const [showClientDetailsDialog, setShowClientDetailsDialog] = useState(false);
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [showJobDetailsDialog, setShowJobDetailsDialog] = useState(false);
+  const [selectedJobData, setSelectedJobData] = useState<{ jobName: string; jobFee: number; wipAmount: number; hoursLogged: number } | null>(null);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const { data: currentUser }:any = useGetCurrentUserQuery();
+  const { data: currentUser }: any = useGetCurrentUserQuery();
 
   // Check if user has bulk delete logs permission
   const canBulkDelete = currentUser?.data?.permissions?.bulkDeleteLogs || false;
@@ -152,13 +159,21 @@ const AllTimeLogsTab = () => {
   const [deleteTimeLogs, { isLoading: isDeleting }] = useDeleteTimeLogsMutation();
   const [updateTimeLog, { isLoading: isUpdating }] = useUpdateTimeLogMutation();
 
+  // Fetch client data for the dialog
+  const { data: selectedClientData } = useGetClientQuery(selectedClientId || '', {
+    skip: !selectedClientId
+  });
+
   const timeLogsData: TimeLog[] = apiLogs.map((log: any) => ({
     id: log?._id,
     date: log?.date,
     teamMember: log?.user?.name || '',
+    teamMemberAvatar: log?.user?.avatarUrl || '',
     clientName: log?.client?.name || '',
+    clientId: log?.client?._id || '',
     clientRef: log?.client?.clientRef || '',
     jobName: log?.job?.name || '',
+    jobId: log?.job?._id || '',
     jobType: log?.jobCategory?.name || '',
     category: 'client work',
     description: log?.description || '',
@@ -169,6 +184,8 @@ const AllTimeLogsTab = () => {
     status: (log?.status as 'notInvoiced' | 'invoiced' | 'paid') || 'notInvoiced',
     timePurpose: log?.timeCategory?.name || '',
   }));
+
+  console.log('timeLogsData===========', timeLogsData);
 
   const formatHoursToHHMMSS = (hours: number) => {
     const totalSeconds = Math.max(0, Math.round((hours || 0) * 3600));
@@ -197,6 +214,8 @@ const AllTimeLogsTab = () => {
       return true;
     });
   }, [timeLogsData, filters]);
+
+  console.log('filteredTimeLogs===========', filteredTimeLogs);
 
   const toggleSelect = (id: string, checked: boolean) => {
     setSelectedIds(prev => {
@@ -250,6 +269,21 @@ const AllTimeLogsTab = () => {
 
   const handleCloseSettingsPopup = () => {
     setSettingsPopup(null);
+  };
+
+  const handleClientNameClick = (clientId: string) => {
+    setSelectedClientId(clientId);
+    setShowClientDetailsDialog(true);
+  };
+
+  const handleJobNameClick = (log: TimeLog) => {
+    setSelectedJobData({
+      jobName: log.jobName,
+      jobFee: log.amount, // Using amount as job fee for now
+      wipAmount: 0, // Default value
+      hoursLogged: log.hours
+    });
+    setShowJobDetailsDialog(true);
   };
 
 
@@ -578,10 +612,10 @@ const AllTimeLogsTab = () => {
           dataMappers.push((log) => log.jobName || '-');
           break;
         case 'teamMember':
-      dataMappers.push((log) => log.teamMember);
+          dataMappers.push((log) => log.teamMember);
           break;
         case 'jobType':
-      dataMappers.push((log) => log.jobType);
+          dataMappers.push((log) => log.jobType);
           break;
         case 'description':
           dataMappers.push((log) => `"${(log.description || '').replace(/"/g, '""')}"`);
@@ -596,13 +630,13 @@ const AllTimeLogsTab = () => {
           dataMappers.push((log) => formatHoursToHHMMSS(log.hours));
           break;
         case 'rate':
-      dataMappers.push((log) => formatCurrency(log.rate));
+          dataMappers.push((log) => formatCurrency(log.rate));
           break;
         case 'amount':
-      dataMappers.push((log) => formatCurrency(log.amount));
+          dataMappers.push((log) => formatCurrency(log.amount));
           break;
         case 'status':
-      dataMappers.push((log) => log.status);
+          dataMappers.push((log) => log.status);
           break;
       }
     });
@@ -725,7 +759,7 @@ const AllTimeLogsTab = () => {
 
         </div>
         <button onClick={() => setShowTimeLogPopup(true)} className='bg-[#017DB9] w-[120px] text-white py-[8px] px-[12px] rounded-[4px] flex items-center gap-[4px] font-semibold'><Plus size={16} /> Time Log</button>
-        
+
       </div>
 
 
@@ -1066,16 +1100,16 @@ const AllTimeLogsTab = () => {
                   ) : (
                     <>
                       <TableHead>
-                       <div className="bg-[#381980] text-white h-4 w-4 flex items-center justify-center rounded-sm" >
-                         <ChevronDown className="h-4 w-4" />
-                       </div>
+                        <div className="bg-[#381980] text-white h-4 w-4 flex items-center justify-center rounded-sm" >
+                          <ChevronDown className="h-4 w-4" />
+                        </div>
                       </TableHead>
                       {columnOrder.map((key) => {
                         if (!visibleColumns[key as keyof typeof visibleColumns]) return null;
                         return (
                           <TableHead key={key} className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">
                             {columnDisplayNames[key]}
-                      </TableHead>
+                          </TableHead>
                         );
                       })}
                     </>
@@ -1095,7 +1129,7 @@ const AllTimeLogsTab = () => {
                       >
                         <Download className="h-3 w-3" color='#381980' />
                       </Button>
-                    <Popover>
+                      <Popover>
                         <PopoverTrigger>
                           <Button variant="ghost" size="sm" className="h-6 w-6 p-0 bg-white rounded-full" aria-label="Show/Hide Columns" title="Show/Hide Columns">
                             <Move className="h-3 w-3" color='#381980' />
@@ -1109,9 +1143,9 @@ const AllTimeLogsTab = () => {
                           avoidCollisions={true}
                           collisionPadding={10}
                         >
-                        <div className="space-y-3">
-                          <h4 className="font-medium text-sm">Show/Hide Columns</h4>
-                          <div className="space-y-2">
+                          <div className="space-y-3">
+                            <h4 className="font-medium text-sm">Show/Hide Columns</h4>
+                            <div className="space-y-2">
                               {columnOrder.map((key) => (
                                 <div
                                   key={key}
@@ -1124,20 +1158,20 @@ const AllTimeLogsTab = () => {
                                   onDragEnd={handleDragEnd}
                                 >
                                   <GripVertical className="h-4 w-4 text-gray-400 cursor-move" />
-                                <Checkbox
+                                  <Checkbox
                                     id={key}
                                     checked={(visibleColumns as any)[key]}
                                     onCheckedChange={() => toggleColumn(key as keyof typeof visibleColumns)}
                                   />
                                   <Label htmlFor={key} className="text-sm cursor-pointer flex-1">
                                     {columnDisplayNames[key]}
-                                </Label>
-                              </div>
-                            ))}
+                                  </Label>
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      </PopoverContent>
-                    </Popover>
+                        </PopoverContent>
+                      </Popover>
                     </div>
                   </TableHead>
                 </TableRow>
@@ -1155,13 +1189,13 @@ const AllTimeLogsTab = () => {
                       >
                         <TableCell className={`p-4 text-sm ${expandedClients.has(groupName) ? 'text-white' : 'text-foreground'}`}>
                           {expandedClients.has(groupName) ? (
-                           <div className="bg-[#381980] text-white h-4 w-4 flex items-center justify-center rounded-sm" >
-                         <ChevronDown className="h-4 w-4" />
-                       </div>
+                            <div className="bg-[#381980] text-white h-4 w-4 flex items-center justify-center rounded-sm" >
+                              <ChevronDown className="h-4 w-4" />
+                            </div>
                           ) : (
-                           <div className="bg-[#381980] text-white h-4 w-4 flex items-center justify-center rounded-sm" >
-                         <ChevronRight className="h-4 w-4" />
-                       </div>
+                            <div className="bg-[#381980] text-white h-4 w-4 flex items-center justify-center rounded-sm" >
+                              <ChevronRight className="h-4 w-4" />
+                            </div>
                           )}
 
                         </TableCell>
@@ -1182,14 +1216,14 @@ const AllTimeLogsTab = () => {
                               cellContent = viewMode === 'clients' ? (
                                 <div className="flex items-center gap-2 underline whitespace-nowrap">
                                   {groupName} ({Object.values(subGroups).reduce((acc: number, logs: any) => acc + (logs as any[]).length, 0)})
-                          </div>
+                                </div>
                               ) : null;
                               break;
                             case 'jobName':
                               cellContent = viewMode === 'jobNames' ? (
-                          <div className="flex items-center gap-2 underline whitespace-nowrap">
+                                <div className="flex items-center gap-2 underline whitespace-nowrap">
                                   {groupName} ({Object.values(subGroups).reduce((acc: number, logs: any) => acc + (logs as any[]).length, 0)})
-                          </div>
+                                </div>
                               ) : null;
                               break;
                             case 'jobType':
@@ -1246,17 +1280,17 @@ const AllTimeLogsTab = () => {
                           return (
                             <TableCell key={key} className={`p-4 text-sm ${expandedClients.has(groupName) ? 'text-white' : 'text-foreground'}`}>
                               {cellContent}
-                              </TableCell>
+                            </TableCell>
                           );
                         })}
-                                <TableCell className="p-4">
+                        <TableCell className="p-4">
                           <div className="text-right">
                             <div className="text-right text-red-50"><Settings className='text-[#381980] ml-auto' size={16} /> </div>
                           </div>
-                              </TableCell>
+                        </TableCell>
 
-                            </TableRow>
-                          )}
+                      </TableRow>
+                    )}
 
                     {/* Logs under each group (no sub-groups) */}
                     {(viewMode === 'flat' || expandedClients.has(groupName)) && (
@@ -1268,207 +1302,243 @@ const AllTimeLogsTab = () => {
                           const borderColor = isExpanded ? 'border-[#381980]' : '';
                           const visibleKeys = columnOrder.filter((k) => (visibleColumns as any)[k]);
                           return (
-                        <TableRow key={log.id} className={`border-b border-border transition-colors h-12`}>
+                            <TableRow key={log.id} className={`border-b border-border transition-colors h-12`}>
                               {viewMode === 'flat' ? (
                                 <>
-                              {canBulkDelete && (
-                                <TableCell className={`p-4 ${isExpanded ? `${borderColor} ${isLastInGroup ? 'border-b-2 rounded-bl-md' : ''} border-l-2` : ''}`}>
-                                  <input type="checkbox" checked={selectedIds.has(log.id)} onChange={(e) => toggleSelect(log.id, e.target.checked)} />
-                                </TableCell>
-                              )}
-                              {columnOrder.map((key) => {
-                                if (!visibleColumns[key as keyof typeof visibleColumns]) return null;
+                                  {canBulkDelete && (
+                                    <TableCell className={`p-4 ${isExpanded ? `${borderColor} ${isLastInGroup ? 'border-b-2 rounded-bl-md' : ''} border-l-2` : ''}`}>
+                                      <input type="checkbox" checked={selectedIds.has(log.id)} onChange={(e) => toggleSelect(log.id, e.target.checked)} />
+                                    </TableCell>
+                                  )}
+                                  {columnOrder.map((key) => {
+                                    if (!visibleColumns[key as keyof typeof visibleColumns]) return null;
 
-                                let cellContent;
-                                switch (key) {
-                                  case 'date':
-                                    cellContent = new Date(log.date).toLocaleDateString('en-GB');
-                                    break;
-                                  case 'clientRef':
-                                    cellContent = log.clientRef;
-                                    break;
-                                  case 'clientName':
-                                    cellContent = log.clientName || '-';
-                                    break;
-                                  case 'jobName':
-                                    cellContent = log.jobName;
-                                    break;
-                                  case 'jobType':
-                                    cellContent = log.jobType;
-                                    break;
-                                  case 'teamMember':
-                                    cellContent = (
-                                  <div className="flex items-center gap-2">
-                                    <Avatar className="h-8 w-8">
-                                      <AvatarImage
-                                        src={getProfileImage(log.teamMember)}
-                                        alt={log.teamMember}
-                                      />
-                                      <AvatarFallback className="text-xs">
-                                        {getUserInitials(log.teamMember)}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                  </div>
-                                    );
-                                    break;
-                                  case 'description':
-                                    cellContent = log.description;
-                                    break;
-                                  case 'timePurpose':
-                                    cellContent = (
-                                      <Badge variant="secondary" className={`${getPurposeColorClasses(log.timePurpose)} whitespace-nowrap`}>{log.timePurpose || '-'}</Badge>
-                                    );
-                                    break;
-                                  case 'billable':
-                                    cellContent = log.billable ? (
-                                      <Badge variant="secondary" className="bg-[#EBF6ED] text-[#38A24B] border border-[#38A24B] whitespace-nowrap rounded-full !p-[4px]"><Check size={14} /></Badge>
-                                    ) : (
-                                      <Badge variant="secondary" className="bg-[#FEEBEA] text-[#F50000] border border-[#F50000] whitespace-nowrap rounded-full !p-[4px]"><X size={14} /></Badge>
-                                    );
-                                    break;
-                                  case 'hours':
-                                    cellContent = (
-                                      <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold text-center">{formatHoursToHHMMSS(log.hours)}</div>
-                                    );
-                                    break;
-                                  case 'rate':
-                                    cellContent = (
-                                      <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold text-center">{formatCurrency(log.rate)}</div>
-                                    );
-                                    break;
-                                  case 'amount':
-                                    cellContent = (
-                                      <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold text-center">{formatCurrency(log.amount)}</div>
-                                    );
-                                    break;
-                                  case 'status':
-                                    cellContent = getStatusBadge(log.status);
-                                    break;
-                                  default:
-                                    cellContent = '-';
-                                }
+                                    let cellContent;
+                                    switch (key) {
+                                      case 'date':
+                                        cellContent = new Date(log.date).toLocaleDateString('en-GB');
+                                        break;
+                                      case 'clientRef':
+                                        cellContent = log.clientRef;
+                                        break;
+                                      case 'clientName':
+                                        cellContent = log.clientName && log.clientId ? (
+                                          <button
+                                            onClick={() => handleClientNameClick(log.clientId!)}
+                                            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium text-left"
+                                          >
+                                            {log.clientName}
+                                          </button>
+                                        ) : (
+                                          log.clientName || '-'
+                                        );
+                                        break;
+                                      case 'jobName':
+                                        cellContent = log.jobName && log.jobId ? (
+                                          <button
+                                            onClick={() => handleJobNameClick(log)}
+                                            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium text-left"
+                                          >
+                                            {log.jobName}
+                                          </button>
+                                        ) : (
+                                          log.jobName || '-'
+                                        );
+                                        break;
+                                      case 'jobType':
+                                        cellContent = log.jobType;
+                                        break;
+                                      case 'teamMember':
+                                        cellContent = (
+                                          <div className="flex items-center gap-2">
+                                            <Avatar className="h-8 w-8">
+                                              <AvatarImage
+                                                src={import.meta.env.VITE_BACKEND_BASE_URL + log.teamMemberAvatarUrl}
+                                                alt={log.teamMember}
+                                              />
+                                              <AvatarFallback className="text-xs">
+                                                {getUserInitials(log.teamMember)}
+                                              </AvatarFallback>
+                                            </Avatar>
+                                          </div>
+                                        );
+                                        break;
+                                      case 'description':
+                                        cellContent = log.description;
+                                        break;
+                                      case 'timePurpose':
+                                        cellContent = (
+                                          <Badge variant="secondary" className={`${getPurposeColorClasses(log.timePurpose)} whitespace-nowrap`}>{log.timePurpose || '-'}</Badge>
+                                        );
+                                        break;
+                                      case 'billable':
+                                        cellContent = log.billable ? (
+                                          <Badge variant="secondary" className="bg-[#EBF6ED] text-[#38A24B] border border-[#38A24B] whitespace-nowrap rounded-full !p-[4px]"><Check size={14} /></Badge>
+                                        ) : (
+                                          <Badge variant="secondary" className="bg-[#FEEBEA] text-[#F50000] border border-[#F50000] whitespace-nowrap rounded-full !p-[4px]"><X size={14} /></Badge>
+                                        );
+                                        break;
+                                      case 'hours':
+                                        cellContent = (
+                                          <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold text-center">{formatHoursToHHMMSS(log.hours)}</div>
+                                        );
+                                        break;
+                                      case 'rate':
+                                        cellContent = (
+                                          <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold text-center">{formatCurrency(log.rate)}</div>
+                                        );
+                                        break;
+                                      case 'amount':
+                                        cellContent = (
+                                          <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold text-center">{formatCurrency(log.amount)}</div>
+                                        );
+                                        break;
+                                      case 'status':
+                                        cellContent = getStatusBadge(log.status);
+                                        break;
+                                      default:
+                                        cellContent = '-';
+                                    }
 
-                                return (
-                                  <TableCell
-                                    key={key}
-                                    className={`p-4 text-muted-foreground whitespace-nowrap ${isExpanded ? `${borderColor} ${isLastInGroup ? 'border-b-2' : ''}` : ''}`}
-                                  >
-                                    {cellContent}
-                                </TableCell>
-                                );
+                                    return (
+                                      <TableCell
+                                        key={key}
+                                        className={`p-4 text-muted-foreground whitespace-nowrap ${isExpanded ? `${borderColor} ${isLastInGroup ? 'border-b-2' : ''}` : ''}`}
+                                      >
+                                        {cellContent}
+                                      </TableCell>
+                                    );
                                   })}
                                   <TableCell className={`p-4 ${isExpanded ? `${borderColor} ${isLastInGroup ? 'border-b-2 rounded-br-md' : ''} border-r-2` : ''}`}>
-                            <div className="text-right">
-                              <button 
-                                onClick={(e) => handleSettingsClick(e, log.id)}
-                                className="p-1 hover:bg-gray-100 rounded"
-                              >
-                                <Settings className='text-[#381980]' size={16} />
-                              </button>
-                            </div>
-                              </TableCell>
+                                    <div className="text-right">
+                                      <button
+                                        onClick={(e) => handleSettingsClick(e, log.id)}
+                                        className="p-1 hover:bg-gray-100 rounded"
+                                      >
+                                        <Settings className='text-[#381980]' size={16} />
+                                      </button>
+                                    </div>
+                                  </TableCell>
                                 </>
                               ) : (
-                            <>
-                              {canBulkDelete && (
-                                <TableCell className={`p-4 ${isExpanded ? `${borderColor} ${isLastInGroup ? 'border-b-2 rounded-bl-md' : ''} border-l-2` : ''}`}>
-                                  <input type="checkbox" checked={selectedIds.has(log.id)} onChange={(e) => toggleSelect(log.id, e.target.checked)} />
-                                </TableCell>
-                              )}
-                              {columnOrder.map((key) => {
-                                if (!visibleColumns[key as keyof typeof visibleColumns]) return null;
+                                <>
+                                  {canBulkDelete && (
+                                    <TableCell className={`p-4 ${isExpanded ? `${borderColor} ${isLastInGroup ? 'border-b-2 rounded-bl-md' : ''} border-l-2` : ''}`}>
+                                      <input type="checkbox" checked={selectedIds.has(log.id)} onChange={(e) => toggleSelect(log.id, e.target.checked)} />
+                                    </TableCell>
+                                  )}
+                                  {columnOrder.map((key) => {
+                                    if (!visibleColumns[key as keyof typeof visibleColumns]) return null;
 
-                                let cellContent;
-                                switch (key) {
-                                  case 'date':
-                                    cellContent = new Date(log.date).toLocaleDateString('en-GB');
-                                    break;
-                                  case 'clientRef':
-                                    cellContent = log.clientRef || '-';
-                                    break;
-                                  case 'clientName':
-                                    cellContent = log.clientName || '-';
-                                    break;
-                                  case 'jobName':
-                                    cellContent = log.jobName || '-';
-                                    break;
-                                  case 'jobType':
-                                    cellContent = log.jobType || '-';
-                                    break;
-                                  case 'teamMember':
-                                    cellContent = (
-                                  <div className="flex items-center gap-2">
-                                    <Avatar className="h-8 w-8">
-                                      <AvatarImage
-                                        src={getProfileImage(log.teamMember)}
-                                        alt={log.teamMember}
-                                      />
-                                      <AvatarFallback className="text-xs">
-                                        {getUserInitials(log.teamMember)}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                  </div>
-                                    );
-                                    break;
-                                  case 'description':
-                                    cellContent = log.description;
-                                    break;
-                                  case 'timePurpose':
-                                    cellContent = (
-                                      <Badge variant="secondary" className={`${getPurposeColorClasses(log.timePurpose)} whitespace-nowrap`}>{log.timePurpose || '-'}</Badge>
-                                    );
-                                    break;
-                                  case 'billable':
-                                    cellContent = log.billable ? (
-                                      <Badge variant="secondary" className="bg-[#EBF6ED] text-[#38A24B] border border-[#38A24B] whitespace-nowrap rounded-full !p-[4px]"><Check size={14} /></Badge>
-                                    ) : (
-                                      <Badge variant="secondary" className="bg-[#FEEBEA] text-[#F50000] border border-[#F50000] whitespace-nowrap rounded-full !p-[4px]"><X size={14} /></Badge>
-                                    );
-                                    break;
-                                  case 'hours':
-                                    cellContent = (
-                                      <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold text-center">{formatHoursToHHMMSS(log.hours)}</div>
-                                    );
-                                    break;
-                                  case 'rate':
-                                    cellContent = (
-                                      <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold text-center">{formatCurrency(log.rate)}</div>
-                                    );
-                                    break;
-                                  case 'amount':
-                                    cellContent = (
-                                      <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold text-center">
-                                        {formatCurrency(log.amount)}
-                                      </div>
-                                    );
-                                    break;
-                                  case 'status':
-                                    cellContent = getStatusBadge(log.status);
-                                    break;
-                                  default:
-                                    cellContent = '-';
-                                }
+                                    let cellContent;
+                                    switch (key) {
+                                      case 'date':
+                                        cellContent = new Date(log.date).toLocaleDateString('en-GB');
+                                        break;
+                                      case 'clientRef':
+                                        cellContent = log.clientRef || '-';
+                                        break;
+                                      case 'clientName':
+                                        cellContent = log.clientName && log.clientId ? (
+                                          <button
+                                            onClick={() => handleClientNameClick(log.clientId!)}
+                                            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium text-left"
+                                          >
+                                            {log.clientName}
+                                          </button>
+                                        ) : (
+                                          log.clientName || '-'
+                                        );
+                                        break;
+                                      case 'jobName':
+                                        cellContent = log.jobName && log.jobId ? (
+                                          <button
+                                            onClick={() => handleJobNameClick(log)}
+                                            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium text-left"
+                                          >
+                                            {log.jobName}
+                                          </button>
+                                        ) : (
+                                          log.jobName || '-'
+                                        );
+                                        break;
+                                      case 'jobType':
+                                        cellContent = log.jobType || '-';
+                                        break;
+                                      case 'teamMember':
+                                        cellContent = (
+                                          <div className="flex items-center gap-2">
+                                            <Avatar className="h-8 w-8">
+                                              <AvatarImage
+                                                src={getProfileImage(log.teamMember)}
+                                                alt={log.teamMember}
+                                              />
+                                              <AvatarFallback className="text-xs">
+                                                {getUserInitials(log.teamMember)}
+                                              </AvatarFallback>
+                                            </Avatar>
+                                          </div>
+                                        );
+                                        break;
+                                      case 'description':
+                                        cellContent = log.description;
+                                        break;
+                                      case 'timePurpose':
+                                        cellContent = (
+                                          <Badge variant="secondary" className={`${getPurposeColorClasses(log.timePurpose)} whitespace-nowrap`}>{log.timePurpose || '-'}</Badge>
+                                        );
+                                        break;
+                                      case 'billable':
+                                        cellContent = log.billable ? (
+                                          <Badge variant="secondary" className="bg-[#EBF6ED] text-[#38A24B] border border-[#38A24B] whitespace-nowrap rounded-full !p-[4px]"><Check size={14} /></Badge>
+                                        ) : (
+                                          <Badge variant="secondary" className="bg-[#FEEBEA] text-[#F50000] border border-[#F50000] whitespace-nowrap rounded-full !p-[4px]"><X size={14} /></Badge>
+                                        );
+                                        break;
+                                      case 'hours':
+                                        cellContent = (
+                                          <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold text-center">{formatHoursToHHMMSS(log.hours)}</div>
+                                        );
+                                        break;
+                                      case 'rate':
+                                        cellContent = (
+                                          <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold text-center">{formatCurrency(log.rate)}</div>
+                                        );
+                                        break;
+                                      case 'amount':
+                                        cellContent = (
+                                          <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold text-center">
+                                            {formatCurrency(log.amount)}
+                                          </div>
+                                        );
+                                        break;
+                                      case 'status':
+                                        cellContent = getStatusBadge(log.status);
+                                        break;
+                                      default:
+                                        cellContent = '-';
+                                    }
 
-                                return (
-                                  <TableCell
-                                    key={key}
-                                    className={`p-4 text-left whitespace-nowrap ${isExpanded ? `${borderColor} ${isLastInGroup ? 'border-b-2' : ''}` : ''}`}
-                                  >
-                                    {cellContent}
-                                </TableCell>
-                                );
-                                })}
-                                <TableCell className={`p-4 ${isExpanded ? `${borderColor} ${isLastInGroup ? 'border-b-2 rounded-br-md' : ''} border-r-2` : ''}`}>
-                            <div className="text-right">
-                              <button 
-                                onClick={(e) => handleSettingsClick(e, log.id)}
-                                className="p-1 hover:bg-gray-100 rounded"
-                              >
-                                <Settings className='text-[#381980]' size={16} />
-                              </button>
-                            </div>
-                                </TableCell>
-                            </>
+                                    return (
+                                      <TableCell
+                                        key={key}
+                                        className={`p-4 text-left whitespace-nowrap ${isExpanded ? `${borderColor} ${isLastInGroup ? 'border-b-2' : ''}` : ''}`}
+                                      >
+                                        {cellContent}
+                                      </TableCell>
+                                    );
+                                  })}
+                                  <TableCell className={`p-4 ${isExpanded ? `${borderColor} ${isLastInGroup ? 'border-b-2 rounded-br-md' : ''} border-r-2` : ''}`}>
+                                    <div className="text-right">
+                                      <button
+                                        onClick={(e) => handleSettingsClick(e, log.id)}
+                                        className="p-1 hover:bg-gray-100 rounded"
+                                      >
+                                        <Settings className='text-[#381980]' size={16} />
+                                      </button>
+                                    </div>
+                                  </TableCell>
+                                </>
                               )}
                             </TableRow>
                           );
@@ -1515,22 +1585,22 @@ const AllTimeLogsTab = () => {
       )}
 
       {showTimeLogPopup && (
-        <TimeLogPopup 
+        <TimeLogPopup
           onClose={() => {
             setShowTimeLogPopup(false);
             setEditingLog(null);
-          }} 
+          }}
           editingLog={editingLog}
         />
       )}
 
       {/* Settings Popup */}
       {settingsPopup && (
-        <div 
+        <div
           className="fixed z-50 bg-white border border-gray-200 rounded-md shadow-lg py-1 min-w-[120px]"
-          style={{ 
-            left: settingsPopup.x, 
-            top: settingsPopup.y 
+          style={{
+            left: settingsPopup.x,
+            top: settingsPopup.y
           }}
         >
           <button
@@ -1552,9 +1622,30 @@ const AllTimeLogsTab = () => {
 
       {/* Click outside to close popup */}
       {settingsPopup && (
-        <div 
-          className="fixed inset-0 z-40" 
+        <div
+          className="fixed inset-0 z-40"
           onClick={handleCloseSettingsPopup}
+        />
+      )}
+
+      {/* Client Details Dialog */}
+      {selectedClientData && (
+        <ClientDetailsDialog
+          open={showClientDetailsDialog}
+          onOpenChange={setShowClientDetailsDialog}
+          clientData={selectedClientData.data}
+        />
+      )}
+
+      {/* Job Details Dialog */}
+      {selectedJobData && (
+        <JobDetailsDialog
+          isOpen={showJobDetailsDialog}
+          onClose={() => setShowJobDetailsDialog(false)}
+          jobName={selectedJobData.jobName}
+          jobFee={selectedJobData.jobFee}
+          wipAmount={selectedJobData.wipAmount}
+          hoursLogged={selectedJobData.hoursLogged}
         />
       )}
 
