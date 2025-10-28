@@ -109,7 +109,7 @@ const TimeLogsBreakdownDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Time Breakdown</DialogTitle>
+          <DialogTitle>WIP Breakdown </DialogTitle>
           <DialogDescription>
             {jobName ? `${clientName} - ${jobName}` : clientName}
           </DialogDescription>

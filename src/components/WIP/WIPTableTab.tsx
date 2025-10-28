@@ -1,10 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { wipTableData } from '@/data/wipTableData';
 import { WIPTableSummaryCards } from './WIPTableSummaryCards';
 import { WIPTable } from "@/components/WIPTable/WIPTable";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { useGetWipQuery } from '@/store/wipApi';
+import { useGetCurrentUserQuery } from '@/store/authApi';
+import { WIPClient } from '@/types/wipTable';
 
 interface WIPTableTabProps {
   onInvoiceCreate?: (invoice: any) => void;
@@ -17,9 +19,64 @@ const WIPTableTab = ({ onInvoiceCreate, onWriteOff }: WIPTableTabProps) => {
   const [targetMetFilter, setTargetMetFilter] = useState<string>('all');
   const [showManualReviewOnly, setShowManualReviewOnly] = useState(false);
   const [showWarningJobsOnly, setShowWarningJobsOnly] = useState(false);
-  const [warningPercentage] = useState<number>(80);
+  const { data: wipResp } = useGetWipQuery();
+  const { data: currentUserResp }: any = useGetCurrentUserQuery();
 
-  const wipData = useMemo(() => wipTableData, []);
+  const warningPercentage = useMemo(() => {
+    const settings = currentUserResp?.data?.settings;
+    const pct = Array.isArray(settings) && settings[0]?.wipWarningPercentage;
+    return typeof pct === 'number' ? pct : 80;
+  }, [currentUserResp]);
+
+  const wipData: WIPClient[] = useMemo(() => {
+    const raw = wipResp?.data || [];
+    return raw.map((client: any) => {
+      const triggerAmount = client?.clientWipTraget?.amount;
+      
+      // Calculate total WIP for client: sum of all jobs' wipAmount + wipTotalOpenBalance + clientWipTotalOpenBalance
+      const clientWIPBalance = Number(client.clientWipTotalOpenBalance || 0);
+      const jobsTotalWIP = (client.jobs || []).reduce((sum: number, job: any) => {
+        const jobWipAmount = Number(job.wipAmount || 0);
+        const jobWipOpenBalance = Number(job.wipTotalOpenBalance || 0);
+        return sum + jobWipAmount + jobWipOpenBalance;
+      }, 0);
+      const totalClientWIP = clientWIPBalance + jobsTotalWIP;
+      
+      return {
+        id: client._id,
+        clientName: client.name,
+        clientCode: client.clientRef,
+        trigger: triggerAmount ? `threshold-${triggerAmount}` : null,
+        lastInvoiced: null,
+        daysSinceLastInvoice: null,
+        activeExpenses: [{ id: 'total', description: 'Total', submittedBy: '', amount: Number(client?.expensesData?.totalExpenses || 0), hasAttachment: false, dateLogged: new Date().toISOString(), vatPercentage: 0, totalAmount: Number(client?.expensesData?.totalExpenses || 0) }],
+        jobs: (client.jobs || []).map((job: any) => {
+          const status = job.status === 'completed' ? 'completed' : job.status === 'inProgress' ? 'active' : 'on-hold';
+          // For each job: wipAmount + wipTotalOpenBalance
+          const jobWipAmount = Number(job.wipAmount || 0);
+          const jobWipOpenBalance = Number(job.wipTotalOpenBalance || 0);
+          const totalJobWIP = jobWipAmount + jobWipOpenBalance;
+          const jobTriggerAmount = job?.jobWipTraget?.amount;
+          return {
+            id: job._id,
+            jobName: job.name,
+            jobStatus: status,
+            hoursLogged: (job.wipDuration || 0) / 3600,
+            wipAmount: totalJobWIP,
+            invoicedToDate: 0,
+            toInvoice: 0,
+            lastInvoiced: null,
+            daysSinceLastInvoice: null,
+            trigger: jobTriggerAmount ? `threshold-${jobTriggerAmount}` : null,
+            triggerMet: false,
+            actionStatus: 'upcoming',
+            jobFee: Number(job.jobCost || 0)
+          };
+        }),
+        clientWipBalance: totalClientWIP
+      } as WIPClient;
+    });
+  }, [wipResp]);
 
   const handleManualReviewToggle = () => {
     setShowManualReviewOnly(!showManualReviewOnly);
@@ -39,7 +96,7 @@ const WIPTableTab = ({ onInvoiceCreate, onWriteOff }: WIPTableTabProps) => {
 
   const toggleAllClients = () => {
     if (allCollapsed) {
-      setExpandedClients(new Set(wipTableData.map(client => client.id)));
+      setExpandedClients(new Set(wipData.map(client => client.id)));
       setAllCollapsed(false);
     } else {
       setExpandedClients(new Set());
@@ -83,7 +140,7 @@ const WIPTableTab = ({ onInvoiceCreate, onWriteOff }: WIPTableTabProps) => {
                 onClick={() => setTargetMetFilter('all')}
                 className="h-8 px-3 text-xs"
               >
-                All
+                N/A
               </Button>
               <Button
                 variant={targetMetFilter === 'yes' ? 'default' : 'ghost'}

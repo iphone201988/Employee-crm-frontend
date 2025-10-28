@@ -183,14 +183,32 @@ const WriteOffLogicDialog = ({
 
     onOpenChange(false);
   };
+  const dateRange = timeLogs.length > 0 ? timeLogs.reduce((acc, log) => {
+    const logDate = new Date(log.date);
+    if (!acc.min || logDate < acc.min) {
+      acc.min = logDate;
+    }
+    if (!acc.max || logDate > acc.max) {
+      acc.max = logDate;
+    }
+    return acc;
+  }, { min: null, max: null } as { min: Date | null, max: Date | null }) : null;
 
+  const formatDate = (date: Date | null) => {
+    if (!date) return '';
+    return date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  };
+  const formattedStartDate = dateRange ? formatDate(dateRange.min) : '';
+  const formattedEndDate = dateRange ? formatDate(dateRange.max) : '';
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Time Breakdown</DialogTitle>
+      <DialogHeader>
+          <DialogTitle>WIP Breakdown</DialogTitle>
           <DialogDescription>
-            {jobName ? `${clientName} - ${jobName}` : clientName}
+            {jobName 
+              ? `${clientName} / ${jobName} (${formattedStartDate} - ${formattedEndDate})` 
+              : clientName}
           </DialogDescription>
         </DialogHeader>
         
@@ -206,10 +224,10 @@ const WriteOffLogicDialog = ({
                 <Printer className="h-4 w-4 mr-2" />
                 Print PDF
               </Button>
-              <Button variant="outline" size="sm" className="bg-[#381980] hover:bg-[#2a1260] text-white">
+              {/* <Button variant="outline" size="sm" className="bg-[#381980] hover:bg-[#2a1260] text-white">
                 <Mail className="h-4 w-4 mr-2" />
                 Email PDF
-              </Button>
+              </Button> */}
             </div>
             
             <div className="text-sm font-medium bg-red-50 border border-red-200 rounded px-3 py-2">
