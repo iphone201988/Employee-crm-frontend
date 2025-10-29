@@ -15,6 +15,10 @@ import WIPOpeningBalanceDialog from '@/components/WIPOpeningBalanceDialog';
 import { useGetDropdownOptionsQuery } from '@/store/teamApi';
 import { useAddWipOpenBalanceMutation, useAttachWipTargetMutation } from '@/store/wipApi';
 import { toast } from 'sonner';
+import ClientDetailsDialog from '@/components/ClientDetailsDialog';
+import { useGetClientQuery } from '@/store/clientApi';
+import { Label } from "@/components/ui/label";
+import { JobDetailsDialog } from '@/components/JobDetailsDialog';
 
 import JobNameLink from '@/components/JobNameLink';
 import ClientNameLink from '@/components/ClientNameLink';
@@ -50,6 +54,15 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
   const [openLogInvoiceOnly, setOpenLogInvoiceOnly] = useState(false);
   const [addWipOpenBalance] = useAddWipOpenBalanceMutation();
   const [attachWipTarget] = useAttachWipTargetMutation();
+
+  // Client details dialog state
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [showClientDetailsDialog, setShowClientDetailsDialog] = useState(false);
+  const { data: selectedClientData } = useGetClientQuery(selectedClientId as string, { skip: !selectedClientId });
+
+  // Job details dialog state
+  const [viewingJob, setViewingJob] = useState<any | null>(null);
+  const [viewJobDialogOpen, setViewJobDialogOpen] = useState(false);
 
   // Fetch dynamic WIP target amount options
   const { data: wipTargetsResp } = useGetDropdownOptionsQuery('wipTargetAmount');
@@ -305,8 +318,8 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
                     {/* Client Row */}
                     <tr className="border-b hover:bg-muted/50 bg-muted/20 h-14">
                       <td className="p-4">
-                        <div className="flex items-center gap-2">
-                          <button
+                          <div className="flex items-center gap-2">
+                            <button
                             onClick={() => onToggleClient(client.id)}
                             className="flex items-center gap-1 hover:text-primary"
                           >
@@ -316,9 +329,14 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
                               <ChevronRight className="h-4 w-4" />
                             )}
                           </button>
-                          <div className="font-semibold">
-                            <ClientNameLink clientName={client.clientName} />
-                          </div>
+                            <div className="font-semibold">
+                              <span
+                                className="cursor-pointer text-blue-600 hover:text-blue-800 hover:underline"
+                                onClick={() => { setSelectedClientId(client.id); setShowClientDetailsDialog(true); }}
+                              >
+                                {client.clientName}
+                              </span>
+                            </div>
                         </div>
                       </td>
                       <td className="p-4 text-center">
@@ -504,12 +522,22 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
                       <tr key={job.id} className="border-b hover:bg-muted/50 h-14" style={{ backgroundColor: '#F5F3F9' }}>
                         <td className="p-4 pl-12 text-sm">
                           <div className="flex items-center">
-                            <JobNameLink
-                              jobName={job.jobName}
-                              jobFee={job.jobFee}
-                              wipAmount={job.wipAmount}
-                              hoursLogged={job.hoursLogged || 0}
-                            />
+                                <span
+                                  className="cursor-pointer text-blue-600 hover:text-blue-800 hover:underline"
+                                  onClick={() => {
+                                    setViewingJob({
+                                      name: job.jobName,
+                                      jobCost: job.jobFee,
+                                      actualCost: job.wipAmount,
+                                      status: job.jobStatus,
+                                      clientName: client.clientName,
+                                      hoursLogged: job.hoursLogged || 0,
+                                    });
+                                    setViewJobDialogOpen(true);
+                                  }}
+                                >
+                                  {job.jobName}
+                                </span>
                             {getWarningIcon(job)}
                           </div>
                         </td>
@@ -680,6 +708,25 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
           </div>
         </CardContent>
       </Card>
+
+      {selectedClientId && (
+        <ClientDetailsDialog
+          open={showClientDetailsDialog}
+          onOpenChange={setShowClientDetailsDialog}
+          clientData={selectedClientData?.data}
+        />
+      )}
+
+      {viewingJob && (
+        <JobDetailsDialog
+          isOpen={viewJobDialogOpen}
+          onClose={() => setViewJobDialogOpen(false)}
+          jobName={viewingJob.name}
+          jobFee={viewingJob.jobCost}
+          wipAmount={viewingJob.actualCost}
+          hoursLogged={viewingJob.hoursLogged}
+        />
+      )}
 
       {selectedInvoiceData && (
         <InvoicePreviewDialog

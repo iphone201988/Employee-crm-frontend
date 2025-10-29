@@ -23,6 +23,9 @@ export const wipApi = createApi({
     getWip: builder.query<GetWipResponse, void>({
       query: () => ({ url: '/wip' }),
     }),
+    getAgedWip: builder.query<any, void>({
+      query: () => ({ url: '/wip/age-wip' }),
+    }),
     addWipOpenBalance: builder.mutation<any, { type: 'client' | 'job'; amount: number; clientId?: string; jobId?: string }>({
       query: (payload) => ({
         url: '/wip/open-balance',
@@ -40,6 +43,6 @@ export const wipApi = createApi({
   }),
 });
 
-export const { useGetWipQuery, useAddWipOpenBalanceMutation, useAttachWipTargetMutation } = wipApi;
+export const { useGetWipQuery, useGetAgedWipQuery, useAddWipOpenBalanceMutation, useAttachWipTargetMutation } = wipApi;
 
 
