@@ -12,6 +12,8 @@ export interface WIPJob {
   triggerMet: boolean;
   actionStatus: 'ready-to-invoice' | 'review' | 'upcoming';
   jobFee: number;
+  wipBreakdown?: any[];
+  wipOpenBalanceIds?: string[];
 }
 
 export interface Expense {
@@ -29,9 +31,14 @@ export interface WIPClient {
   id: string;
   clientName: string;
   clientCode: string;
+  address?: string;
+  company?: { name?: string; email?: string };
   trigger: string | null;
   lastInvoiced: string | null;
   daysSinceLastInvoice: number | null;
   jobs: WIPJob[];
   activeExpenses: Expense[];
+  clientWipOpenBalanceIds?: string[];
+  clientWipBalance?: number;
+  wipBreakdown?: any[];
 }

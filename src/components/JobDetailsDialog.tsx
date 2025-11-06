@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency } from '@/lib/currency';
 import { Edit } from 'lucide-react';
+import { useGetJobQuery, useUpdateJobMutation } from '@/store/jobApi';
 
 interface TimeEntry {
   id: string;
@@ -23,6 +24,7 @@ interface TimeEntry {
 interface JobDetailsDialogProps {
   isOpen: boolean;
   onClose: () => void;
+  jobId: string;
   jobName: string;
   jobFee: number;
   wipAmount: number;
@@ -33,6 +35,7 @@ interface JobDetailsDialogProps {
 export const JobDetailsDialog: React.FC<JobDetailsDialogProps> = ({
   isOpen,
   onClose,
+  jobId,
   jobName,
   jobFee,
   wipAmount,
@@ -40,8 +43,25 @@ export const JobDetailsDialog: React.FC<JobDetailsDialogProps> = ({
   timeEntries = []
 }) => {
   const [activeTab, setActiveTab] = useState("job-details");
+  const { data: jobResp, isLoading } = useGetJobQuery(jobId, { skip: !jobId });
+  const [updateJob] = useUpdateJobMutation();
   
-  const sampleTimeEntries: TimeEntry[] = timeEntries.length > 0 ? timeEntries : [
+  const apiJob = jobResp?.data;
+  const apiLogs = jobResp?.timeLogs || [];
+  const sampleTimeEntries: TimeEntry[] = useMemo(() => {
+    if (apiLogs.length > 0) {
+      return apiLogs.map((l: any) => ({
+        id: l._id,
+        date: l.date,
+        description: l.description || '',
+        hours: Number(l.duration || 0) / 3600,
+        rate: Number(l.rate || 0),
+        amount: Number(l.amount || 0),
+        employee: l.user?.name || ''
+      }));
+    }
+    if (timeEntries.length > 0) return timeEntries;
+    return [
     {
       id: '1',
       date: '2024-01-15',
@@ -78,7 +98,8 @@ export const JobDetailsDialog: React.FC<JobDetailsDialogProps> = ({
       amount: 360,
       employee: 'Michael Brown'
     }
-  ];
+    ];
+  }, [apiLogs, timeEntries]);
 
   const totalAmount = sampleTimeEntries.reduce((sum, entry) => sum + entry.amount, 0);
 
@@ -87,12 +108,12 @@ export const JobDetailsDialog: React.FC<JobDetailsDialogProps> = ({
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader className="flex flex-row items-center justify-between">
           <DialogTitle className="text-xl font-semibold">
-            {jobName}
+            {apiJob?.name || jobName}
           </DialogTitle>
-          <Button variant="outline" size="sm" className="flex items-center gap-2">
+          {/* <Button variant="outline" size="sm" className="flex items-center gap-2" disabled={activeTab !== 'job-details' || isLoading}>
             <Edit className="h-4 w-4" />
             Edit
-          </Button>
+          </Button> */}
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -107,22 +128,22 @@ export const JobDetailsDialog: React.FC<JobDetailsDialogProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label>Job Name</Label>
-                  <Input value={jobName} readOnly className="bg-muted" />
+                  <Input value={apiJob?.name || jobName} readOnly className="bg-muted" />
                 </div>
                 
                 <div className="space-y-2">
                   <Label>Job Type</Label>
-                  <Input value="Consulting" readOnly className="bg-muted" />
+                  <Input value={apiJob?.jobTypeId?.name || '—'} readOnly className="bg-muted" />
                 </div>
                 
                 <div className="space-y-2">
                   <Label>Job Status</Label>
-                  <Input value="Active" readOnly className="bg-muted" />
+                  <Input value={(apiJob?.status || 'Active').replace(/([a-z])([A-Z])/g, '$1 $2')} readOnly className="bg-muted" />
                 </div>
                 
                 <div className="space-y-2">
                   <Label>Job Fee</Label>
-                  <Input value={formatCurrency(jobFee)} readOnly className="bg-muted" />
+                  <Input value={formatCurrency(apiJob?.jobCost ?? jobFee)} readOnly className="bg-muted" />
                 </div>
                 
                 <div className="space-y-2">
@@ -137,12 +158,12 @@ export const JobDetailsDialog: React.FC<JobDetailsDialogProps> = ({
                 
                 <div className="space-y-2">
                   <Label>Start Date</Label>
-                  <Input value="2024-01-15" readOnly className="bg-muted" />
+                  <Input value={apiJob?.startDate ? new Date(apiJob.startDate).toLocaleDateString('en-GB') : '—'} readOnly className="bg-muted" />
                 </div>
                 
                 <div className="space-y-2">
                   <Label>Assigned To</Label>
-                  <Input value="John Smith" readOnly className="bg-muted" />
+                  <Input value={apiJob?.jobManagerId?.name || '—'} readOnly className="bg-muted" />
                 </div>
               </div>
               
@@ -151,7 +172,7 @@ export const JobDetailsDialog: React.FC<JobDetailsDialogProps> = ({
                 <textarea 
                   className="w-full p-3 border border-input bg-muted rounded-md resize-none" 
                   rows={3} 
-                  value="Comprehensive consulting project including analysis, documentation, and implementation guidance."
+                  value={apiJob?.description || '—'}
                   readOnly
                 />
               </div>
@@ -159,8 +180,7 @@ export const JobDetailsDialog: React.FC<JobDetailsDialogProps> = ({
               <div className="space-y-2">
                 <Label>Job Tags</Label>
                 <div className="flex gap-2">
-                  <Badge variant="secondary">High Priority</Badge>
-                  <Badge variant="secondary">Active Client</Badge>
+                  <Badge variant="secondary">{(apiJob?.priority || 'medium').replace(/([a-z])([A-Z])/g, '$1 $2')}</Badge>
                 </div>
               </div>
             </div>

@@ -16,6 +16,7 @@ interface InvoicePreviewSectionProps {
     date: string;
     jobName?: string;
   };
+  company?: { name?: string; email?: string };
   invoiceNumber: string;
   onInvoiceNumberChange: (value: string) => void;
   itemizeTimeLogs: boolean;
@@ -30,10 +31,14 @@ interface InvoicePreviewSectionProps {
   totalExpenses: number;
   totalAmount: number;
   onAddLoggedExpenses?: () => void;
+  vatRate?: number;
+  onVatRateChange?: (value: number) => void;
+  vatAmount?: number;
 }
 
 export const InvoicePreviewSection = ({
   invoiceData,
+  company,
   invoiceNumber,
   onInvoiceNumberChange,
   itemizeTimeLogs,
@@ -48,6 +53,9 @@ export const InvoicePreviewSection = ({
   totalExpenses,
   totalAmount,
   onAddLoggedExpenses,
+  vatRate,
+  onVatRateChange,
+  vatAmount,
 }: InvoicePreviewSectionProps) => {
   return (
     <Card className="border-2 border-gray-800">
@@ -56,13 +64,10 @@ export const InvoicePreviewSection = ({
           {/* Practice Header */}
           <div className="flex justify-between items-start">
             <div>
-              <h3 className="text-xl font-bold">ABC Accounting</h3>
-              <p className="text-muted-foreground">
-                Main Street<br />
-                Dublin, Co. Dublin<br />
-                D56GH66<br />
-                Phone: (01) 1234567
-              </p>
+              <h3 className="text-xl font-bold">{company?.name || invoiceData?.company?.name || 'ABC Accounting'}</h3>
+              {(company?.email || invoiceData?.company?.email) && (
+                <p className="text-muted-foreground">{company?.email || invoiceData?.company?.email}</p>
+              )}
             </div>
             <div className="text-right">
               <h4 className="text-lg font-semibold">INVOICE</h4>
@@ -84,8 +89,9 @@ export const InvoicePreviewSection = ({
           <div>
             <h4 className="font-semibold mb-2">Invoice To:</h4>
             <p className="text-muted-foreground">
-              {invoiceData.clientName} ({invoiceData.clientCode})<br />
-              {invoiceData.clientAddress}
+              {invoiceData.clientName}
+              {invoiceData.clientCode ? ` (${invoiceData.clientCode})` : ''}
+              {invoiceData.clientAddress ? (<><br />{invoiceData.clientAddress}</>) : null}
             </p>
           </div>
 
@@ -99,30 +105,19 @@ export const InvoicePreviewSection = ({
                 <div className="space-y-2">
                   <p className="text-sm text-muted-foreground">Professional services rendered:</p>
                   <div className="space-y-1">
-                    <div className="flex justify-between items-center text-sm">
-                      <span>• Time logged for {invoiceData.jobName || 'various matters'}</span>
-                      <div className="flex gap-4">
-                        {includeTimeAmount && <span>2.5 hours</span>}
-                        {includeBillableRate && <span>€150/hour</span>}
-                        {includeValueAmount && <span>{formatCurrency(invoiceData.amount * 0.4)}</span>}
-                      </div>
-                    </div>
-                    <div className="flex justify-between items-center text-sm">
-                      <span>• Legal consultation and advice</span>
-                      <div className="flex gap-4">
-                        {includeTimeAmount && <span>1.5 hours</span>}
-                        {includeBillableRate && <span>€200/hour</span>}
-                        {includeValueAmount && <span>{formatCurrency(invoiceData.amount * 0.3)}</span>}
-                      </div>
-                    </div>
-                    <div className="flex justify-between items-center text-sm">
-                      <span>• Document preparation and review</span>
-                      <div className="flex gap-4">
-                        {includeTimeAmount && <span>1.0 hours</span>}
-                        {includeBillableRate && <span>€175/hour</span>}
-                        {includeValueAmount && <span>{formatCurrency(invoiceData.amount * 0.3)}</span>}
-                      </div>
-                    </div>
+                    {(invoiceData.members || []).map((m) => {
+                      const hours = (m.seconds || 0) / 3600;
+                      return (
+                        <div key={m.userName} className="flex justify-between items-center text-sm">
+                          <span>• {m.userName}</span>
+                          <div className="flex gap-4">
+                            {includeTimeAmount && <span>{hours.toFixed(2)} hours</span>}
+                            {includeBillableRate && m.billableRate ? <span>{formatCurrency(m.billableRate)}/hour</span> : null}
+                            {includeValueAmount && m.billableRate ? <span>{formatCurrency((m.billableRate || 0) * hours)}</span> : null}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               ) : (
@@ -131,7 +126,10 @@ export const InvoicePreviewSection = ({
               
               <div className="flex justify-between items-center pt-2">
                 <span>Professional Services</span>
-                <span className="font-semibold">{formatCurrency(invoiceData.amount)}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Included WIP opening balance</span>
+                  <span className="font-semibold">{formatCurrency(invoiceData.amount)}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -153,8 +151,17 @@ export const InvoicePreviewSection = ({
           {/* VAT and Total */}
           <div className="space-y-2">
             <div className="flex justify-between items-center">
-              <span>VAT at 23%</span>
-              <span>{formatCurrency((totalAmount - totalAmount / 1.23) || 0)}</span>
+              <div className="flex items-center gap-2">
+                <span>VAT at</span>
+                <input
+                  type="number"
+                  className="w-16 border rounded px-2 py-1 text-right"
+                  value={typeof vatRate === 'number' ? vatRate : 0}
+                  onChange={(e) => onVatRateChange && onVatRateChange(parseFloat(e.target.value) || 0)}
+                />
+                <span>%</span>
+              </div>
+              <span>{formatCurrency(vatAmount || 0)}</span>
             </div>
             <div className="flex justify-between items-center text-lg font-bold">
               <span>Total Amount</span>

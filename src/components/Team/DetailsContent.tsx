@@ -69,6 +69,8 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
   const [isAddMemberDialogOpen, setIsAddMemberDialogOpen] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [detailsCapacities, setDetailsCapacities] = useState<{ [key: string]: { [key: string]: number } }>({});
+  // Track raw input strings for time fields to allow free-form editing
+  const [timeInputs, setTimeInputs] = useState<Record<string, string>>({});
 
   // State for search and filter
   const [searchTerm, setSearchTerm] = useState('');
@@ -140,7 +142,103 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
 
   useEffect(() => {
     detailsCapacitiesRef.current = detailsCapacities;
-  }, [detailsCapacities]);
+    
+    // Check if there are any changes by comparing with original values
+    const hasChanges = Object.keys(detailsCapacities).some(userId => {
+      const member = teamMembers.find(m => m._id === userId);
+      if (!member) return false;
+      const schedule = detailsCapacities[userId];
+      return Object.keys(schedule).some(dayKey => {
+        const originalValue = member.workSchedule[dayKey as keyof TeamMember['workSchedule']];
+        return schedule[dayKey] !== originalValue;
+      });
+    });
+    
+    setHasUnsavedChanges(hasChanges);
+    if (onUnsavedChangesChange && hasChanges) {
+      onUnsavedChangesChange(hasChanges, handleSaveUpdates, handleDiscardChanges, 'teamList');
+    }
+  }, [detailsCapacities, teamMembers]);
+
+  // --- Helper functions for flexible time input editing ---
+  const getTimeInputKey = (memberId: string, day: string) => `${memberId}-${day}`;
+  
+  const getTimeInputValue = (memberId: string, day: keyof TeamMember['workSchedule'], member: TeamMember): string => {
+    const key = getTimeInputKey(memberId, day);
+    // If there's raw input, use it; otherwise format the value
+    if (timeInputs[key] !== undefined) {
+      return timeInputs[key];
+    }
+    // Format the stored value (from detailsCapacities or original workSchedule)
+    const seconds = detailsCapacities[memberId]?.[day] ?? member.workSchedule[day];
+    return secondsToTime(seconds);
+  };
+
+  const handleTimeFocus = (memberId: string, day: keyof TeamMember['workSchedule'], member: TeamMember) => {
+    const key = getTimeInputKey(memberId, day);
+    // If no raw input exists, initialize it with formatted value
+    if (timeInputs[key] === undefined) {
+      const seconds = detailsCapacities[memberId]?.[day] ?? member.workSchedule[day];
+      const formatted = secondsToTime(seconds);
+      setTimeInputs(prev => ({ ...prev, [key]: formatted }));
+    }
+  };
+
+  const handleTimeChange = (memberId: string, day: keyof TeamMember['workSchedule'], value: string, member: TeamMember) => {
+    const key = getTimeInputKey(memberId, day);
+    // Store the raw input string
+    setTimeInputs(prev => ({ ...prev, [key]: value }));
+    
+    // Parse and update the capacity value in real-time
+    let parsedSeconds = 0;
+    if (value.trim() !== "") {
+      // Handle various formats: "3", "3:00", "03:00:00", "3:30", etc.
+      parsedSeconds = timeToSeconds(value);
+    }
+    
+    // Update detailsCapacities immediately
+    const originalMember = teamMembers.find(m => m._id === memberId);
+    if (!originalMember) return;
+
+    setDetailsCapacities(prev => {
+      const newCaps = { ...prev };
+      if (!newCaps[memberId]) newCaps[memberId] = {};
+      newCaps[memberId][day] = parsedSeconds;
+      return newCaps;
+    });
+    // Change detection is handled in useEffect
+  };
+
+  const handleTimeBlur = (memberId: string, day: keyof TeamMember['workSchedule']) => {
+    const key = getTimeInputKey(memberId, day);
+    
+    // Get current raw value from state and parse it (in case it wasn't updated in onChange)
+    const rawValue = timeInputs[key] || "";
+    let parsedSeconds = 0;
+    if (rawValue.trim() !== "") {
+      // Handle various formats: "3", "3:00", "03:00:00", "3:30", etc.
+      parsedSeconds = timeToSeconds(rawValue);
+    }
+    
+    // Update the capacity value (ensure it's updated even if onChange didn't fire)
+    const originalMember = teamMembers.find(m => m._id === memberId);
+    if (!originalMember) return;
+
+    setDetailsCapacities(prev => {
+      const newCaps = { ...prev };
+      if (!newCaps[memberId]) newCaps[memberId] = {};
+      newCaps[memberId][day] = parsedSeconds;
+      return newCaps;
+    });
+    // Change detection is handled in useEffect
+    
+    // Clear the raw input so it will be formatted on next render
+    setTimeInputs(prev => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
 
   // --- Handlers ---
   const handleEditMember = (member: TeamMember) => {
@@ -175,31 +273,6 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
     }
   };
 
-  const handleCapacityChange = (memberId: string, day: keyof TeamMember['workSchedule'], timeValue: string) => {
-    const numSeconds = timeToSeconds(timeValue);
-    const originalMember = teamMembers.find(m => m._id === memberId);
-    if (!originalMember) return;
-
-    const originalValueInSeconds = originalMember.workSchedule[day];
-
-    setDetailsCapacities(prev => {
-      const newCaps = { ...prev };
-      if (!newCaps[memberId]) newCaps[memberId] = {};
-      newCaps[memberId][day] = numSeconds;
-      return newCaps;
-    });
-
-    const hasChangesNow = Object.keys(detailsCapacitiesRef.current).length > 0 || numSeconds !== originalValueInSeconds;
-    setHasUnsavedChanges(hasChangesNow);
-    if (onUnsavedChangesChange) {
-      onUnsavedChangesChange(hasChangesNow, handleSaveUpdates, handleDiscardChanges, 'teamList');
-    }
-  };
-
-  const getCapacityValue = (member: TeamMember, day: keyof TeamMember['workSchedule']) => {
-    const seconds = detailsCapacities[member._id]?.[day] ?? member.workSchedule[day];
-    return secondsToTime(seconds);
-  };
 
   const handleSaveUpdates = useCallback(async () => {
     const updates = Object.entries(detailsCapacitiesRef.current).map(([userId, changedSchedule]) => ({
@@ -220,6 +293,8 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
       toast.success("Team hours updated successfully!");
       setHasUnsavedChanges(false);
       setDetailsCapacities({});
+      // Clear raw input state when data is saved
+      setTimeInputs({});
       onUnsavedChangesChange?.(false);
     } catch (error) {
       toast.error("Failed to update team hours.");
@@ -231,6 +306,8 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
   const handleDiscardChanges = useCallback(() => {
     setDetailsCapacities({});
     setHasUnsavedChanges(false);
+    // Clear raw input state when changes are discarded
+    setTimeInputs({});
     onUnsavedChangesChange?.(false);
   }, [onUnsavedChangesChange]);
 
@@ -319,14 +396,16 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
                       </TableCell>
                       <TableCell>{member.department?.name || 'N/A'}</TableCell>
                       <TableCell>{member.email}</TableCell>
-                      {/* MODIFIED: Input is now a manual text field for "HH:mm:ss" format */}
+                      {/* MODIFIED: Input is now a manual text field for "HH:mm:ss" format with flexible editing */}
                       {(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const).map(day => (
                         <TableCell key={day}>
                           <Input
                             type="text"
                             placeholder="HH:mm:ss"
-                            value={getCapacityValue(member, day)}
-                            onChange={e => handleCapacityChange(member._id, day, e.target.value)}
+                            value={getTimeInputValue(member._id, day, member)}
+                            onChange={e => handleTimeChange(member._id, day, e.target.value, member)}
+                            onFocus={() => handleTimeFocus(member._id, day, member)}
+                            onBlur={() => handleTimeBlur(member._id, day)}
                             className="w-[80px] h-8 text-sm text-center"
                           />
                         </TableCell>

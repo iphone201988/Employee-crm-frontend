@@ -50,6 +50,21 @@ const TimeLogsBreakdownDialog = ({
   const [showEmailInput, setShowEmailInput] = useState(false);
   const [emailAddress, setEmailAddress] = useState('');
 
+  // Derive date range from provided timeLogs for job breakdown title
+  const dateRange = timeLogs.length > 0 ? timeLogs.reduce((acc, log) => {
+    const logDate = new Date(log.date);
+    if (!acc.min || logDate < acc.min) acc.min = logDate;
+    if (!acc.max || logDate > acc.max) acc.max = logDate;
+    return acc;
+  }, { min: null as Date | null, max: null as Date | null }) : null;
+
+  const formatDate = (date: Date | null) => {
+    if (!date) return '';
+    return date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  };
+  const formattedStartDate = dateRange ? formatDate(dateRange.min) : '';
+  const formattedEndDate = dateRange ? formatDate(dateRange.max) : '';
+
   // Group time logs by team member
   const groupedTimeLogs = timeLogs.reduce((acc, log) => {
     if (!acc[log.teamMember]) {
@@ -109,9 +124,16 @@ const TimeLogsBreakdownDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>WIP Breakdown </DialogTitle>
+          <DialogTitle>WIP Breakdown</DialogTitle>
           <DialogDescription>
-            {jobName ? `${clientName} - ${jobName}` : clientName}
+            {jobName
+              ? (
+                <span>
+                  {clientName} / {jobName}
+                  {formattedStartDate && formattedEndDate ? ` (${formattedStartDate} - ${formattedEndDate})` : ''}
+                </span>
+              )
+              : clientName}
           </DialogDescription>
         </DialogHeader>
         
@@ -178,10 +200,10 @@ const TimeLogsBreakdownDialog = ({
                 <Printer className="h-4 w-4 mr-2" />
                 Print PDF
               </Button>
-              <Button variant="outline" size="sm" onClick={handleEmailClick} style={{ backgroundColor: '#381980', color: 'white' }}>
+              {/* <Button variant="outline" size="sm" onClick={handleEmailClick} style={{ backgroundColor: '#381980', color: 'white' }}>
                 <Mail className="h-4 w-4 mr-2" />
                 Email PDF
-              </Button>
+              </Button> */}
             </div>
             
             {showEmailInput && (

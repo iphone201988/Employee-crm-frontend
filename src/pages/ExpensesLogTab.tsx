@@ -18,10 +18,12 @@ import { useGetDropdownOptionsQuery } from '@/store/teamApi';
 import { useAddClientExpenseMutation, useUpdateExpenseMutation, useDeleteExpenseMutation, useListExpensesQuery } from '@/store/expensesApi';
 import { useGetCurrentUserQuery } from '@/store/authApi';
 import Avatars from '@/components/Avatars';
+import ClientNameLink from '@/components/ClientNameLink';
 import { validateExpenseForm, validateSingleField, ExpenseFormData, ValidationResult } from '@/utils/validation/expenseValidation';
 interface Expense {
   id: string;
   date: string;
+  clientId?: string;
   client?: string; // Optional for own expenses
   description: string;
   category: 'CRO filing fee' | 'Subsistence' | 'Accommodation' | 'Mileage' | 'Software' | 'Stationary';
@@ -353,6 +355,7 @@ const ExpensesLogTab = () => {
   const expenses: Expense[] = apiExpenses.map((expense: any) => ({
     id: expense._id,
     date: expense.date,
+    clientId: expense.client?._id,
     client: expense.client?.name,
     description: expense.description,
     category: expense.expreseCategory as any,
@@ -734,7 +737,7 @@ const ExpensesLogTab = () => {
                       <TableCell className="text-left">
                         <div className="flex items-center gap-2">
                           <Avatar className="h-8 w-8 flex-shrink-0">
-                            <AvatarImage src={expense.submitterAvatar} alt={expense.submittedBy} />
+                            <AvatarImage src={import.meta.env.VITE_BACKEND_BASE_URL + expense.submitterAvatar} alt={expense.submittedBy} />
                             <AvatarFallback>{expense.submittedBy.split(' ').map(n => n[0]).join('')}</AvatarFallback>
                           </Avatar>
                           <span className="truncate">{expense.submittedBy}</span>
@@ -742,9 +745,11 @@ const ExpensesLogTab = () => {
                       </TableCell>
                       {activeTab === 'clientExpenses' && (
                         <TableCell className="text-left">
-                          <span className="truncate block" title={expense.client}>
-                            {expense.client || <span className="text-muted-foreground">N/A</span>}
-                          </span>
+                          {expense.client ? (
+                            <ClientNameLink name={expense.client} ciientId={expense.clientId} />
+                          ) : (
+                            <span className="text-muted-foreground">N/A</span>
+                          )}
                         </TableCell>
                       )}
                       <TableCell className="text-left">

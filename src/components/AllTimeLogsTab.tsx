@@ -73,7 +73,7 @@ const AllTimeLogsTab = () => {
   const [showClientDetailsDialog, setShowClientDetailsDialog] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [showJobDetailsDialog, setShowJobDetailsDialog] = useState(false);
-  const [selectedJobData, setSelectedJobData] = useState<{ jobName: string; jobFee: number; wipAmount: number; hoursLogged: number } | null>(null);
+  const [selectedJobData, setSelectedJobData] = useState<{ jobId: string; jobName: string; jobFee: number; wipAmount: number; hoursLogged: number } | null>(null);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -278,6 +278,7 @@ const AllTimeLogsTab = () => {
 
   const handleJobNameClick = (log: TimeLog) => {
     setSelectedJobData({
+      jobId: log.jobId,
       jobName: log.jobName,
       jobFee: log.amount, // Using amount as job fee for now
       wipAmount: 0, // Default value
@@ -1642,6 +1643,7 @@ const AllTimeLogsTab = () => {
         <JobDetailsDialog
           isOpen={showJobDetailsDialog}
           onClose={() => setShowJobDetailsDialog(false)}
+          jobId={selectedJobData.jobId}
           jobName={selectedJobData.jobName}
           jobFee={selectedJobData.jobFee}
           wipAmount={selectedJobData.wipAmount}

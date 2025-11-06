@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { JobDetailsDialog } from './JobDetailsDialog';
 
 interface JobNameLinkProps {
+  jobId?: string;
   jobName: string;
   jobFee: number;
   wipAmount: number;
@@ -10,6 +11,7 @@ interface JobNameLinkProps {
 }
 
 const JobNameLink: React.FC<JobNameLinkProps> = ({ 
+  jobId,
   jobName, 
   jobFee, 
   wipAmount, 
@@ -30,6 +32,7 @@ const JobNameLink: React.FC<JobNameLinkProps> = ({
       <JobDetailsDialog
         isOpen={isDialogOpen}
         onClose={() => setIsDialogOpen(false)}
+        jobId={jobId as string}
         jobName={jobName}
         jobFee={jobFee}
         wipAmount={wipAmount}

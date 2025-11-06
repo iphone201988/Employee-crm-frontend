@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useMemo } from "react";
-import { Search, Filter, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, RotateCcw, RefreshCw, ArrowLeft, Plus, X, Trash2, Edit2 } from "lucide-react";
+import { Search, Filter, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, RotateCcw, RefreshCw, ArrowLeft, Plus, X, Trash2, Edit2, Import } from "lucide-react";
 import { StatusBadge, FilterBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,55 +13,55 @@ import { useGetTimesheetQuery, useAddTimesheetMutation, useChangeTimesheetStatus
 import { toast } from "sonner";
 import { useGetCurrentUserQuery } from "@/store/authApi";
 import { useSearchParams } from "react-router-dom";
-import { 
-  formatHours, 
-  formatSeconds,
-  secondsToTime,
-  timeToSeconds,
-  hoursToSeconds,
-  parseTimeInput, 
-  getCurrentWeekRange, 
-  convertTimeEntriesToRows, 
-  calculateTotals, 
-  convertRowsToTimeEntries,
-  getDailySummaryData,
-  getWeekDays,
-  secondsToHours
+import {
+    formatHours,
+    formatSeconds,
+    secondsToTime,
+    timeToSeconds,
+    hoursToSeconds,
+    parseTimeInput,
+    getCurrentWeekRange,
+    convertTimeEntriesToRows,
+    calculateTotals,
+    convertRowsToTimeEntries,
+    getDailySummaryData,
+    getWeekDays,
+    secondsToHours
 } from "@/utils/timesheetUtils";
 
 // Types for timesheet rows
 interface TimesheetRow {
-  id: string;
-  ref: string;
-  client: string;
-  clientId: string;
-  job: string;
-  jobId: string;
-  category: string;
-  description: string;
-  billable: boolean;
-  rate: string;
-  hours: {
-    mon: number;
-    tue: number;
-    wed: number;
-    thu: number;
-    fri: number;
-    sat: number;
-    sun: number;
-  };
+    id: string;
+    ref: string;
+    client: string;
+    clientId: string;
+    job: string;
+    jobId: string;
+    category: string;
+    description: string;
+    billable: boolean;
+    rate: string;
+    hours: {
+        mon: number;
+        tue: number;
+        wed: number;
+        thu: number;
+        fri: number;
+        sat: number;
+        sun: number;
+    };
 }
 
 interface MyTimeSheetProps {
-  currentWeek?: { weekStart: string; weekEnd: string };
-  onWeekChange?: (weekStart: string, weekEnd: string) => void;
-  timesheetId?: string;
-  userId?: string;
+    currentWeek?: { weekStart: string; weekEnd: string };
+    onWeekChange?: (weekStart: string, weekEnd: string) => void;
+    timesheetId?: string;
+    userId?: string;
 }
 
 export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesheetId: propTimesheetId, userId: propUserId }: MyTimeSheetProps = {}) => {
     const [searchParams] = useSearchParams();
-    
+
     // Debug component mount/unmount
     useEffect(() => {
         console.log('MyTimeSheet: Component mounted');
@@ -76,6 +76,8 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
     const [timesheetRows, setTimesheetRows] = useState<TimesheetRow[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [hasChanges, setHasChanges] = useState(false);
+    // Track raw input strings for time fields to allow free-form editing
+    const [timeInputs, setTimeInputs] = useState<Record<string, string>>({});
 
     // Extract URL parameters for specific timesheet viewing (prefer props over URL params)
     const timesheetId = propTimesheetId || searchParams.get('timesheetId');
@@ -83,34 +85,63 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
 
     // Track current week for query and navigation
     const [currentWeek, setCurrentWeek] = useState(() => propCurrentWeek ?? getCurrentWeekRange());
-    
+
+    // Track the original week when timesheetId is first loaded
+    const [originalTimesheetWeek, setOriginalTimesheetWeek] = useState<{ weekStart: string; weekEnd: string } | null>(null);
+    const [trackedTimesheetId, setTrackedTimesheetId] = useState<string | null>(null);
+
+    // Set original week when timesheetId is first provided or when it changes, reset when timesheetId is cleared
+    useEffect(() => {
+        if (timesheetId) {
+            // If timesheetId changed, reset and set new original week
+            if (trackedTimesheetId !== timesheetId) {
+                setTrackedTimesheetId(timesheetId);
+                setOriginalTimesheetWeek({
+                    weekStart: currentWeek.weekStart,
+                    weekEnd: currentWeek.weekEnd
+                });
+            }
+        } else {
+            // Reset when timesheetId is cleared
+            setTrackedTimesheetId(null);
+            setOriginalTimesheetWeek(null);
+        }
+    }, [timesheetId, currentWeek.weekStart, currentWeek.weekEnd, trackedTimesheetId]);
+
     // Memoize query parameters to prevent unnecessary re-queries
-    const queryParams = useMemo(() => ({
-        weekStart: currentWeek.weekStart,
-        weekEnd: currentWeek.weekEnd,
-        timesheetId: timesheetId || undefined,
-        userId: userId || undefined,
-    }), [currentWeek.weekStart, currentWeek.weekEnd, timesheetId, userId]);
+    // Only include timesheetId if we're still on the original week
+    const queryParams = useMemo(() => {
+        const isOnOriginalWeek = originalTimesheetWeek &&
+            currentWeek.weekStart === originalTimesheetWeek.weekStart &&
+            currentWeek.weekEnd === originalTimesheetWeek.weekEnd;
 
-    const { data: currentUser }:any = useGetCurrentUserQuery();
+    return {
+            weekStart: currentWeek.weekStart,
+            weekEnd: currentWeek.weekEnd,
+            timesheetId: (timesheetId && isOnOriginalWeek) ? timesheetId : undefined,
+            userId: userId || undefined,
+        };
+    }, [currentWeek.weekStart, currentWeek.weekEnd, timesheetId, userId, originalTimesheetWeek]);
 
-    const { 
-        data: timesheetData, 
-        isLoading: isTimesheetLoading, 
+    const { data: currentUser }: any = useGetCurrentUserQuery();
+
+    const {
+        data: timesheetData,
+        isLoading: isTimesheetLoading,
         error: timesheetError,
-        refetch: refetchTimesheet 
+        refetch: refetchTimesheet
     } = useGetTimesheetQuery(queryParams);
 
-    useEffect(() => {
-        console.log('MyTimeSheet: useGetTimesheetQuery called with:', {
-            weekStart: queryParams.weekStart,
-            weekEnd: queryParams.weekEnd,
-            timesheetId: queryParams.timesheetId,
-            userId: queryParams.userId,
-            isLoading: isTimesheetLoading,
-            hasData: !!timesheetData
-        });
-    }, [queryParams.weekStart, queryParams.weekEnd, queryParams.timesheetId, queryParams.userId, isTimesheetLoading, timesheetData]);
+    // useEffect(() => {
+    //     console.log('MyTimeSheet: useGetTimesheetQuery called with:', {
+    //         weekStart: queryParams.weekStart,
+    //         weekEnd: queryParams.weekEnd,
+    //         timesheetId: queryParams.timesheetId,
+    //         userId: queryParams.userId,
+    //         isLoading: isTimesheetLoading,
+    //         hasData: !!timesheetData
+    //     });
+    // }, [queryParams.weekStart, queryParams.weekEnd, queryParams.timesheetId, queryParams.userId, isTimesheetLoading, timesheetData]);
 
     // Mutations
     const [addTimesheet] = useAddTimesheetMutation();
@@ -118,7 +149,10 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
 
     // Extract data from API response
     const timesheet = timesheetData?.data;
-    console.log('timesheet============================', timesheet);
+
+    // console.debug('timesheet===========', timesheet);
+
+    // Do not reset originalTimesheetWeek from fetched data to avoid arg toggling
     const dropdownOptions = timesheetData?.dropdoenOptionals;
     const billableRate = timesheetData?.rate || 35;
     const userDisplayName = (timesheetData as any)?.name;
@@ -139,7 +173,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
     // Convert API data to dropdown options
     const clients = dropdownOptions?.clients || [];
     const jobs = dropdownOptions?.jobs || [];
-    const categories = dropdownOptions?.jobCategories || [];
+    const categories = dropdownOptions?.timeCategories || [];
     const rates = [`€${billableRate.toFixed(2)}`];
 
     // Function to get filtered jobs based on selected client
@@ -152,9 +186,9 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
     const isDuplicateRow = (rowIndex: number) => {
         const row = timesheetRows[rowIndex];
         if (!row || !row.clientId || !row.jobId) return false;
-        
+
         const entryKey = `${row.clientId}-${row.jobId}-${row.category}-${row.billable}`;
-        
+
         // Check if this combination appears more than once
         let count = 0;
         for (let i = 0; i < timesheetRows.length; i++) {
@@ -166,7 +200,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                 }
             }
         }
-        
+
         return count > 1;
     };
 
@@ -187,6 +221,8 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
             }));
             setTimesheetRows(timesheetRows);
             setHasChanges(false);
+            // Clear raw input state when new data loads
+            setTimeInputs({});
         }
     }, [timesheet?.timeEntries, clients, jobs, categories]);
 
@@ -196,6 +232,8 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
         if (noEntries) {
             setTimesheetRows([]);
             setHasChanges(false);
+            // Clear raw input state when rows are cleared
+            setTimeInputs({});
         }
     }, [isTimesheetLoading, timesheet?.timeEntries, currentWeek.weekStart, currentWeek.weekEnd]);
 
@@ -213,15 +251,15 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
         const timeEntries = convertRowsToTimeEntries(
             timesheetRows,
             clients,
-            
+
             jobs,
             categories,
             currentWeek.weekStart
         );
-        
+
         // Precompute totals and build dailySummary aligned by offset from weekStart
         const totals = calculateTotals(timesheetRows);
-        const dayKeys = ['mon','tue','wed','thu','fri','sat','sun'] as const;
+        const dayKeys = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
         const dailySummary = dayKeys.map((key, offset) => {
             const cap = hoursToSeconds(8);
             const total = hoursToSeconds((totals.logged as any)[key] || 0);
@@ -257,18 +295,18 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
 
     // Save timesheet changes
     const handleSaveChanges = async () => {
-        if ( !clients.length || !jobs.length || !categories.length) return;
-        
+        if (!clients.length || !jobs.length || !categories.length) return;
+
         setIsLoading(true);
         try {
             // Check for duplicate entries (same client, job, category, and billable value)
             const duplicateEntries = [];
             const seenEntries = new Set();
-            
+
             for (let i = 0; i < timesheetRows.length; i++) {
                 const row = timesheetRows[i];
                 const entryKey = `${row.clientId}-${row.jobId}-${row.category}-${row.billable}`;
-                
+
                 if (seenEntries.has(entryKey)) {
                     duplicateEntries.push({
                         rowIndex: i + 1,
@@ -281,12 +319,12 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                     seenEntries.add(entryKey);
                 }
             }
-            
+
             if (duplicateEntries.length > 0) {
-                const duplicateDetails = duplicateEntries.map(entry => 
+                const duplicateDetails = duplicateEntries.map(entry =>
                     `Row ${entry.rowIndex}: ${entry.client} - ${entry.job} - ${entry.category} (Billable: ${entry.billable})`
                 ).join('\n');
-                
+
                 toast.error(`Duplicate time entries found:\n${duplicateDetails}\n\nPlease remove duplicates before saving.`);
                 setIsLoading(false);
                 return;
@@ -314,7 +352,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
             const payload = buildPayload();
             if (!payload) throw new Error('Unable to build payload');
             await addTimesheet(payload).unwrap();
-            
+
             setHasChanges(false);
             await refetchTimesheet();
         } catch (error) {
@@ -341,12 +379,12 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
 
         const newRow: TimesheetRow = {
             id: newId,
-            ref: generateClientRef(clients[0].name),
-            client: clients[0].name,
-            clientId: clients[0]._id,
-            job: jobs[0].name,
-            jobId: jobs[0]._id,
-            category: categories[0].name,
+            ref: '',
+            client: '',
+            clientId: '',
+            job: '',
+            jobId: '',
+            category: '',
             description: "",
         billable: true,
             rate: `€${billableRate.toFixed(2)}`,
@@ -373,27 +411,9 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
 
     // Update row data
     const updateRow = (rowId: string, updates: Partial<TimesheetRow>) => {
-        // Capacity enforcement: 8 hours per day (across all rows)
-        const MAX_HOURS_PER_DAY = 8;
-        const dayKeys: Array<keyof TimesheetRow['hours']> = ['mon','tue','wed','thu','fri','sat','sun'];
-
         if (updates.hours) {
-            // Determine which day(s) are being updated
-            const targetDays = dayKeys.filter(k => updates.hours && typeof updates.hours[k] === 'number');
-
-            // Build next rows tentatively
-            const nextRows = timesheetRows.map(r => r.id === rowId ? { ...r, hours: { ...r.hours, ...(updates.hours as any) } } : r);
-
-            // For each affected day, compute total and validate
-            for (const day of targetDays) {
-                const totalForDay = nextRows.reduce((sum, r) => sum + (r.hours[day] || 0), 0);
-                if (totalForDay > MAX_HOURS_PER_DAY) {
-                    toast.error(`You cannot log more than ${MAX_HOURS_PER_DAY}:00 hours in a single day.`);
-                    return; // Block the update
-                }
-            }
-
-            setTimesheetRows(nextRows);
+            // Update hours without any day limit validation
+            setTimesheetRows(rows => rows.map(r => r.id === rowId ? { ...r, hours: { ...r.hours, ...(updates.hours as any) } } : r));
             setHasChanges(true);
             return;
         }
@@ -423,6 +443,86 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
         if (timesheetSortDirection === 'desc') return <ArrowDown className="w-3 h-3" />;
         return <ArrowUpDown className="w-3 h-3 opacity-50" />;
     };
+
+    // Helper functions for flexible time input editing
+    const getTimeInputKey = (rowId: string, day: string) => `${rowId}-${day}`;
+    
+    const getTimeInputValue = (rowId: string, day: string, hoursValue: number): string => {
+        const key = getTimeInputKey(rowId, day);
+        // If there's raw input, use it; otherwise format the value
+        if (timeInputs[key] !== undefined) {
+            return timeInputs[key];
+        }
+        // Format the stored value
+        if (hoursValue === 0) return "";
+        return secondsToTime(hoursToSeconds(hoursValue));
+    };
+
+    const handleTimeFocus = (rowId: string, day: string, hoursValue: number) => {
+        const key = getTimeInputKey(rowId, day);
+        // If no raw input exists, initialize it with formatted value
+        if (timeInputs[key] === undefined) {
+            const formatted = hoursValue === 0 ? "" : secondsToTime(hoursToSeconds(hoursValue));
+            setTimeInputs(prev => ({ ...prev, [key]: formatted }));
+        }
+    };
+
+    const handleTimeChange = (rowId: string, day: string, value: string) => {
+        const key = getTimeInputKey(rowId, day);
+        // Store the raw input string
+        setTimeInputs(prev => ({ ...prev, [key]: value }));
+        
+        // Parse and update the row value in real-time for summary card updates
+        let parsedSeconds = 0;
+        if (value.trim() !== "") {
+            // Handle various formats: "3", "3:00", "03:00:00", "3:30", etc.
+            parsedSeconds = timeToSeconds(value);
+        }
+        
+        // Convert to hours and update the row immediately
+        const hoursValue = parsedSeconds / 3600;
+        const currentRow = timesheetRows.find(r => r.id === rowId);
+        if (currentRow) {
+            updateRow(rowId, {
+                hours: {
+                    ...currentRow.hours,
+                    [day]: hoursValue
+                }
+            });
+        }
+    };
+
+    const handleTimeBlur = (rowId: string, day: string) => {
+        const key = getTimeInputKey(rowId, day);
+        
+        // Get current raw value from state and parse it
+        const rawValue = timeInputs[key] || "";
+        let parsedSeconds = 0;
+        if (rawValue.trim() !== "") {
+            // Handle various formats: "3", "3:00", "03:00:00", "3:30", etc.
+            parsedSeconds = timeToSeconds(rawValue);
+        }
+        
+        // Convert to hours and update the row
+        const hoursValue = parsedSeconds / 3600;
+        const currentRow = timesheetRows.find(r => r.id === rowId);
+        if (currentRow) {
+            updateRow(rowId, {
+                hours: {
+                    ...currentRow.hours,
+                    [day]: hoursValue
+                }
+            });
+        }
+        
+        // Clear the raw input so it will be formatted on next render
+        setTimeInputs(prev => {
+            const next = { ...prev };
+            delete next[key];
+            return next;
+        });
+    };
+
     // Calculate totals using memoized function
     const totals = useMemo(() => calculateTotals(timesheetRows), [timesheetRows]);
 
@@ -432,12 +532,12 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
             return getWeekDays(timesheet.weekStart, timesheet.weekEnd);
         }
         return getWeekDays(currentWeek.weekStart, currentWeek.weekEnd);
-    }, [timesheet?.weekStart, timesheet?.weekEnd, currentWeek]);
+    }, [timesheet?.weekStart, timesheet?.weekEnd, currentWeek.weekStart, currentWeek.weekEnd]);
 
     // Get totals from API response (in seconds) or fallback to calculated totals
     const apiTotals = useMemo(() => {
         if (timesheet) {
-            return {
+        return {
                 billable: secondsToHours(timesheet.totalBillable),
                 nonBillable: secondsToHours(timesheet.totalNonBillable),
                 logged: secondsToHours(timesheet.totalLogged),
@@ -452,11 +552,46 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
         };
     }, [timesheet, totals]);
 
+    // Calculate real-time totals in seconds from current rows
+    const realTimeTotals = useMemo(() => {
+        // If there are rows, use calculated totals (convert hours to seconds)
+        if (timesheetRows.length > 0) {
+            return {
+                billable: hoursToSeconds(totals.billable.total),
+                nonBillable: hoursToSeconds(totals.nonBillable.total),
+                logged: hoursToSeconds(totals.logged.total),
+                variance: hoursToSeconds(40 - totals.logged.total),
+                capacity: hoursToSeconds(40)
+            };
+        }
+        // Otherwise use API data
+        return {
+            billable: timesheet?.totalBillable || 0,
+            nonBillable: timesheet?.totalNonBillable || 0,
+            logged: timesheet?.totalLogged || 0,
+            variance: timesheet?.totalVariance || 0,
+            capacity: timesheet?.totalCapacity || hoursToSeconds(40)
+        };
+    }, [timesheetRows.length, totals, timesheet]);
+
+    // Calculate real-time totals for percentage calculations (in hours)
+    const realTimeTotalsHours = useMemo(() => {
+        if (timesheetRows.length > 0) {
+            return {
+                billable: totals.billable.total,
+                nonBillable: totals.nonBillable.total,
+                logged: totals.logged.total,
+                variance: 40 - totals.logged.total
+            };
+        }
+        return apiTotals;
+    }, [timesheetRows.length, totals, apiTotals]);
+
     // Get daily summary data from API
     const dailySummary = useMemo(() => {
-        if (timesheet?.dailySummary) {
-            return getDailySummaryData(timesheet.dailySummary);
-        }
+        // if (timesheet?.dailySummary) {
+        //     return getDailySummaryData(timesheet.dailySummary);
+        // }
         return {
             mon: { billable: 0, nonBillable: 0, logged: 0, capacity: 0, variance: 0 },
             tue: { billable: 0, nonBillable: 0, logged: 0, capacity: 0, variance: 0 },
@@ -509,7 +644,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
         const startDate = new Date(currentWeek.weekStart);
         const endDate = new Date(currentWeek.weekEnd);
         const weekNumber = Math.ceil((startDate.getTime() - new Date(startDate.getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000));
-        
+
         // Format dates as "Sep 29 - Oct 5 2025"
         const formatDate = (date: Date) => {
             const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -519,10 +654,10 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
             const year = date.getFullYear();
             return `${month} ${day} ${year}`;
         };
-        
+
         const startFormatted = formatDate(startDate);
         const endFormatted = formatDate(endDate);
-        
+
         return {
             start: startFormatted,
             end: endFormatted,
@@ -557,10 +692,10 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
     return (
         <div className="space-y-6">
             {/* Header with Profile and Actions */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 sm:p-6 bg-card rounded-lg border gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-[auto_1fr_240px] items-center p-4 sm:p-6 bg-card rounded-lg border gap-4">
                 <div className="flex items-center gap-4">
                     <Avatar className="w-10 h-10 sm:w-12 sm:h-12">
-                        <AvatarImage src={userAvatarUrl || (currentUser as any)?.avatarUrl || "/lovable-uploads/69927594-4747-4d86-a60e-64c607e67d1f.png"} />
+                        <AvatarImage src={import.meta.env.VITE_BACKEND_BASE_URL + userAvatarUrl || (currentUser as any)?.avatarUrl || "/lovable-uploads/69927594-4747-4d86-a60e-64c607e67d1f.png"} />
                         <AvatarFallback>
                             {(userDisplayName || currentUser?.name || 'JS')?.split(' ').map((n: string) => n[0]).join('')}
                         </AvatarFallback>
@@ -571,7 +706,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                         </h2>
                     </div>
                 </div>
-                <div className="flex items-center justify-center flex-1 gap-2">
+                <div className="flex items-center justify-center gap-2 order-3 sm:order-2">
                     <Button
                         type="button"
                         variant="outline"
@@ -595,35 +730,37 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                         <ChevronRight className="w-4 h-4" />
                     </Button>
                 </div>
-                <div className="flex gap-2 w-full sm:w-auto">
-                    {timesheet?.status === 'draft' ? (
-                        <Button 
-                            variant="outline" 
-                            className="text-green-600 border-green-600 hover:bg-green-50 flex-1 sm:flex-none text-sm" 
-                            onClick={async () => {
-                                try {
-                                    if (!timesheet?._id) return;
-                                    await changeTimesheetStatus({ status: 'reviewed', timeSheetId: timesheet._id }).unwrap();
-                                    await refetchTimesheet();
-                                } catch (e) {
-                                    console.error('Failed to submit timesheet for approval', e);
-                                }
-                            }}
-                            disabled={isSubmittingStatus}
-                        >
-                            {isSubmittingStatus ? 'Submitting...' : 'Submit for Approval'}
+                <div className="flex justify-end order-2 sm:order-3 w-full">
+                    <div className="w-full sm:w-[180px] sm:min-w-[180px] flex justify-end">
+                        {timesheet?.status === 'draft' ? (
+                            <Button
+                                variant="outline"
+                                className="text-green-600 border-green-600 hover:bg-green-50 text-sm w-full sm:w-[180px] sm:min-w-[180px] whitespace-nowrap"
+                                onClick={async () => {
+                                    try {
+                                        if (!timesheet?._id) return;
+                                        await changeTimesheetStatus({ status: 'reviewed', timeSheetId: timesheet._id }).unwrap();
+                                        await refetchTimesheet();
+                                    } catch (e) {
+                                        console.error('Failed to submit timesheet for approval', e);
+                                    }
+                                }}
+                                disabled={isSubmittingStatus}
+                            >
+                                {isSubmittingStatus ? 'Submitting...' : 'Submit for Approval'}
                     </Button>
-                    ) : (
-                        <div className="flex items-center px-3 py-1 border rounded text-sm">
-                            {timesheet?.status === 'submitted' && <span className="text-amber-600">Submitted</span>}
-                            {/^auto\s*approved$/i.test(timesheet?.status || '') && <span className="text-green-600">Auto Approved</span>}
-                            {/^approved$/i.test(timesheet?.status || '') && <span className="text-green-600">Approved</span>}
-                            {/^rejected$/i.test(timesheet?.status || '') && <span className="text-red-600">Rejected</span>}
-                            {!['submitted','approved','rejected'].includes((timesheet?.status || '').toLowerCase()) && (
-                                <span className="text-muted-foreground">{timesheet?.status === "reviewed" && "Submitted For Approval"}</span>
-                            )}
-                        </div>
-                    )}
+                        ) : (
+                            <div className="flex items-center px-3 py-1 border rounded text-sm w-full sm:w-[180px] sm:min-w-[180px] justify-end sm:justify-center">
+                                {timesheet?.status === 'submitted' && <span className="text-amber-600">Submitted</span>}
+                                {/^auto\s*approved$/i.test(timesheet?.status || '') && <span className="text-green-600">Auto Approved</span>}
+                                {/^approved$/i.test(timesheet?.status || '') && <span className="text-green-600">Approved</span>}
+                                {/^rejected$/i.test(timesheet?.status || '') && <span className="text-red-600">Rejected</span>}
+                                {!['submitted', 'approved', 'rejected'].includes((timesheet?.status || '').toLowerCase()) && (
+                                    <span className="text-muted-foreground">{timesheet?.status === "reviewed" && "Submitted For Approval"}</span>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -683,10 +820,10 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                     <CardContent className="p-4">
                         <div className="flex items-baseline gap-2">
                             <div className="text-2xl font-bold !text-[#381980]">
-                                {formatSeconds(timesheet?.totalBillable || 0)}
+                                {formatSeconds(realTimeTotals.billable)}
                             </div>
                             <div className="text-xs sm:text-sm text-muted-foreground">
-                                ({apiTotals.logged > 0 ? (apiTotals.billable / apiTotals.logged * 100).toFixed(1) : 0}%)
+                                ({realTimeTotalsHours.logged > 0 ? (realTimeTotalsHours.billable / realTimeTotalsHours.logged * 100).toFixed(1) : 0}%)
                             </div>
                         </div>
                         <p className="text-sm text-muted-foreground">Billable</p>
@@ -696,10 +833,10 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                     <CardContent className="p-4">
                         <div className="flex items-baseline gap-2">
                             <div className="text-2xl font-bold !text-[#381980]">
-                                {formatSeconds(timesheet?.totalNonBillable || 0)}
+                                {formatSeconds(realTimeTotals.nonBillable)}
                             </div>
                             <div className="text-xs sm:text-sm text-muted-foreground">
-                                ({apiTotals.logged > 0 ? (apiTotals.nonBillable / apiTotals.logged * 100).toFixed(1) : 0}%)
+                                ({realTimeTotalsHours.logged > 0 ? (realTimeTotalsHours.nonBillable / realTimeTotalsHours.logged * 100).toFixed(1) : 0}%)
                             </div>
                         </div>
                         <p className="text-sm text-muted-foreground">Non-Billable</p>
@@ -709,10 +846,10 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                     <CardContent className="p-4">
                         <div className="flex items-baseline gap-2">
                             <div className="text-2xl font-bold !text-[#381980]">
-                                {formatSeconds(timesheet?.totalLogged || 0)}
+                                {formatSeconds(realTimeTotals.logged)}
                             </div>
                             <div className="text-xs sm:text-sm text-muted-foreground">
-                                ({(apiTotals.logged / 40 * 100).toFixed(1)}%)
+                                ({(realTimeTotalsHours.logged / 40 * 100).toFixed(1)}%)
                             </div>
                         </div>
                         <p className="text-sm text-muted-foreground">Total Logged</p>
@@ -722,10 +859,10 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                     <CardContent className="p-4">
                         <div className="flex items-baseline gap-2">
                             <div className="text-2xl font-bold !text-[#381980]">
-                                {formatSeconds(timesheet?.totalVariance || 0)}
+                                {formatSeconds(realTimeTotals.variance)}
                             </div>
                             <div className="text-xs sm:text-sm text-muted-foreground">
-                                ({((apiTotals.variance) / 40 * 100).toFixed(1)}%)
+                                ({((realTimeTotalsHours.variance) / 40 * 100).toFixed(1)}%)
                             </div>
                         </div>
                         <p className="text-sm text-muted-foreground">Variance</p>
@@ -739,8 +876,8 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
             <div className={`flex flex-col sm:flex-row items-stretch sm:items-center gap-3 ${shouldShowApproveRejectButtons ? 'justify-between' : 'justify-end'}`}>
                 {shouldShowApproveRejectButtons && (
                 <div className="flex items-center gap-2">
-                        <Button 
-                            variant="outline" 
+                        <Button
+                            variant="outline"
                             className="text-green-600 border-green-600 hover:bg-green-50 h-9 text-sm"
                             disabled={isSubmittingStatus || timesheet?.status === 'approved' || timesheet?.status === 'rejected' || timesheet?.status !== 'reviewed'}
                             onClick={async () => {
@@ -755,8 +892,8 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                         >
                             {isSubmittingStatus ? 'Approving...' : 'Approve'}
                     </Button>
-                        <Button 
-                            variant="outline" 
+                        <Button
+                            variant="outline"
                             className="text-red-600 border-red-600 hover:bg-red-50 h-9 text-sm"
                             disabled={isSubmittingStatus || timesheet?.status === 'approved' || timesheet?.status === 'rejected' || timesheet?.status !== 'reviewed'}
                             onClick={async () => {
@@ -778,17 +915,17 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                         <span className="text-sm text-muted-foreground">Hide Weekend</span>
                         <Switch checked={hideWeekend} onCheckedChange={setHideWeekend} />
                     </div>
-                    <Button 
-                        variant="outline" 
-                        className="flex items-center justify-center gap-2 text-primary border-primary hover:bg-primary/10 h-9 text-sm" 
+                    <Button
+                        variant="outline"
+                        className="flex items-center justify-center gap-2 text-primary border-primary hover:bg-primary/10 h-9 text-sm"
                         onClick={handleAddRow}
                         disabled={isLoading || (timesheet?.status && timesheet?.status !== 'draft')}
                     >
                         <Plus className="w-4 h-4" />
                         New Row
                     </Button>
-                    <Button 
-                        variant="outline" 
+                    <Button
+                        variant="outline"
                         className="flex items-center justify-center gap-2 text-primary border-primary hover:bg-primary/10 h-9 text-sm"
                         onClick={handleSaveChanges}
                         disabled={!hasChanges || isLoading || (timesheet?.status && timesheet?.status !== 'draft')}
@@ -818,7 +955,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                         <div>
                             <h4 className="text-red-800 font-medium">Duplicate Entries Detected</h4>
                             <p className="text-red-600 text-sm">
-                                You have duplicate time entries with the same client, job, category, and billable status. 
+                                You have duplicate time entries with the same client, job, category, and billable status.
                                 Please remove duplicates before saving.
                             </p>
                         </div>
@@ -834,7 +971,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                             <tr>
                                 <th className="text-left px-2 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-20 sm:w-24">
                                     <button className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleTimesheetSort('ref')}>
-                                        <span className="hidden sm:inline">CLIENT REF</span>
+                                        <span className="hidden sm:inline w-20">CLIENT REF</span>
                                         <span className="sm:hidden">REF</span>
                                         {getTimesheetSortIcon('ref')}
                                     </button>
@@ -855,7 +992,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                 </th>
                                 <th className="text-left px-2 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-20 sm:w-24">
                                     <button className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleTimesheetSort('category')}>
-                                        <span className="hidden sm:inline">CATEGORY</span>
+                                        <span className="hidden sm:inline">TIME PURPOSE</span>
                                         <span className="sm:hidden">CAT</span>
                                         {getTimesheetSortIcon('category')}
                                     </button>
@@ -870,7 +1007,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                 <th className="text-center px-2 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-16 sm:w-20">BILLABLE</th>
                                 <th className="text-left px-2 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-36 sm:w-16">
                                     <button className="w-36 flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleTimesheetSort('rate')}>
-                                    BILLABLE RATE
+                                        BILLABLE RATE
                                         {getTimesheetSortIcon('rate')}
                                     </button>
                                 </th>
@@ -916,30 +1053,32 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
                                             <Button variant="ghost" size="sm" className="text-left p-0 h-8 font-normal w-full justify-start">
-                                                {row.client} <ChevronDown className="ml-1 w-3 h-3" />
+                                                    {row.client || 'Select client'} <ChevronDown className="ml-1 w-3 h-3" />
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent>
-                                            {clients.map(client => <DropdownMenuItem key={client._id} onClick={() => {
+                                                {clients.map(client => <DropdownMenuItem key={client._id} onClick={() => {
                                                 const generateClientRef = (clientName: string) => {
                                                     const firstThreeLetters = clientName.substring(0, 3).toUpperCase();
                                                     const year = new Date().getFullYear().toString().slice(-2);
                                                     return `${firstThreeLetters}-${year}`;
                                                 };
-                                                // Get filtered jobs for the selected client
-                                                const filteredJobs = getFilteredJobs(client._id);
-                                                const firstJob = filteredJobs[0];
-                                                
-                                                updateRow(row.id, {
-                                                    client: client.name,
-                                                    clientId: client._id,
-                                                    ref: generateClientRef(client.name),
-                                                    // Reset job to first available job for this client
-                                                    job: firstJob ? firstJob.name : '',
-                                                    jobId: firstJob ? firstJob._id : ''
-                                                });
-                                            }}>
-                                                {client.name}
+                                                    // Get filtered jobs for the selected client
+                                                    const filteredJobs = getFilteredJobs(client._id);
+                                                    const firstJob = filteredJobs[0];
+                                                    const firstCategory = categories[0];
+                                                    updateRow(row.id, {
+                                                        client: client.name,
+                                                        clientId: client._id,
+                                                        ref: generateClientRef(client.name),
+                                                        // Reset job to first available job for this client
+                                                        job: firstJob ? firstJob.name : '',
+                                                        jobId: firstJob ? firstJob._id : '',
+                                                        // Default category (enabled after client selection)
+                                                        category: firstCategory ? firstCategory.name : ''
+                                                    });
+                                                }}>
+                                                    {client.name}
                                             </DropdownMenuItem>)}
                                         </DropdownMenuContent>
                                     </DropdownMenu>
@@ -947,18 +1086,18 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                 <td className="px-3 py-2 text-sm">
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="sm" className="text-left p-0 h-8 font-normal w-full justify-start">
-                                                {row.job} <ChevronDown className="ml-1 w-3 h-3" />
+                                                <Button variant="ghost" size="sm" className="text-left p-0 h-8 font-normal w-full justify-start" disabled={!row.clientId}>
+                                                    {row.job || 'Select job'} <ChevronDown className="ml-1 w-3 h-3" />
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent>
-                                            {getFilteredJobs(row.clientId).map(job => <DropdownMenuItem key={job._id} onClick={() => {
-                                                updateRow(row.id, {
-                                                    job: job.name,
-                                                    jobId: job._id
-                                                });
-                                            }}>
-                                                {job.name}
+                                                {getFilteredJobs(row.clientId).map(job => <DropdownMenuItem key={job._id} onClick={() => {
+                                                    updateRow(row.id, {
+                                                        job: job.name,
+                                                        jobId: job._id
+                                                    });
+                                                }}>
+                                                    {job.name}
                                             </DropdownMenuItem>)}
                                         </DropdownMenuContent>
                                     </DropdownMenu>
@@ -966,132 +1105,125 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                 <td className="px-3 py-2">
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="sm" className="text-left p-0 h-8 font-normal">
+                                                <Button variant="ghost" size="sm" className="text-left p-0 h-8 font-normal" disabled={!row.clientId}>
                                                 <span className={`px-2 py-1 text-xs rounded whitespace-nowrap flex items-center ${row.category === 'Client Work' ? 'bg-blue-100 text-blue-800' : row.category === 'Admin' ? 'bg-green-100 text-green-800' : row.category === 'Training' ? 'bg-orange-100 text-orange-800' : row.category === 'Meeting' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}`}>
-                                                    {row.category} <ChevronDown className="ml-1 w-3 h-3" />
+                                                        {row.category || 'Select category'} <ChevronDown className="ml-1 w-3 h-3" />
                                                 </span>
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent>
-                                            {categories.map(category => <DropdownMenuItem key={category._id} onClick={() => {
-                                                updateRow(row.id, {
-                                                    category: category.name
-                                                });
-                                            }}>
-                                                {category.name}
+                                                {categories.map(category => <DropdownMenuItem key={category._id} onClick={() => {
+                                                    updateRow(row.id, {
+                                                        category: category.name
+                                                    });
+                                                }}>
+                                                    {category.name}
                                             </DropdownMenuItem>)}
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </td>
                                 <td className="px-3 py-2 text-sm">
                                     <Input value={row.description} onChange={e => {
-                                        updateRow(row.id, {
+                                            updateRow(row.id, {
                                             description: e.target.value
-                                        });
+                                            });
                                     }} className="border border-input p-1 h-8 bg-background text-sm rounded" placeholder="Add description..." />
                                 </td>
                                 <td className="px-3 py-2 text-center">
                                     <Switch checked={row.billable} onCheckedChange={checked => {
-                                        updateRow(row.id, {
+                                            updateRow(row.id, {
                                             billable: checked
-                                        });
+                                            });
                                     }} />
                                 </td>
                                 <td className="px-3 py-2 text-sm">
-                                    {billableRate ? <span className="text-sm">{'€'+billableRate}</span> : null}
+                                        {billableRate ? <span className="text-sm">{'€' + billableRate}</span> : null}
                                 </td>
                                 <td className="px-3 py-2 text-center text-sm">
-                                    <Input type="text" value={row.hours.mon === 0 ? "" : secondsToTime(hoursToSeconds(row.hours.mon))} onChange={e => {
-                                        const timeStr = e.target.value;
-                                        const value = timeToSeconds(timeStr) / 3600; // Convert seconds to hours
-                                        updateRow(row.id, {
-                                                hours: {
-                                                ...row.hours,
-                                                    mon: value
-                                                }
-                                        });
-                                    }} placeholder="HH:mm:ss" className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
+                                        <Input 
+                                            type="text" 
+                                            value={getTimeInputValue(row.id, 'mon', row.hours.mon)} 
+                                            onChange={e => handleTimeChange(row.id, 'mon', e.target.value)}
+                                            onFocus={() => handleTimeFocus(row.id, 'mon', row.hours.mon)}
+                                            onBlur={() => handleTimeBlur(row.id, 'mon')}
+                                            placeholder="hh:mm:ss" 
+                                            className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded" 
+                                        />
                                 </td>
                                 <td className="px-3 py-2 text-center text-sm">
-                                    <Input type="text" value={row.hours.tue === 0 ? "" : secondsToTime(hoursToSeconds(row.hours.tue))} onChange={e => {
-                                        const timeStr = e.target.value;
-                                        const value = timeToSeconds(timeStr) / 3600;
-                                        updateRow(row.id, {
-                                                hours: {
-                                                ...row.hours,
-                                                    tue: value
-                                                }
-                                        });
-                                    }} placeholder="HH:mm:ss" className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
+                                        <Input 
+                                            type="text" 
+                                            value={getTimeInputValue(row.id, 'tue', row.hours.tue)} 
+                                            onChange={e => handleTimeChange(row.id, 'tue', e.target.value)}
+                                            onFocus={() => handleTimeFocus(row.id, 'tue', row.hours.tue)}
+                                            onBlur={() => handleTimeBlur(row.id, 'tue')}
+                                            placeholder="hh:mm:ss" 
+                                            className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded" 
+                                        />
                                 </td>
                                 <td className="px-3 py-2 text-center text-sm">
-                                    <Input type="text" value={row.hours.wed === 0 ? "" : secondsToTime(hoursToSeconds(row.hours.wed))} onChange={e => {
-                                        const timeStr = e.target.value;
-                                        const value = timeToSeconds(timeStr) / 3600;
-                                        updateRow(row.id, {
-                                                hours: {
-                                                ...row.hours,
-                                                    wed: value
-                                                }
-                                        });
-                                    }} placeholder="HH:mm:ss" className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
+                                        <Input 
+                                            type="text" 
+                                            value={getTimeInputValue(row.id, 'wed', row.hours.wed)} 
+                                            onChange={e => handleTimeChange(row.id, 'wed', e.target.value)}
+                                            onFocus={() => handleTimeFocus(row.id, 'wed', row.hours.wed)}
+                                            onBlur={() => handleTimeBlur(row.id, 'wed')}
+                                            placeholder="hh:mm:ss" 
+                                            className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded" 
+                                        />
                                 </td>
                                 <td className="px-3 py-2 text-center text-sm">
-                                    <Input type="text" value={row.hours.thu === 0 ? "" : secondsToTime(hoursToSeconds(row.hours.thu))} onChange={e => {
-                                        const timeStr = e.target.value;
-                                        const value = timeToSeconds(timeStr) / 3600;
-                                        updateRow(row.id, {
-                                                hours: {
-                                                ...row.hours,
-                                                    thu: value
-                                                }
-                                        });
-                                    }} placeholder="HH:mm:ss" className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
+                                        <Input 
+                                            type="text" 
+                                            value={getTimeInputValue(row.id, 'thu', row.hours.thu)} 
+                                            onChange={e => handleTimeChange(row.id, 'thu', e.target.value)}
+                                            onFocus={() => handleTimeFocus(row.id, 'thu', row.hours.thu)}
+                                            onBlur={() => handleTimeBlur(row.id, 'thu')}
+                                            placeholder="hh:mm:ss" 
+                                            className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded" 
+                                        />
                                 </td>
                                 <td className="px-3 py-2 text-center text-sm">
-                                    <Input type="text" value={row.hours.fri === 0 ? "" : secondsToTime(hoursToSeconds(row.hours.fri))} onChange={e => {
-                                        const timeStr = e.target.value;
-                                        const value = timeToSeconds(timeStr) / 3600;
-                                        updateRow(row.id, {
-                                                hours: {
-                                                ...row.hours,
-                                                    fri: value
-                                                }
-                                        });
-                                    }} placeholder="HH:mm:ss" className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
+                                        <Input 
+                                            type="text" 
+                                            value={getTimeInputValue(row.id, 'fri', row.hours.fri)} 
+                                            onChange={e => handleTimeChange(row.id, 'fri', e.target.value)}
+                                            onFocus={() => handleTimeFocus(row.id, 'fri', row.hours.fri)}
+                                            onBlur={() => handleTimeBlur(row.id, 'fri')}
+                                            placeholder="hh:mm:ss" 
+                                            className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded" 
+                                        />
                                 </td>
                                 {!hideWeekend && <td className="px-3 py-2 text-center text-sm">
-                                    <Input type="text" value={row.hours.sat === 0 ? "" : secondsToTime(hoursToSeconds(row.hours.sat))} onChange={e => {
-                                        const timeStr = e.target.value;
-                                        const value = timeToSeconds(timeStr) / 3600;
-                                        updateRow(row.id, {
-                                                hours: {
-                                                ...row.hours,
-                                                    sat: value
-                                                }
-                                        });
-                                    }} placeholder="HH:mm:ss" className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
+                                        <Input 
+                                            type="text" 
+                                            value={getTimeInputValue(row.id, 'sat', row.hours.sat)} 
+                                            onChange={e => handleTimeChange(row.id, 'sat', e.target.value)}
+                                            onFocus={() => handleTimeFocus(row.id, 'sat', row.hours.sat)}
+                                            onBlur={() => handleTimeBlur(row.id, 'sat')}
+                                            placeholder="hh:mm:ss" 
+                                            className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded" 
+                                        />
                                 </td>}
                                 {!hideWeekend && <td className="px-3 py-2 text-center text-sm">
-                                    <Input type="text" value={row.hours.sun === 0 ? "" : secondsToTime(hoursToSeconds(row.hours.sun))} onChange={e => {
-                                        const timeStr = e.target.value;
-                                        const value = timeToSeconds(timeStr) / 3600;
-                                        updateRow(row.id, {
-                                                hours: {
-                                                ...row.hours,
-                                                    sun: value
-                                                }
-                                        });
-                                    }} placeholder="HH:mm:ss" className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded" />
+                                        <Input 
+                                            type="text" 
+                                            value={getTimeInputValue(row.id, 'sun', row.hours.sun)} 
+                                            onChange={e => handleTimeChange(row.id, 'sun', e.target.value)}
+                                            onFocus={() => handleTimeFocus(row.id, 'sun', row.hours.sun)}
+                                            onBlur={() => handleTimeBlur(row.id, 'sun')}
+                                            placeholder="hh:mm:ss" 
+                                            className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded" 
+                                        />
                                 </td>}
                                 <td className="px-3 py-2 text-right">
                                     <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700" onClick={() => {
-                                        handleDeleteRow(row.id);
+                                            handleDeleteRow(row.id);
                                     }}>
                                         <Trash2 className="w-4 h-4" />
                                     </Button>
                                 </td>
-                            </tr>;
+                                </tr>;
                             })}
                         </tbody>
                         {/* Summary rows */}
@@ -1113,7 +1245,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                         {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].billable))}
                                     </td>
                                 ))}
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatSeconds(timesheet?.totalBillable || 0)}</td>
+                                <td className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap w-20 min-w-[80px]">{formatSeconds(timesheet?.totalBillable || 0)}</td>
                             </tr>
                             <tr className="bg-gray-50">
                                 <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right">NON BILLABLE</td>
@@ -1132,7 +1264,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                         {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].nonBillable))}
                                     </td>
                                 ))}
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatSeconds(timesheet?.totalNonBillable || 0)}</td>
+                                <td className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap w-20 min-w-[80px]">{formatSeconds(timesheet?.totalNonBillable || 0)}</td>
                             </tr>
                             <tr className="bg-blue-50">
                                 <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right">LOGGED</td>
@@ -1151,7 +1283,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                         {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].logged))}
                                     </td>
                                 ))}
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatSeconds(timesheet?.totalLogged || 0)}</td>
+                                <td className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap w-20 min-w-[80px]">{formatSeconds(timesheet?.totalLogged || 0)}</td>
                             </tr>
                             <tr className="bg-gray-100">
                                 <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right">CAPACITY</td>
@@ -1170,7 +1302,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                         {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].capacity))}
                                     </td>
                                 ))}
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatSeconds(timesheet?.totalCapacity || 0)}</td>
+                                <td className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap w-20 min-w-[80px]">{formatSeconds(timesheet?.totalCapacity || 0)}</td>
                             </tr>
                             <tr className="bg-red-50">
                                 <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right">VARIANCE</td>
@@ -1189,7 +1321,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                         {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].variance))}
                                     </td>
                                 ))}
-                                <td className="px-3 py-2 text-center text-sm font-normal">{formatSeconds(timesheet?.totalVariance || 0)}</td>
+                                <td className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap w-20 min-w-[80px]">{formatSeconds(timesheet?.totalVariance || 0)}</td>
                             </tr>
                         </tbody>
                     </table>

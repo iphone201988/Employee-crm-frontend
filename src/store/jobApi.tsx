@@ -135,6 +135,11 @@ export const jobApi = createApi({
   }),
   tagTypes: ['Job'],
   endpoints: (builder) => ({
+    // Get single job by id with timelogs
+    getJob: builder.query<{ success: boolean; message: string; data: Job; timeLogs: any[] }, string>({
+      query: (jobId) => ({ url: `/${jobId}` }),
+      providesTags: (result, _error, id) => [{ type: 'Job', id }, { type: 'Job', id: 'LIST' }],
+    }),
     // Endpoint to create a new job
     createJob: builder.mutation<CreateJobResponse, Partial<JobMutationRequest>>({
       query: (newJobData) => ({
@@ -196,4 +201,5 @@ export const {
   useGetJobsQuery,
   useUpdateJobMutation,
   useDeleteJobMutation, // Export the new hook
+  useGetJobQuery,
 } = jobApi;

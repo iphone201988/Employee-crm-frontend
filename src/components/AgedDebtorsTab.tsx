@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DashboardCard, DashboardGrid } from "@/components/ui/dashboard-card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { TrendingDown, AlertTriangle, Calendar, FileDown } from 'lucide-react';
 import ClientNameLink from './ClientNameLink';
 import ClientDetailsDialog from './ClientDetailsDialog';
 import InvoiceTimeLogsDialog from './InvoiceTimeLogsDialog';
+import { useGetAgedDebtorsQuery } from '@/store/wipApi';
 
 interface AgedDebtorEntry {
   id: string;
@@ -33,6 +34,13 @@ const AgedDebtorsTab = () => {
   const [isClientDialogOpen, setIsClientDialogOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [isTimeLogsDialogOpen, setIsTimeLogsDialogOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const { data: agedResp, isLoading } = useGetAgedDebtorsQuery({ page, limit });
+  const apiClients = agedResp?.data?.clients || [];
+  const apiSummary = agedResp?.data?.summary || {}; // days30, days60, days90Plus, days150Plus
+  const apiTotals = agedResp?.data?.totals || {};
+
   const [agedDebtors] = useState<AgedDebtorEntry[]>([
     {
       id: '1',
@@ -305,7 +313,21 @@ const AgedDebtorsTab = () => {
   });
 
   // Calculate totals
-  const totals = agedDebtors.reduce((acc, entry) => ({
+  const totals = useMemo(() => {
+    if (apiTotals && Object.keys(apiTotals).length > 0) {
+      return {
+        balance: apiTotals.balance || 0,
+        unallocated: 0,
+        current: 0,
+        days30: apiTotals.days30 || 0,
+        days60: apiTotals.days60 || 0,
+        days90: apiTotals.days90 || 0,
+        days120: apiTotals.days120 || 0,
+        days150: apiTotals.days150 || 0,
+        days180: apiTotals.days180 || 0,
+      } as any;
+    }
+    return agedDebtors.reduce((acc, entry) => ({
     balance: acc.balance + entry.balance,
     unallocated: acc.unallocated + entry.unallocated,
     current: acc.current + entry.current,
@@ -326,6 +348,7 @@ const AgedDebtorsTab = () => {
     days150: 0,
     days180: 0
   });
+  }, [agedResp]);
 
   const getRiskLevel = (entry: AgedDebtorEntry) => {
     if (entry.days180 > 0) return 'high';
@@ -334,7 +357,29 @@ const AgedDebtorsTab = () => {
     return 'current';
   };
 
-  const sortedEntries = [...agedDebtors].sort((a, b) => {
+  const entries = useMemo(() => {
+    if (apiClients.length > 0) {
+      return apiClients.map((c: any) => ({
+        id: c.clientId,
+        clientRef: c.clientRef,
+        client: c.clientName,
+        jobCode: '-',
+        jobDescription: '-',
+        balance: c.balance,
+        unallocated: 0,
+        current: 0,
+        days30: c.days30,
+        days60: c.days60,
+        days90: c.days90,
+        days120: c.days120,
+        days150: c.days150,
+        days180: c.days180,
+      } as AgedDebtorEntry));
+    }
+    return agedDebtors;
+  }, [agedResp]);
+
+  const sortedEntries = [...entries].sort((a, b) => {
     switch (sortBy) {
       case 'balance':
         return b.balance - a.balance;
@@ -354,7 +399,7 @@ const AgedDebtorsTab = () => {
         <Card className="h-full">
           <CardContent className="p-4">
             <div className="text-2xl font-bold !text-[#381980]">
-              €{totals.days30.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              €{(apiSummary.days30 ?? totals.days30).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <p className="text-sm text-muted-foreground">30 Days</p>
           </CardContent>
@@ -362,7 +407,7 @@ const AgedDebtorsTab = () => {
         <Card className="h-full">
           <CardContent className="p-4">
             <div className="text-2xl font-bold !text-[#381980]">
-              €{totals.days60.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              €{(apiSummary.days60 ?? totals.days60).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <p className="text-sm text-muted-foreground">60 Days</p>
           </CardContent>
@@ -370,7 +415,7 @@ const AgedDebtorsTab = () => {
         <Card className="h-full">
           <CardContent className="p-4">
             <div className="text-2xl font-bold !text-[#381980]">
-              €{(totals.days90 + totals.days120).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              €{((apiSummary.days90Plus ?? 0) || (totals.days90 + totals.days120)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <p className="text-sm text-muted-foreground">90+ Days</p>
           </CardContent>
@@ -378,7 +423,7 @@ const AgedDebtorsTab = () => {
         <Card className="h-full">
           <CardContent className="p-4">
             <div className="text-2xl font-bold !text-[#381980]">
-              €{(totals.days150 + totals.days180).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              €{((apiSummary.days150Plus ?? 0) || (totals.days150 + totals.days180)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <p className="text-sm text-muted-foreground">150+ Days</p>
           </CardContent>
@@ -414,7 +459,7 @@ const AgedDebtorsTab = () => {
                       </td>
                       <td className="p-3">
                         <div className="font-medium">
-                          <ClientNameLink clientName={entry.client} />
+                          <ClientNameLink clientName={entry.client} ciientId={entry.id} />
                         </div>
                       </td>
                       <td className="p-3 text-right text-sm">€{entry.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
@@ -446,13 +491,45 @@ const AgedDebtorsTab = () => {
         </CardContent>
       </Card>
 
-      {/* Client Details Dialog */}
-      {selectedClient && (
-        <ClientDetailsDialog
-          open={isClientDialogOpen}
-          onOpenChange={setIsClientDialogOpen}
-          clientData={getClientData(selectedClient)}
-        />
+      {/* Pagination */}
+      {agedResp?.data?.pagination && (
+        <div className="space-y-4 mt-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">Show:</span>
+              <select
+                value={limit}
+                onChange={(e) => { setPage(1); setLimit(Number(e.target.value)); }}
+                className="border border-gray-300 rounded px-2 py-1 text-sm"
+                disabled={isLoading}
+              >
+                <option value={5}>5 per page</option>
+                <option value={10}>10 per page</option>
+                <option value={20}>20 per page</option>
+                <option value={50}>50 per page</option>
+              </select>
+            </div>
+            <div className="text-sm text-gray-500">
+              {(() => {
+                const total = agedResp.data.pagination.totals || 0;
+                const start = total > 0 ? ((page - 1) * limit) + 1 : 0;
+                const end = Math.min(page * limit, total);
+                return `Showing ${start} to ${end} of ${total} clients`;
+              })()}
+            </div>
+          </div>
+          {(() => {
+            const total = agedResp.data.pagination.totals || 0;
+            const totalPages = Math.max(1, Math.ceil(total / limit));
+            if (totalPages <= 1) return null;
+            return (
+              <div className="flex justify-center items-center gap-2">
+                <Button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1 || isLoading} variant="outline" size="sm">Previous</Button>
+                <Button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages || isLoading} variant="outline" size="sm">Next</Button>
+              </div>
+            );
+          })()}
+        </div>
       )}
 
       {/* Invoice Time Logs Dialog */}

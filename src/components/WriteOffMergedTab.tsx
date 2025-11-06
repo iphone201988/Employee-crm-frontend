@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { DashboardCard, DashboardGrid } from "@/components/ui/dashboard-card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -11,12 +11,15 @@ import { Search, ArrowUpDown } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency';
 import { formatTime, TimeFormat } from '@/utils/timeFormat';
 import ClientNameLink from './ClientNameLink';
+import { useGetWriteOffDashboardQuery, useGetWriteOffQuery } from '@/store/wipApi';
 
 interface WriteOffMergedData {
+  id?: string;
   name: string;
   ref?: string;
   clientName?: string;
   clientRef?: string;
+  clientId?: string;
   department?: string;
   jobType?: string;
   writeOffOccasions: number;
@@ -45,46 +48,85 @@ const WriteOffMergedTab = () => {
   const [selectedJobs, setSelectedJobs] = useState<{ name: string; jobs: string[] } | null>(null);
   const [showLogView, setShowLogView] = useState(false);
   const [timeFormat] = useState<TimeFormat>('0:00');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [logPage, setLogPage] = useState(1);
+  const [logLimit, setLogLimit] = useState(10);
 
-  // Generate comprehensive data for all filter types
+  // API integration: map active filter to backend type
+  const apiType: 'client' | 'job' | 'jobtype' | 'team' = useMemo(() => {
+    if (activeFilter === 'clients') return 'client';
+    if (activeFilter === 'jobs') return 'job';
+    if (activeFilter === 'job-type') return 'jobtype';
+    return 'team';
+  }, [activeFilter]);
+
+  const { data: dashboardResp, isLoading } = useGetWriteOffDashboardQuery({ type: apiType, page, limit });
+
+  // Preserve raw data for dialogs
+  const rawItems: any[] = dashboardResp?.data || [];
+
+  // Map API data to table rows per type
   const generateData = (): WriteOffMergedData[] => {
-    const clientsData = [
-      { name: 'Water Savers Limited', ref: 'WAT-23', writeOffOccasions: 3, totalWriteOffValue: 2450.00, noJobsWithWriteOff: 2, totalFees: 12000.00, writeOffValue: 2450.00, percentageWriteOff: 20.4, jobsWithWriteOff: ['Annual Accounts Preparation', 'Monthly Bookkeeping'] },
-      { name: 'Green Gardens Limited', ref: 'GRE-25', writeOffOccasions: 5, totalWriteOffValue: 1920.00, noJobsWithWriteOff: 3, totalFees: 8500.00, writeOffValue: 1920.00, percentageWriteOff: 22.6, jobsWithWriteOff: ['VAT Return Quarterly', 'Payroll Services', 'Tax Advisory'] },
-      { name: 'Smith & Associates', ref: 'SMI-22', writeOffOccasions: 2, totalWriteOffValue: 980.00, noJobsWithWriteOff: 1, totalFees: 6200.00, writeOffValue: 980.00, percentageWriteOff: 15.8, jobsWithWriteOff: ['Corporation Tax Return'] },
-      { name: 'Tech Solutions Ltd', ref: 'TEC-25', writeOffOccasions: 4, totalWriteOffValue: 3200.00, noJobsWithWriteOff: 3, totalFees: 15000.00, writeOffValue: 3200.00, percentageWriteOff: 21.3, jobsWithWriteOff: ['Management Accounts', 'Business Advisory', 'Financial Planning'] },
-      { name: 'Marketing Pro', ref: 'MAR-20', writeOffOccasions: 2, totalWriteOffValue: 1675.00, noJobsWithWriteOff: 1, totalFees: 7800.00, writeOffValue: 1675.00, percentageWriteOff: 21.5, jobsWithWriteOff: ['Budget Preparation'] }
-    ];
-
-    const jobsData = [
-      { name: 'Annual Accounts Preparation', ref: 'WAT-23-ACC', clientName: 'Water Savers Limited', clientRef: 'WAT-23', writeOffOccasions: 2, totalWriteOffValue: 1450.00, noJobsWithWriteOff: 1, totalFees: 6000.00, writeOffValue: 1450.00, percentageWriteOff: 24.2, jobsWithWriteOff: ['Annual Accounts Preparation'] },
-      { name: 'Monthly Bookkeeping', ref: 'GRE-25-BK', clientName: 'Green Gardens Limited', clientRef: 'GRE-25', writeOffOccasions: 3, totalWriteOffValue: 920.00, noJobsWithWriteOff: 1, totalFees: 4200.00, writeOffValue: 920.00, percentageWriteOff: 21.9, jobsWithWriteOff: ['Monthly Bookkeeping'] },
-      { name: 'VAT Return Quarterly', ref: 'SMI-22-VAT', clientName: 'Smith & Associates', clientRef: 'SMI-22', writeOffOccasions: 1, totalWriteOffValue: 580.00, noJobsWithWriteOff: 1, totalFees: 3600.00, writeOffValue: 580.00, percentageWriteOff: 16.1, jobsWithWriteOff: ['VAT Return Quarterly'] },
-      { name: 'Tax Advisory Services', ref: 'TEC-25-TAX', clientName: 'Tech Solutions Ltd', clientRef: 'TEC-25', writeOffOccasions: 2, totalWriteOffValue: 1800.00, noJobsWithWriteOff: 1, totalFees: 8500.00, writeOffValue: 1800.00, percentageWriteOff: 21.2, jobsWithWriteOff: ['Tax Advisory Services'] }
-    ];
-
-    const jobTypeData = [
-      { name: 'Annual Accounts', writeOffOccasions: 8, totalWriteOffValue: 4850.00, noJobsWithWriteOff: 5, totalFees: 28000.00, writeOffValue: 4850.00, percentageWriteOff: 17.3, jobsWithWriteOff: ['WAT-23-ACC', 'GRE-25-ACC', 'SMI-22-ACC', 'TEC-25-ACC', 'MAR-20-ACC'] },
-      { name: 'Bookkeeping Services', writeOffOccasions: 12, totalWriteOffValue: 3200.00, noJobsWithWriteOff: 8, totalFees: 18500.00, writeOffValue: 3200.00, percentageWriteOff: 17.3, jobsWithWriteOff: ['Monthly Bookkeeping - Client A', 'Weekly Bookkeeping - Client B', 'Quarterly Bookkeeping - Client C', 'Annual Bookkeeping - Client D', 'Daily Bookkeeping - Client E', 'Monthly Bookkeeping - Client F', 'Weekly Bookkeeping - Client G', 'Quarterly Bookkeeping - Client H'] },
-      { name: 'Tax Advisory', writeOffOccasions: 6, totalWriteOffValue: 2850.00, noJobsWithWriteOff: 4, totalFees: 15200.00, writeOffValue: 2850.00, percentageWriteOff: 18.8, jobsWithWriteOff: ['Tax Planning - Client A', 'Tax Advisory - Client B', 'Tax Optimization - Client C', 'Tax Compliance - Client D'] },
-      { name: 'VAT Returns', writeOffOccasions: 4, totalWriteOffValue: 1320.00, noJobsWithWriteOff: 3, totalFees: 7800.00, writeOffValue: 1320.00, percentageWriteOff: 16.9, jobsWithWriteOff: ['VAT Return Q1 - Client A', 'VAT Return Q2 - Client B', 'VAT Return Q3 - Client C'] }
-    ];
-
-    const teamData = [
-      { name: 'John Smith', writeOffOccasions: 8, totalWriteOffValue: 3450.00, noJobsWithWriteOff: 6, totalFees: 18500.00, writeOffValue: 3450.00, percentageWriteOff: 18.6, jobsWithWriteOff: ['Annual Accounts - Water Savers', 'VAT Return - Smith & Associates', 'Tax Advisory - Tech Solutions', 'Bookkeeping - Green Gardens', 'Payroll - Marketing Pro', 'Management Accounts - ABC Ltd'] },
-      { name: 'Sarah Connor', writeOffOccasions: 5, totalWriteOffValue: 2820.00, noJobsWithWriteOff: 4, totalFees: 15200.00, writeOffValue: 2820.00, percentageWriteOff: 18.5, jobsWithWriteOff: ['Corporation Tax - Client A', 'Tax Planning - Client B', 'Advisory Services - Client C', 'Compliance Review - Client D'] },
-      { name: 'Mike Johnson', writeOffOccasions: 6, totalWriteOffValue: 1980.00, noJobsWithWriteOff: 5, totalFees: 12000.00, writeOffValue: 1980.00, percentageWriteOff: 16.5, jobsWithWriteOff: ['Monthly Bookkeeping - Client A', 'Weekly Reconciliation - Client B', 'Quarterly Accounts - Client C', 'Annual Setup - Client D', 'Daily Processing - Client E'] },
-      { name: 'Anna Brown', writeOffOccasions: 4, totalWriteOffValue: 3200.00, noJobsWithWriteOff: 3, totalFees: 16500.00, writeOffValue: 3200.00, percentageWriteOff: 19.4, jobsWithWriteOff: ['Business Advisory - Client A', 'Strategic Planning - Client B', 'Financial Review - Client C'] },
-      { name: 'David Wilson', writeOffOccasions: 7, totalWriteOffValue: 2650.00, noJobsWithWriteOff: 5, totalFees: 14200.00, writeOffValue: 2650.00, percentageWriteOff: 18.7, jobsWithWriteOff: ['Audit Preparation - Client A', 'Statutory Audit - Client B', 'Internal Audit - Client C', 'Risk Assessment - Client D', 'Compliance Audit - Client E'] }
-    ];
-
-    switch (activeFilter) {
-      case 'clients': return clientsData;
-      case 'jobs': return jobsData;
-      case 'job-type': return jobTypeData;
-      case 'team': return teamData;
-      default: return clientsData;
-    }
+    if (!rawItems || rawItems.length === 0) return [];
+    return rawItems.map((item: any) => {
+      if (apiType === 'client') {
+        return {
+          id: item._id,
+          name: item.name || 'N/A',
+          ref: item.clientRef || 'N/A',
+          clientId: item._id || undefined,
+          writeOffOccasions: Array.isArray(item.occasionDetails) ? item.occasionDetails.length : 0,
+          totalWriteOffValue: Number(item.totalWriteOffValue || 0),
+          noJobsWithWriteOff: Number(item.jobsWithWriteOffCount || (Array.isArray(item.jobsWithWriteOff) ? item.jobsWithWriteOff.length : 0)),
+          totalFees: Number(item.totalFees || 0),
+          writeOffValue: Number(item.totalWriteOffValue || 0),
+          percentageWriteOff: Number(item.writeOffPercentage || 0),
+          jobsWithWriteOff: (item.uniqueJobs || []).map((j: any) => j.name)
+        } as WriteOffMergedData;
+      }
+      if (apiType === 'team') {
+        return {
+          id: item._id,
+          name: item.name || 'N/A',
+          writeOffOccasions: Array.isArray(item.occasionDetails) ? item.occasionDetails.length : 0,
+          totalWriteOffValue: Number(item.totalWriteOffValue || 0),
+          noJobsWithWriteOff: Number(item.jobsCount || 0),
+          totalFees: Number(item.totalFees || 0),
+          writeOffValue: Number(item.totalWriteOffValue || 0),
+          percentageWriteOff: Number(item.writeOffPercentage || 0),
+          jobsWithWriteOff: (item.uniqueJobs || []).map((j: any) => j.name)
+        } as WriteOffMergedData;
+      }
+      if (apiType === 'jobtype') {
+        return {
+          id: item._id,
+          name: item.categoryName || 'N/A',
+          writeOffOccasions: Array.isArray(item.occasionDetails) ? item.occasionDetails.length : 0,
+          totalWriteOffValue: Number(item.totalWriteOffValue || 0),
+          noJobsWithWriteOff: Number(item.jobsCount || 0),
+          totalFees: Number(item.totalFees || 0),
+          writeOffValue: Number(item.totalWriteOffValue || 0),
+          percentageWriteOff: Number(item.writeOffPercentage || 0),
+          jobsWithWriteOff: (item.uniqueJobs || []).map((j: any) => j.name)
+        } as WriteOffMergedData;
+      }
+      // job
+      return {
+        id: item._id,
+        name: item.name || 'N/A',
+        clientName: item.clientDetails?.name || 'N/A',
+        clientRef: item.clientDetails?.clientRef || 'N/A',
+        clientId: item.clientDetails?._id || undefined,
+        writeOffOccasions: Array.isArray(item.occasionDetails) ? item.occasionDetails.length : 0,
+        totalWriteOffValue: Number(item.totalWriteOffValue || 0),
+        noJobsWithWriteOff: 1,
+        totalFees: Number(item.totalFees || 0),
+        writeOffValue: Number(item.totalWriteOffValue || 0),
+        percentageWriteOff: Number(item.writeOffPercentage || 0),
+        jobsWithWriteOff: (item.uniqueJobs || []).map((j: any) => j.name)
+      } as WriteOffMergedData;
+    });
   };
 
   const handleSort = (key: string) => {
@@ -139,43 +181,66 @@ const WriteOffMergedTab = () => {
   const totalWriteOffs = filteredData.reduce((sum, item) => sum + item.totalWriteOffValue, 0);
   const totalOccasions = filteredData.reduce((sum, item) => sum + item.writeOffOccasions, 0);
   const totalJobs = filteredData.reduce((sum, item) => sum + item.noJobsWithWriteOff, 0);
-  const avgPercentage = filteredData.reduce((sum, item) => sum + item.percentageWriteOff, 0) / filteredData.length || 0;
+  const avgPercentage = filteredData.reduce((sum, item) => sum + item.percentageWriteOff, 0) / (filteredData.length || 1);
 
   const handleOccasionsClick = (item: WriteOffMergedData) => {
-    // Generate mock details for the dialog
-    const details: WriteOffDetail[] = Array.from({ length: item.writeOffOccasions }, (_, i) => ({
-      amount: Math.floor(item.totalWriteOffValue / item.writeOffOccasions * (0.8 + Math.random() * 0.4)),
-      date: new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000).toLocaleDateString('en-GB'),
-      by: ['John Smith', 'Sarah Connor', 'Mike Johnson'][i % 3],
-      logic: i % 2 === 0 ? 'Proportionally' : 'Manually',
-      reason: ['Client dispute over scope', 'Performance issues', 'Relationship management', 'Quality concerns'][i % 4]
-    }));
-
-    setSelectedOccasions({ name: item.name, occasions: item.writeOffOccasions, details });
+    // Find matching raw item to get real occasionDetails
+    const match = rawItems.find((ri: any) => {
+      if (apiType === 'client') return ri.name === item.name;
+      if (apiType === 'team') return ri.name === item.name;
+      if (apiType === 'jobtype') return ri.categoryName === item.name;
+      return ri.name === item.name;
+    });
+    const details: WriteOffDetail[] = Array.isArray(match?.occasionDetails)
+      ? match.occasionDetails.map((d: any) => ({
+          amount: Number(d.amount || 0),
+          date: d.date ? new Date(d.date).toLocaleDateString('en-GB') : '-',
+          by: d.by || 'N/A',
+          logic: d.logic || '-',
+          reason: d.reason || '-'
+        }))
+      : [];
+    setSelectedOccasions({ name: item.name, occasions: details.length, details });
   };
 
   const handleJobsClick = (item: WriteOffMergedData) => {
     setSelectedJobs({ name: item.name, jobs: item.jobsWithWriteOff || [] });
   };
 
-  // Generate log data for the log view
-  const generateLogData = () => {
-    return [
-      { id: 1, date: '2024-01-15', client: 'Water Savers Limited', job: 'Annual Accounts Preparation', amount: 1450.00, by: 'John Smith', reason: 'Client dispute over scope', logic: 'Proportionally' },
-      { id: 2, date: '2024-01-22', client: 'Green Gardens Limited', job: 'Monthly Bookkeeping', amount: 920.00, by: 'Sarah Connor', reason: 'Performance issues', logic: 'Manually' },
-      { id: 3, date: '2024-02-03', client: 'Smith & Associates', job: 'VAT Return Quarterly', amount: 580.00, by: 'Mike Johnson', reason: 'Relationship management', logic: 'Proportionally' },
-      { id: 4, date: '2024-02-18', client: 'Tech Solutions Ltd', job: 'Tax Advisory Services', amount: 1800.00, by: 'Anna Brown', reason: 'Quality concerns', logic: 'Manually' },
-      { id: 5, date: '2024-03-05', client: 'Marketing Pro', job: 'Budget Preparation', amount: 1675.00, by: 'David Wilson', reason: 'Scope disagreement', logic: 'Proportionally' },
-      { id: 6, date: '2024-03-12', client: 'Water Savers Limited', job: 'Monthly Bookkeeping', amount: 1000.00, by: 'John Smith', reason: 'Time overrun', logic: 'Manually' },
-      { id: 7, date: '2024-03-25', client: 'Green Gardens Limited', job: 'Payroll Services', amount: 500.00, by: 'Sarah Connor', reason: 'Client relationship', logic: 'Proportionally' },
-      { id: 8, date: '2024-04-02', client: 'Green Gardens Limited', job: 'Tax Advisory', amount: 500.00, by: 'Mike Johnson', reason: 'Performance adjustment', logic: 'Manually' }
-    ];
-  };
+  // Fetch write-off log data
+  const { data: writeOffLogResp, isLoading: isLoadingLog } = useGetWriteOffQuery(
+    showLogView ? { page: logPage, limit: logLimit } : undefined,
+    { skip: !showLogView }
+  );
+
+  const logData = useMemo(() => {
+    if (!writeOffLogResp?.data || !Array.isArray(writeOffLogResp.data)) return [];
+    return writeOffLogResp.data.map((item: any) => {
+      const clientDetails = typeof item.clientDetails === 'object' && item.clientDetails !== null 
+        ? item.clientDetails 
+        : null;
+      const jobs = Array.isArray(item.jobs) && item.jobs.length > 0 && typeof item.jobs[0] === 'object'
+        ? item.jobs
+        : [];
+      const firstJob = jobs.length > 0 ? jobs[0] : null;
+      
+      return {
+        id: item._id,
+        date: item.createdAt ? new Date(item.createdAt).toISOString() : null,
+        client: clientDetails?.name || 'N/A',
+        clientId: clientDetails?._id || undefined,
+        job: firstJob?.name || (Array.isArray(item.jobs) && item.jobs[0] === 'N/A' ? 'N/A' : 'N/A'),
+        amount: Number(item.amount || 0),
+        by: item.by || 'N/A',
+        reason: item.reason || 'N/A',
+        logic: item.logic === 'proportionally' ? 'Proportionally' : item.logic === 'manually' ? 'Manually' : item.logic || 'N/A'
+      };
+    });
+  }, [writeOffLogResp]);
+
+  const logTotalWriteOffs = writeOffLogResp?.totalWriteOffs || logData.reduce((sum, entry) => sum + entry.amount, 0);
 
   if (showLogView) {
-    const logData = generateLogData();
-
-    console.log("enter herte ")
     return (
       <div className="space-y-6">
         {/* Header with back button */}
@@ -209,25 +274,41 @@ const WriteOffMergedTab = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {logData.map((entry) => (
-                    <TableRow key={entry.id}>
-                      <TableCell className="text-left">{new Date(entry.date).toLocaleDateString('en-GB')}</TableCell>
-                      <TableCell className="text-left font-medium">
-                        <ClientNameLink clientName={entry.client} />
+                  {isLoadingLog ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                        Loading write-off log...
                       </TableCell>
-                      <TableCell className="text-left">{entry.job}</TableCell>
-                      <TableCell className="text-left font-medium text-red-600">{formatCurrency(entry.amount)}</TableCell>
-                      <TableCell className="text-left">{entry.by}</TableCell>
-                      <TableCell className="text-left">{entry.reason}</TableCell>
-                      <TableCell className="text-left">{entry.logic}</TableCell>
                     </TableRow>
-                  ))}
+                  ) : logData.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                        No write-off records found
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    logData.map((entry) => (
+                      <TableRow key={entry.id}>
+                        <TableCell className="text-left">
+                          {entry.date ? new Date(entry.date).toLocaleDateString('en-GB') : 'N/A'}
+                        </TableCell>
+                        <TableCell className="text-left font-medium">
+                          <ClientNameLink name={entry.client} ciientId={entry.clientId} />
+                        </TableCell>
+                        <TableCell className="text-left">{entry.job}</TableCell>
+                        <TableCell className="text-left font-medium text-red-600">{formatCurrency(entry.amount)}</TableCell>
+                        <TableCell className="text-left">{entry.by}</TableCell>
+                        <TableCell className="text-left">{entry.reason}</TableCell>
+                        <TableCell className="text-left">{entry.logic}</TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
                 <tfoot className="bg-muted/50 border-t-2">
                   <tr>
                     <td className="p-3 text-left font-medium" colSpan={3}>Total Write Offs</td>
                     <td className="p-3 text-left font-medium text-red-600">
-                      {formatCurrency(logData.reduce((sum, entry) => sum + entry.amount, 0))}
+                      {formatCurrency(logTotalWriteOffs)}
                     </td>
                     <td className="p-3" colSpan={3}></td>
                   </tr>
@@ -236,12 +317,91 @@ const WriteOffMergedTab = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Pagination Controls for Log View */}
+        {writeOffLogResp?.pagination && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600">Show:</span>
+                <select
+                  value={logLimit}
+                  onChange={(e) => { setLogPage(1); setLogLimit(Number(e.target.value)); }}
+                  className="border border-gray-300 rounded px-2 py-1 text-sm"
+                >
+                  <option value={5}>5 per page</option>
+                  <option value={10}>10 per page</option>
+                  <option value={20}>20 per page</option>
+                  <option value={50}>50 per page</option>
+                </select>
+              </div>
+              <div className="text-sm text-gray-500">
+                {(() => {
+                  const total = writeOffLogResp.pagination.total || 0;
+                  const start = total > 0 ? ((logPage - 1) * logLimit) + 1 : 0;
+                  const end = Math.min(logPage * logLimit, total);
+                  return `Showing ${start} to ${end} of ${total} records`;
+                })()}
+              </div>
+            </div>
+            {(() => {
+              const totalPages = Math.max(1, Number(writeOffLogResp.pagination.totalPages || 1));
+              if (totalPages <= 1) return null;
+              return (
+                <div className="flex justify-center items-center gap-2">
+                  <Button onClick={() => setLogPage(p => Math.max(1, p - 1))} disabled={logPage === 1} variant="outline" size="sm">Previous</Button>
+                  <span className="text-sm">Page {logPage} of {totalPages}</span>
+                  <Button onClick={() => setLogPage(p => Math.min(totalPages, p + 1))} disabled={logPage >= totalPages} variant="outline" size="sm">Next</Button>
+                </div>
+              );
+            })()}
+          </div>
+        )}
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
+      {/* Pagination Controls */}
+      {dashboardResp?.pagination && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">Show:</span>
+              <select
+                value={limit}
+                onChange={(e) => { setPage(1); setLimit(Number(e.target.value)); }}
+                className="border border-gray-300 rounded px-2 py-1 text-sm"
+              >
+                <option value={5}>5 per page</option>
+                <option value={10}>10 per page</option>
+                <option value={20}>20 per page</option>
+                <option value={50}>50 per page</option>
+              </select>
+            </div>
+            <div className="text-sm text-gray-500">
+              {(() => {
+                const total = dashboardResp.pagination.total || 0;
+                const start = total > 0 ? ((page - 1) * limit) + 1 : 0;
+                const end = Math.min(page * limit, total);
+                return `Showing ${start} to ${end} of ${total} records`;
+              })()}
+            </div>
+          </div>
+          {(() => {
+            const totalPages = Math.max(1, Number(dashboardResp.pagination.totalPages || 1));
+            if (totalPages <= 1) return null;
+            return (
+              <div className="flex justify-center items-center gap-2">
+                <Button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} variant="outline" size="sm">Previous</Button>
+                <span className="text-sm">Page {page} of {totalPages}</span>
+                <Button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages} variant="outline" size="sm">Next</Button>
+              </div>
+            );
+          })()}
+        </div>
+      )}
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="h-full">
@@ -473,17 +633,17 @@ const WriteOffMergedTab = () => {
                       <TableCell className="p-3 text-sm text-left">{item.ref}</TableCell>
                     )}
                     <TableCell className="p-3 text-sm font-medium text-left">
-                      {activeFilter === 'clients' ? (
-                        <ClientNameLink clientName={item.name} />
-                      ) : (
-                        item.name
-                      )}
+                    {activeFilter === 'clients' ? (
+                      <ClientNameLink name={item.name} ciientId={item.clientId} />
+                    ) : (
+                      item.name
+                    )}
                     </TableCell>
                     {activeFilter === 'jobs' && (
                       <>
                         <TableCell className="p-3 text-sm text-left">{item.clientRef}</TableCell>
                         <TableCell className="p-3 text-sm text-left">
-                          <ClientNameLink clientName={item.clientName || ''} />
+                          <ClientNameLink name={item.clientName || ''} ciientId={item.clientId} />
                         </TableCell>
                       </>
                     )}

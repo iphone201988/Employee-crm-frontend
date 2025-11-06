@@ -1,7 +1,6 @@
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, X } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency';
 
@@ -9,7 +8,8 @@ export interface ExpenseItem {
   id: string;
   description: string;
   amount: number;
-  includeVAT?: boolean;
+  vatPercent?: number;
+  locked?: boolean;
 }
 
 interface ExpensesSectionProps {
@@ -53,6 +53,7 @@ export const ExpensesSection = ({
               value={expense.description}
               onChange={(e) => onUpdateExpense(expense.id, 'description', e.target.value)}
               className="flex-1"
+              disabled={!!expense.locked}
             />
             <Input
               type="number"
@@ -60,24 +61,21 @@ export const ExpensesSection = ({
               value={expense.amount}
               onChange={(e) => onUpdateExpense(expense.id, 'amount', parseFloat(e.target.value) || 0)}
               className="w-32"
+              disabled={!!expense.locked}
             />
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id={`vat-${expense.id}`}
-                checked={expense.includeVAT || false}
-                onCheckedChange={(checked) => onUpdateExpense(expense.id, 'includeVAT', checked)}
-              />
-              <label
-                htmlFor={`vat-${expense.id}`}
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                Include VAT
-              </label>
-            </div>
+            <Input
+              type="number"
+              placeholder="VAT %"
+              value={expense.vatPercent ?? 0}
+              onChange={(e) => onUpdateExpense(expense.id, 'vatPercent', parseFloat(e.target.value) || 0)}
+              className="w-24"
+              disabled={!!expense.locked}
+            />
             <Button
               variant="outline"
               size="sm"
               onClick={() => onRemoveExpense(expense.id)}
+              disabled={!!expense.locked}
             >
               <X className="h-4 w-4" />
             </Button>

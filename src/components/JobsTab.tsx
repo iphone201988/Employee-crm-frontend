@@ -560,6 +560,7 @@ const JobsTab = () => {
                                     <TableRow key={job._id}>
                                         <TableCell>
                                             <JobNameLink
+                                                jobId={job._id}
                                                 jobName={job.name}
                                                 jobFee={job.jobCost}
                                                 wipAmount={job.actualCost || 0}

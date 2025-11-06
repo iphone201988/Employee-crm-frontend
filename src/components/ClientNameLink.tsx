@@ -10,7 +10,10 @@ interface ClientNameLinkProps {
 
 const ClientNameLink = ({ name, clientName, className = "", ciientId }: ClientNameLinkProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const { data: client } = useGetClientQuery(ciientId || "");
+  const { data: client } = useGetClientQuery(ciientId as string, {
+    skip: !ciientId || !isDialogOpen,
+    refetchOnMountOrArgChange: false,
+  });
   const displayName = name || clientName;
 
   if (!displayName) {

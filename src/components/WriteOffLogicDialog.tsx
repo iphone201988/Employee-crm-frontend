@@ -16,22 +16,30 @@ import { useToast } from "@/hooks/use-toast";
 
 interface TimeLogEntry {
   id: string;
+  timeLogId?: string;
   teamMember: string;
   hours: number;
   billableRate: number;
   amount: number;
   date: string;
   description?: string;
+  duration?: number;
+  clientId?: string;
+  jobId?: string;
+  userId?: string;
+  jobCategoryId?: string;
+  originalAmount?: number;
+  writeOffPercentage?: number;
+  writeOffAmount?: number;
 }
 
 interface TeamMemberGroup {
   teamMember: string;
   totalHours: number;
   totalAmount: number;
+  totalWriteOffAmount: number;
   billableRate: number;
   timeLogs: TimeLogEntry[];
-  percentage: number;
-  writeOffAmount: number;
 }
 
 interface WriteOffLogicDialogProps {
@@ -42,7 +50,24 @@ interface WriteOffLogicDialogProps {
   timeLogs: TimeLogEntry[];
   totalAmount: number;
   writeOffBalance: number;
-  onSave?: (data: { reason: string; teamMemberGroups: Record<string, TeamMemberGroup> }) => void;
+  invoiceNo?: string;
+  invoiceDate?: string;
+  onSave?: (data: {
+    reason: string;
+    writeOffBalance: number;
+    timeLogs: Array<{
+      timeLogId: string;
+      writeOffAmount: number;
+      writeOffPercentage: number;
+      originalAmount: number;
+      duration: number;
+      clientId: string;
+      jobId: string;
+      userId: string;
+      jobCategoryId: string;
+    }>;
+    logic: 'proportionally' | 'manually';
+  }) => void;
 }
 
 const WriteOffLogicDialog = ({
@@ -53,46 +78,59 @@ const WriteOffLogicDialog = ({
   timeLogs,
   totalAmount,
   writeOffBalance,
+  invoiceNo,
+  invoiceDate,
   onSave
 }: WriteOffLogicDialogProps) => {
   const { toast } = useToast();
   const [expandedMembers, setExpandedMembers] = useState<Set<string>>(new Set());
   const [isManualMode, setIsManualMode] = useState(false);
   const [teamMemberGroups, setTeamMemberGroups] = useState<Record<string, TeamMemberGroup>>({});
+  const [logsWithWriteOff, setLogsWithWriteOff] = useState<TimeLogEntry[]>([]);
   const [writeOffReason, setWriteOffReason] = useState('');
+  const [writeOffReasonError, setWriteOffReasonError] = useState<string | null>(null);
 
-  // Group time logs by team member and initialize
+  // Initialize logs with write-off percentages and amounts
   useEffect(() => {
-    const grouped = timeLogs.reduce((acc, log) => {
+    // Initialize each log with proportional write-off
+    const initializedLogs = timeLogs.map(log => {
+      const logAmount = log.amount || log.originalAmount || 0;
+      const percentage = totalAmount > 0 ? (logAmount / totalAmount) * 100 : 0;
+      const writeOffAmt = (percentage / 100) * writeOffBalance;
+      return {
+        ...log,
+        writeOffPercentage: percentage,
+        writeOffAmount: writeOffAmt,
+        originalAmount: logAmount
+      };
+    });
+
+    setLogsWithWriteOff(initializedLogs);
+
+    // Group by team member for display
+    const grouped = initializedLogs.reduce((acc, log) => {
       if (!acc[log.teamMember]) {
         acc[log.teamMember] = {
           teamMember: log.teamMember,
           totalHours: 0,
           totalAmount: 0,
+          totalWriteOffAmount: 0,
           billableRate: log.billableRate,
-          timeLogs: [],
-          percentage: 0,
-          writeOffAmount: 0
+          timeLogs: []
         };
       }
       acc[log.teamMember].totalHours += log.hours;
-      acc[log.teamMember].totalAmount += log.amount;
+      acc[log.teamMember].totalAmount += log.amount || log.originalAmount || 0;
+      acc[log.teamMember].totalWriteOffAmount += log.writeOffAmount || 0;
       acc[log.teamMember].timeLogs.push(log);
       return acc;
     }, {} as Record<string, TeamMemberGroup>);
-
-    // Calculate proportional percentages and amounts
-    const totalHours = Object.values(grouped).reduce((sum, group) => sum + group.totalHours, 0);
-    Object.values(grouped).forEach(group => {
-      group.percentage = totalHours > 0 ? (group.totalHours / totalHours) * 100 : 0;
-      group.writeOffAmount = (group.percentage / 100) * writeOffBalance;
-    });
 
     setTeamMemberGroups(grouped);
     
     // Default to collapsed view
     setExpandedMembers(new Set());
-  }, [timeLogs, writeOffBalance]);
+  }, [timeLogs, writeOffBalance, totalAmount]);
 
   const toggleMember = (memberName: string) => {
     setExpandedMembers(prev => {
@@ -119,30 +157,84 @@ const WriteOffLogicDialog = ({
 
   const handleSpreadProportionally = () => {
     setIsManualMode(false);
-    const totalHours = Object.values(teamMemberGroups).reduce((sum, group) => sum + group.totalHours, 0);
-    
-    const updated = { ...teamMemberGroups };
-    Object.values(updated).forEach(group => {
-      group.percentage = totalHours > 0 ? (group.totalHours / totalHours) * 100 : 0;
-      group.writeOffAmount = (group.percentage / 100) * writeOffBalance;
+    const updatedLogs = logsWithWriteOff.map(log => {
+      const logAmount = log.amount || log.originalAmount || 0;
+      const percentage = totalAmount > 0 ? (logAmount / totalAmount) * 100 : 0;
+      const writeOffAmt = (percentage / 100) * writeOffBalance;
+      return {
+        ...log,
+        writeOffPercentage: percentage,
+        writeOffAmount: writeOffAmt
+      };
     });
     
-    setTeamMemberGroups(updated);
+    setLogsWithWriteOff(updatedLogs);
+    
+    // Recalculate team member groups
+    const grouped = updatedLogs.reduce((acc, log) => {
+      if (!acc[log.teamMember]) {
+        acc[log.teamMember] = {
+          teamMember: log.teamMember,
+          totalHours: 0,
+          totalAmount: 0,
+          totalWriteOffAmount: 0,
+          billableRate: log.billableRate,
+          timeLogs: []
+        };
+      }
+      acc[log.teamMember].totalHours += log.hours;
+      acc[log.teamMember].totalAmount += log.amount || log.originalAmount || 0;
+      acc[log.teamMember].totalWriteOffAmount += log.writeOffAmount || 0;
+      acc[log.teamMember].timeLogs.push(log);
+      return acc;
+    }, {} as Record<string, TeamMemberGroup>);
+    
+    setTeamMemberGroups(grouped);
   };
 
   const handleManualChoose = () => {
     setIsManualMode(true);
   };
 
-  const updatePercentage = (memberName: string, percentage: number) => {
-    const updated = { ...teamMemberGroups };
-    updated[memberName].percentage = percentage;
-    updated[memberName].writeOffAmount = (percentage / 100) * writeOffBalance;
-    setTeamMemberGroups(updated);
+  const updateLogWriteOffPercentage = (logId: string, percentage: number) => {
+    const updatedLogs = logsWithWriteOff.map(log => {
+      if (log.id === logId || log.timeLogId === logId) {
+        const writeOffAmt = (percentage / 100) * writeOffBalance;
+        return {
+          ...log,
+          writeOffPercentage: percentage,
+          writeOffAmount: writeOffAmt
+        };
+      }
+      return log;
+    });
+    
+    setLogsWithWriteOff(updatedLogs);
+    
+    // Recalculate team member groups
+    const grouped = updatedLogs.reduce((acc, log) => {
+      if (!acc[log.teamMember]) {
+        acc[log.teamMember] = {
+          teamMember: log.teamMember,
+          totalHours: 0,
+          totalAmount: 0,
+          totalWriteOffAmount: 0,
+          billableRate: log.billableRate,
+          timeLogs: []
+        };
+      }
+      acc[log.teamMember].totalHours += log.hours;
+      acc[log.teamMember].totalAmount += log.amount || log.originalAmount || 0;
+      acc[log.teamMember].totalWriteOffAmount += log.writeOffAmount || 0;
+      acc[log.teamMember].timeLogs.push(log);
+      return acc;
+    }, {} as Record<string, TeamMemberGroup>);
+    
+    setTeamMemberGroups(grouped);
   };
 
-  const totalPercentage = Object.values(teamMemberGroups).reduce((sum, group) => sum + group.percentage, 0);
-  const totalWriteOffAmount = Object.values(teamMemberGroups).reduce((sum, group) => sum + group.writeOffAmount, 0);
+  const totalPercentage = logsWithWriteOff.reduce((sum, log) => sum + (log.writeOffPercentage || 0), 0);
+  const totalWriteOffAmount = logsWithWriteOff.reduce((sum, log) => sum + (log.writeOffAmount || 0), 0);
 
   const handlePrint = () => {
     window.print();
@@ -150,6 +242,7 @@ const WriteOffLogicDialog = ({
 
   const handleSave = () => {
     if (!writeOffReason.trim()) {
+      setWriteOffReasonError('Write Off Reason is required.');
       toast({
         title: "Write Off Reason Required",
         description: "Please provide a reason for the write off.",
@@ -157,6 +250,7 @@ const WriteOffLogicDialog = ({
       });
       return;
     }
+    setWriteOffReasonError(null);
 
     if (isManualMode && totalPercentage !== 100) {
       toast({
@@ -167,20 +261,33 @@ const WriteOffLogicDialog = ({
       return;
     }
 
+    // Prepare time logs in the format expected by the API
+    const timeLogsData = logsWithWriteOff.map(log => ({
+      timeLogId: log.timeLogId || log.id,
+      writeOffAmount: log.writeOffAmount || 0,
+      writeOffPercentage: log.writeOffPercentage || 0,
+      originalAmount: log.originalAmount || log.amount || 0,
+      duration: log.duration || (log.hours * 3600),
+      clientId: log.clientId || '',
+      jobId: log.jobId || '',
+      userId: log.userId || '',
+      jobCategoryId: log.jobCategoryId || ''
+    }));
+
     const saveData = {
       reason: writeOffReason,
-      teamMemberGroups
+      writeOffBalance: writeOffBalance,
+      timeLogs: timeLogsData,
+      logic: isManualMode ? 'manually' as const : 'proportionally' as const
     };
 
     if (onSave) {
       onSave(saveData);
+      // onSave will handle closing the dialog, so we don't need to call onOpenChange here
+      return;
     }
 
-    toast({
-      title: "Write Off Saved",
-      description: "Write off logic has been successfully applied.",
-    });
-
+    // If no onSave callback, just close the dialog
     onOpenChange(false);
   };
   const dateRange = timeLogs.length > 0 ? timeLogs.reduce((acc, log) => {
@@ -272,23 +379,8 @@ const WriteOffLogicDialog = ({
                       <td className="p-3 text-center font-bold">{group.totalHours.toFixed(2)}</td>
                       <td className="p-3 text-center">{formatCurrency(group.billableRate)}</td>
                       <td className="p-3 text-center font-bold">{formatCurrency(group.totalAmount)}</td>
-                      <td className="p-3 text-center">
-                        {isManualMode ? (
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            max="100"
-                            value={group.percentage.toFixed(2)}
-                            onChange={(e) => updatePercentage(group.teamMember, parseFloat(e.target.value) || 0)}
-                            className="w-20 mx-auto"
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        ) : (
-                          <span className="font-bold">{group.percentage.toFixed(2)}%</span>
-                        )}
-                      </td>
-                      <td className="p-3 text-center font-bold text-red-600">{formatCurrency(group.writeOffAmount)}</td>
+                      <td className="p-3 text-center">-</td>
+                      <td className="p-3 text-center font-bold text-red-600">{formatCurrency(group.totalWriteOffAmount)}</td>
                     </tr>
                     
                     {/* Individual Time Log Rows */}
@@ -300,9 +392,24 @@ const WriteOffLogicDialog = ({
                         <td className="p-3 text-center text-sm">{new Date(log.date).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</td>
                         <td className="p-3 text-center text-sm">{log.hours.toFixed(2)}</td>
                         <td className="p-3 text-center text-sm">-</td>
-                        <td className="p-3 text-center text-sm">{formatCurrency(log.amount)}</td>
-                        <td className="p-3 text-center text-sm">-</td>
-                        <td className="p-3 text-center text-sm">-</td>
+                        <td className="p-3 text-center text-sm">{formatCurrency(log.amount || log.originalAmount || 0)}</td>
+                        <td className="p-3 text-center text-sm">
+                          {isManualMode ? (
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              max="100"
+                              value={(log.writeOffPercentage || 0).toFixed(2)}
+                              onChange={(e) => updateLogWriteOffPercentage(log.id || log.timeLogId || '', parseFloat(e.target.value) || 0)}
+                              className="w-20 mx-auto text-sm"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          ) : (
+                            <span className="font-bold">{(log.writeOffPercentage || 0).toFixed(2)}%</span>
+                          )}
+                        </td>
+                        <td className="p-3 text-center text-sm font-bold text-red-600">{formatCurrency(log.writeOffAmount || 0)}</td>
                       </tr>
                     ))}
                   </React.Fragment>
@@ -348,6 +455,9 @@ const WriteOffLogicDialog = ({
               onChange={(e) => setWriteOffReason(e.target.value)}
               className="min-h-[80px]"
             />
+          {writeOffReasonError && (
+            <p className="text-sm text-red-600 mt-1">{writeOffReasonError}</p>
+          )}
           </div>
 
           {/* Action buttons at bottom */}
@@ -372,7 +482,7 @@ const WriteOffLogicDialog = ({
               onClick={handleSave}
               className="bg-primary hover:bg-primary/90 text-white px-8"
             >
-              Save Write Off
+              Go back and save
             </Button>
           </div>
         </div>

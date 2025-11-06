@@ -17,6 +17,13 @@ export const clientApi = createApi({
     }),
     tagTypes: ['Client', 'ClientServices'],
     endpoints: (builder) => ({
+        getClientBreakdown: builder.query<any, { page: number; limit: number }>({
+            query: ({ page, limit }) => ({
+                url: `/breakdown?page=${page}&limit=${limit}`,
+                method: 'GET',
+            }),
+            providesTags: ['Client'],
+        }),
         addClient: builder.mutation<IAddClientResponse, ClientData>({
             query: (body: ClientData) => ({
                 url: '/add',
@@ -99,6 +106,7 @@ export const clientApi = createApi({
 export const {
     useAddClientMutation,
     useGetClientsQuery,
+    useGetClientBreakdownQuery,
     useGetClientServicesQuery,
     useUpdateClientServicesMutation,
     useUpdateClientMutation,

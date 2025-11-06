@@ -11,6 +11,7 @@ import { DashboardCard, DashboardGrid } from "@/components/ui/dashboard-card";
 import { Switch } from "@/components/ui/switch";
 import ClientsTab from '@/components/ClientsTab';
 import ClientDetailsDialog from '@/components/ClientDetailsDialog';
+import ClientNameLink from '@/components/ClientNameLink';
 import ServiceChangesLogDialog from '@/components/ServiceChangesLogDialog';
 import CustomTabs from '@/components/Tabs';
 import AddClient from '@/components/client/AddClient';
@@ -45,7 +46,7 @@ const ClientInformationTab = () => {
   const { data: clientsData, isLoading, error } = useGetClientsQuery({ page, limit });
 
   const clientInfo = clientsData?.data?.clients || [];
-
+console.log('clientInfo===========', clientInfo); 
   const [clientInfoSortConfig, setClientInfoSortConfig] = useState<{ key: string | null; direction: 'asc' | 'desc' }>({ key: null, direction: 'asc' });
   const [clientInfoSearch, setClientInfoSearch] = useState('');
   const [clientTypeFilter, setClientTypeFilter] = useState('all');
@@ -442,15 +443,7 @@ const ClientInformationTab = () => {
                     <TableRow key={client._id} className="h-12">
                       <TableCell className="p-4 text-sm w-20 border-r text-left">{client.clientRef}</TableCell>
                       <TableCell className="font-medium text-left p-4 text-sm w-32 border-r">
-                        <span
-                          className="cursor-pointer text-blue-600 hover:text-blue-800 hover:underline"
-                          onClick={() => {
-                            setSelectedClientForDetails(client);
-                            setShowClientDetailsDialog(true);
-                          }}
-                        >
-                          {client.name}
-                        </span>
+                        <ClientNameLink name={client.name} ciientId={client._id} />
                       </TableCell>
                       <TableCell className="p-4 text-sm w-24 border-r text-left">{client.businessTypeId?.name || 'N/A'}</TableCell>
                       <TableCell className="p-4 text-sm w-24 border-r text-left">{client.taxNumber}</TableCell>
@@ -585,13 +578,6 @@ const ClientInformationTab = () => {
         onOpenChange={setShowServiceLog}
       />
 
-      {selectedClientForDetails && (
-        <ClientDetailsDialog
-          open={showClientDetailsDialog}
-          onOpenChange={setShowClientDetailsDialog}
-          clientData={selectedClientForDetails}
-        />
-      )}
       {selectedClientForDetails && showClientServiceLogDialog && (
         <EditClientModal
           open={showClientServiceLogDialog}

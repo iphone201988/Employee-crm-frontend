@@ -41,7 +41,7 @@ export const WIPTableSummaryCards = ({
           <div className="text-2xl font-bold !text-[#381980]">
             {formatCurrency(totalWIP)}
           </div>
-          <p className="text-sm text-muted-foreground">Current WIP</p>
+          <p className="text-sm text-muted-foreground">WIP Balance</p>
         </CardContent>
       </Card>
       <Card className="h-full">

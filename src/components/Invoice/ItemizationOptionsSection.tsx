@@ -31,16 +31,7 @@ export const ItemizationOptionsSection = ({
       >
         Include time amount
       </Button>
-      
-      <Button
-        size="sm"
-        variant={includeValueAmount ? "default" : "outline"}
-        onClick={() => onIncludeValueAmountChange(!includeValueAmount)}
-        className={includeValueAmount ? "bg-blue-600 hover:bg-blue-700" : "border-blue-600 text-blue-600 hover:bg-blue-50"}
-      >
-        Include value amount
-      </Button>
-      
+
       <Button
         size="sm"
         variant={includeBillableRate ? "default" : "outline"}
@@ -48,6 +39,15 @@ export const ItemizationOptionsSection = ({
         className={includeBillableRate ? "bg-purple-600 hover:bg-purple-700" : "border-purple-600 text-purple-600 hover:bg-purple-50"}
       >
         Include billable rate
+      </Button>
+
+      <Button
+        size="sm"
+        variant={includeValueAmount ? "default" : "outline"}
+        onClick={() => onIncludeValueAmountChange(!includeValueAmount)}
+        className={includeValueAmount ? "bg-blue-600 hover:bg-blue-700" : "border-blue-600 text-blue-600 hover:bg-blue-50"}
+      >
+        Include value amount
       </Button>
     </div>
   );

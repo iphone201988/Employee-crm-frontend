@@ -59,7 +59,7 @@ const Avatars = ({ activeTab, title }: AvatarsProps) => {
                   //   >
                   //     <p className="text-lg sm:text-xl font-semibold text-foreground mr-6">{user?.name}</p>
                   //   </div>
-                  <></>
+                 null
                 ) : (
                   <Tooltip key={user?.id || index} delayDuration={100}>
                     <TooltipTrigger asChild>

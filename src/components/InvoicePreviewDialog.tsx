@@ -9,7 +9,10 @@ import { ItemizationOptionsSection } from './Invoice/ItemizationOptionsSection';
 import { InvoicePreviewSection } from './Invoice/InvoicePreviewSection';
 import { ExpenseItem } from './Invoice/ExpensesSection';
 import { formatCurrency } from '@/lib/currency';
+import { useCreateInvoiceMutation, useGetInvoiceByInvoiceNoQuery, useCreateWriteOffMutation, useCreateInvoiceLogMutation } from '@/store/wipApi';
 import WriteOffLogicDialog from './WriteOffLogicDialog';
+import { useDebounce } from 'use-debounce';
+import { toast } from 'sonner';
 
 interface InvoicePreviewDialogProps {
   isOpen: boolean;
@@ -22,6 +25,8 @@ interface InvoicePreviewDialogProps {
     amount: number;
     date: string;
     jobName?: string;
+    company?: { name?: string; email?: string };
+    members?: { userName: string; seconds: number; billableRate?: number }[];
   };
   onInvoiceCreate?: (invoice: any) => void;
   openLogInvoiceOnly?: boolean;
@@ -34,6 +39,7 @@ export const InvoicePreviewDialog = ({
   onInvoiceCreate,
   openLogInvoiceOnly = false
 }: InvoicePreviewDialogProps) => {
+  const [createInvoice, { isLoading: isCreating }] = useCreateInvoiceMutation();
   const [itemizeTimeLogs, setItemizeTimeLogs] = useState(false);
   const [includeTimeAmount, setIncludeTimeAmount] = useState(false);
   const [includeValueAmount, setIncludeValueAmount] = useState(false);
@@ -42,6 +48,7 @@ export const InvoicePreviewDialog = ({
   const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
   const [invoiceNumber, setInvoiceNumber] = useState(invoiceData.invoiceNumber);
   const [includeVAT, setIncludeVAT] = useState(false);
+  const [vatRate, setVatRate] = useState<number>(23);
   const [logInvoiceDialogOpen, setLogInvoiceDialogOpen] = useState(false);
   const [wipBalanceDialogOpen, setWipBalanceDialogOpen] = useState(false);
   const [writeOffLogicDialogOpen, setWriteOffLogicDialogOpen] = useState(false);
@@ -51,8 +58,56 @@ export const InvoicePreviewDialog = ({
     invoiceAmount: '',
     invoiceAmountIncVAT: ''
   });
+  const [wipAmount, setWipAmount] = useState<number | null>(null);
+  const [fetchedInvoice, setFetchedInvoice] = useState<any>(null);
+  const [writeOffData, setWriteOffData] = useState<any>(null);
+  
+  // Debounce invoice number for API call
+  const [debouncedInvoiceNo] = useDebounce(logInvoiceData.invoiceNumber, 500);
+  
+  // Fetch invoice by invoice number
+  const { data: invoiceResponse, isLoading: isLoadingInvoice, error: invoiceError } = useGetInvoiceByInvoiceNoQuery(
+    debouncedInvoiceNo,
+    { skip: !debouncedInvoiceNo || debouncedInvoiceNo.length < 3 }
+  );
+  
+  const [createWriteOff, { isLoading: isCreatingWriteOff }] = useCreateWriteOffMutation();
+  const [createInvoiceLog, { isLoading: isCreatingInvoiceLog }] = useCreateInvoiceLogMutation();
 
-  // Sample time logs data for the write-off logic dialog
+  // Update WIP amount and form data when invoice is fetched
+  useEffect(() => {
+    if (invoiceResponse?.data) {
+      const invoice = invoiceResponse.data;
+      setFetchedInvoice(invoice);
+      setWipAmount(invoice.totalAmount || null);
+      setLogInvoiceData(prev => ({
+        ...prev,
+        invoiceDate: invoice.date ? new Date(invoice.date).toISOString().split('T')[0] : prev.invoiceDate,
+        invoiceAmount: invoice.totalAmount ? invoice.totalAmount.toString() : prev.invoiceAmount
+      }));
+    } else if (debouncedInvoiceNo && debouncedInvoiceNo.length >= 3 && !isLoadingInvoice) {
+      // Reset if invoice not found
+      setFetchedInvoice(null);
+      setWipAmount(null);
+    }
+  }, [invoiceResponse, debouncedInvoiceNo, isLoadingInvoice]);
+
+  // Reset when dialog closes
+  useEffect(() => {
+    if (!logInvoiceDialogOpen) {
+      setLogInvoiceData({
+        invoiceNumber: '',
+        invoiceDate: '',
+        invoiceAmount: '',
+        invoiceAmountIncVAT: ''
+      });
+      setWipAmount(null);
+      setFetchedInvoice(null);
+      setWriteOffData(null);
+    }
+  }, [logInvoiceDialogOpen]);
+
+  // Sample time logs data for the write-off logic dialog (will be replaced with API data)
   const sampleTimeLogs = [
     {
       id: '1',
@@ -137,15 +192,111 @@ export const InvoicePreviewDialog = ({
     }
   ];
 
-  const handleLogInvoiceSubmit = () => {
-    console.log('Log Invoice Data:', logInvoiceData);
-    setLogInvoiceDialogOpen(false);
-    setLogInvoiceData({
-      invoiceNumber: '',
-      invoiceDate: '',
-      invoiceAmount: '',
-      invoiceAmountIncVAT: ''
-    });
+  // Convert fetched invoice time logs to format needed for WriteOffLogicDialog
+  const getTimeLogsForWriteOff = () => {
+    if (!fetchedInvoice?.timeLogIds) return [];
+    
+    return fetchedInvoice.timeLogIds.map((log: any) => ({
+      id: log._id || String(log._id),
+      timeLogId: log._id || String(log._id),
+      teamMember: log.userId?.name || 'Unknown',
+      hours: (log.duration || 0) / 3600,
+      billableRate: log.rate || 0,
+      amount: log.amount || 0,
+      date: log.date || new Date().toISOString(),
+      description: log.description || '',
+      duration: log.duration || 0,
+      clientId: log.clientId?._id || log.clientId || '',
+      jobId: log.jobId?._id || log.jobId || '',
+      userId: log.userId?._id || log.userId || '',
+      jobCategoryId: log.jobTypeId?._id || log.jobTypeId || '',
+      originalAmount: log.amount || 0
+    }));
+  };
+
+  const handleLogInvoiceSubmit = async () => {
+    if (!logInvoiceData.invoiceNumber || !logInvoiceData.invoiceDate || !logInvoiceData.invoiceAmount) {
+      toast.error('Please fill all required fields');
+      return;
+    }
+
+    const invoiceAmountNum = parseFloat(logInvoiceData.invoiceAmount);
+    const totalLogAmount = fetchedInvoice?.totalLogAmount || 0;
+    const currentWipAmount = wipAmount || 0;
+
+    // Option 2: Balance should not exceed Total Log Amount
+    // Balance = WIP Amount - Invoice Amount
+    const currentBalance = currentWipAmount - invoiceAmountNum;
+
+    if (currentBalance > totalLogAmount) {
+      toast.error(`Balance (${formatCurrency(currentBalance)}) cannot exceed Total Log Amount (${formatCurrency(totalLogAmount)})`);
+      return;
+    }
+
+    if (invoiceAmountNum < 0) {
+      toast.error('Invoice amount cannot be negative');
+      return;
+    }
+
+    // Get invoice ID from fetched invoice
+    const invoiceId = fetchedInvoice?._id;
+    if (!invoiceId) {
+      toast.error('Invoice ID not found. Please fetch the invoice first.');
+      return;
+    }
+
+    // If there's write-off data and balance > 0, create write-off first
+    if (writeOffData && currentBalance > 0 && writeOffData.writeOffBalance > 0) {
+      try {
+        // The 'amount' field should be the Invoice Amount entered by the user in Log Invoice Only dialog
+        // Backend sets invoice.totalAmount = amount, so we send the user-entered invoice amount
+        const writeOffPayload = {
+          invoiceNo: logInvoiceData.invoiceNumber,
+          amount: invoiceAmountNum, // Invoice Amount entered by user in Log Invoice Only dialog
+          date: logInvoiceData.invoiceDate ? new Date(logInvoiceData.invoiceDate).toISOString() : new Date().toISOString(),
+          writeOffData: {
+            timeLogs: writeOffData.timeLogs || [],
+            reason: writeOffData.reason || '',
+            logic: writeOffData.logic || 'manually'
+          }
+        };
+
+        await createWriteOff(writeOffPayload).unwrap();
+        toast.success('Write-off created successfully');
+      } catch (error: any) {
+        console.error('Failed to create write-off', error);
+        toast.error(error?.data?.message || 'Failed to create write-off');
+        return;
+      }
+    }
+
+    // Create invoice log
+    try {
+      const invoiceLogPayload = {
+        invoiceId: invoiceId,
+        action: 'logged',
+        amount: invoiceAmountNum,
+        date: logInvoiceData.invoiceDate ? new Date(logInvoiceData.invoiceDate).toISOString() : new Date().toISOString()
+      };
+
+      await createInvoiceLog(invoiceLogPayload).unwrap();
+      toast.success('Invoice logged successfully');
+      
+      // Close dialogs and call onInvoiceCreate if provided
+      setLogInvoiceDialogOpen(false);
+      if (onInvoiceCreate) {
+        onInvoiceCreate({
+          invoiceId,
+          invoiceNo: logInvoiceData.invoiceNumber,
+          amount: invoiceAmountNum,
+          date: logInvoiceData.invoiceDate
+        });
+      }
+      onClose();
+    } catch (error: any) {
+      console.error('Failed to log invoice', error);
+      toast.error(error?.data?.message || 'Failed to log invoice');
+    }
   };
 
 
@@ -155,6 +306,23 @@ export const InvoicePreviewDialog = ({
       setLogInvoiceDialogOpen(true);
     }
   }, [openLogInvoiceOnly, isOpen]);
+
+  // Prefill expenses from invoiceData when includeExpenses is enabled and list is empty
+  useEffect(() => {
+    if (!isOpen) return;
+    if (!includeExpenses) return;
+    if (expenses.length > 0) return;
+    const src: any[] = Array.isArray((invoiceData as any).expenses) ? (invoiceData as any).expenses : [];
+    if (src.length === 0) return;
+    const mapped: ExpenseItem[] = src.map((e: any) => ({
+      id: e.id || e._id || String(Math.random()),
+      description: e.description || '',
+      amount: Number(e.amount || e.totalAmount || 0),
+      vatPercent: typeof e.vatPercent === 'number' ? e.vatPercent : Number(e.vatPercentage || 0) || 0,
+      locked: e.locked !== undefined ? !!e.locked : true,
+    }));
+    setExpenses(mapped);
+  }, [isOpen, includeExpenses, invoiceData, expenses.length]);
 
   // Don't render the main dialog content if we're only showing log invoice
   if (openLogInvoiceOnly) {
@@ -170,11 +338,30 @@ export const InvoicePreviewDialog = ({
               <DialogTitle>Log Invoice Only</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 mt-4">
+              {isLoadingInvoice && (
+                <div className="text-sm text-muted-foreground text-center py-2">
+                  Loading invoice...
+                </div>
+              )}
+              {invoiceError && (
+                <div className="text-sm text-red-600 text-center py-2">
+                  Invoice not found
+                </div>
+              )}
+              
               <div className="space-y-3 p-4 bg-gray-50 rounded-lg">
                 <div className="flex justify-between text-sm">
                   <span className="font-medium">WIP Amount:</span>
-                  <span className="font-bold">{formatCurrency(invoiceData.amount)}</span>
+                  <span className="font-bold">
+                    {wipAmount !== null ? formatCurrency(wipAmount) : 'N/A'}
+                  </span>
                 </div>
+                {fetchedInvoice?.totalLogAmount && (
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>Total Log Amount:</span>
+                    <span>{formatCurrency(fetchedInvoice.totalLogAmount)}</span>
+                  </div>
+                )}
               </div>
               
               <div className="space-y-2">
@@ -199,22 +386,58 @@ export const InvoicePreviewDialog = ({
                   type="number"
                   step="0.01"
                   value={logInvoiceData.invoiceAmount}
-                  onChange={(e) => setLogInvoiceData(prev => ({ ...prev, invoiceAmount: e.target.value }))}
+                  onChange={(e) => {
+                    // Allow free editing without validation while typing
+                    setLogInvoiceData(prev => ({ ...prev, invoiceAmount: e.target.value }));
+                  }}
+                  onBlur={(e) => {
+                    // Validate only when user leaves the input field
+                    const value = e.target.value;
+                    const numValue = parseFloat(value);
+                    const totalLogAmount = fetchedInvoice?.totalLogAmount || 0;
+                    const currentWipAmount = wipAmount || 0;
+                    
+                    if (value && !isNaN(numValue)) {
+                      // Option 2: Balance should not exceed Total Log Amount
+                      // Balance = WIP Amount - Invoice Amount
+                      const balance = currentWipAmount - numValue;
+                      
+                      if (numValue < 0) {
+                        toast.error('Invoice amount cannot be negative');
+                        setLogInvoiceData(prev => ({ ...prev, invoiceAmount: '0' }));
+                        return;
+                      }
+                      
+                      if (balance > totalLogAmount) {
+                        const minInvoiceAmount = Math.max(0, currentWipAmount - totalLogAmount);
+                        toast.error(`Balance (${formatCurrency(balance)}) cannot exceed Total Log Amount (${formatCurrency(totalLogAmount)}). Minimum invoice amount: ${formatCurrency(minInvoiceAmount)}`);
+                        // Auto-correct to minimum valid amount
+                        setLogInvoiceData(prev => ({ ...prev, invoiceAmount: minInvoiceAmount.toString() }));
+                        return;
+                      }
+                    }
+                  }}
                   placeholder="0.00"
+                  min={wipAmount !== null && fetchedInvoice?.totalLogAmount ? Math.max(0, wipAmount - fetchedInvoice.totalLogAmount) : 0}
                 />
+                {fetchedInvoice?.totalLogAmount && wipAmount !== null && (
+                  <p className="text-xs text-muted-foreground">
+                    Minimum: {formatCurrency(Math.max(0, wipAmount - fetchedInvoice.totalLogAmount))} 
+                    (Balance must not exceed {formatCurrency(fetchedInvoice.totalLogAmount)})
+                  </p>
+                )}
               </div>
               
-              {logInvoiceData.invoiceAmount && (
+              {logInvoiceData.invoiceAmount && wipAmount !== null && (
                 <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <div className="flex justify-between text-sm">
                     <span className="font-medium">Balance:</span>
                     <span className="font-bold text-blue-800">
-                      {formatCurrency(invoiceData.amount - parseFloat(logInvoiceData.invoiceAmount || '0'))}
+                      {formatCurrency(wipAmount - parseFloat(logInvoiceData.invoiceAmount || '0'))}
                     </span>
                   </div>
-                  {invoiceData.amount - parseFloat(logInvoiceData.invoiceAmount || '0') > 0 && (
+                  {wipAmount - parseFloat(logInvoiceData.invoiceAmount || '0') > 0 && (
                      <div className="space-y-3 mt-3">
-                      
                       {/* Apply Write Off Logic button */}
                       <div className="flex justify-center">
                         <Button
@@ -227,7 +450,7 @@ export const InvoicePreviewDialog = ({
                       </div>
                     </div>
                   )}
-                  {invoiceData.amount - parseFloat(logInvoiceData.invoiceAmount || '0') < 0 && (
+                  {wipAmount - parseFloat(logInvoiceData.invoiceAmount || '0') < 0 && (
                     <div className="mt-3">
                       <Button 
                         variant="outline" 
@@ -251,9 +474,9 @@ export const InvoicePreviewDialog = ({
                 </Button>
                 <Button 
                   onClick={handleLogInvoiceSubmit}
-                  disabled={!logInvoiceData.invoiceNumber || !logInvoiceData.invoiceDate || !logInvoiceData.invoiceAmount}
+                  disabled={!logInvoiceData.invoiceNumber || !logInvoiceData.invoiceDate || !logInvoiceData.invoiceAmount || !writeOffData || isCreatingWriteOff || isCreatingInvoiceLog}
                 >
-                  Log Invoice
+                  {(isCreatingWriteOff || isCreatingInvoiceLog) ? 'Processing...' : 'Log Invoice'}
                 </Button>
               </div>
             </div>
@@ -306,15 +529,26 @@ export const InvoicePreviewDialog = ({
         {/* Write Off Logic Dialog */}
         <WriteOffLogicDialog
           open={writeOffLogicDialogOpen}
-          onOpenChange={setWriteOffLogicDialogOpen}
+          onOpenChange={(open) => {
+            // Only close if explicitly set to false (when user clicks "Go back and save")
+            // Don't close if user clicks outside or ESC - let onSave handle it
+            if (!open && !writeOffData) {
+              setWriteOffLogicDialogOpen(false);
+            }
+          }}
           clientName={invoiceData.clientName}
           jobName={invoiceData.jobName || ''}
-          timeLogs={sampleTimeLogs}
-          totalAmount={sampleTimeLogs.reduce((sum, log) => sum + log.amount, 0)}
-          writeOffBalance={sampleTimeLogs.reduce((sum, log) => sum + log.amount, 0) - parseFloat(logInvoiceData.invoiceAmount || '0')}
+          timeLogs={getTimeLogsForWriteOff()}
+          totalAmount={fetchedInvoice?.totalLogAmount || 0}
+          writeOffBalance={wipAmount !== null ? wipAmount - parseFloat(logInvoiceData.invoiceAmount || '0') : 0}
+          invoiceNo={logInvoiceData.invoiceNumber}
+          invoiceDate={logInvoiceData.invoiceDate}
           onSave={(data) => {
-            console.log('Write off saved:', data);
-            // Handle the save logic here
+            // Store write-off data for later use when clicking "Log Invoice"
+            setWriteOffData(data);
+            // Close the write-off dialog and return to Log Invoice Only dialog
+            setWriteOffLogicDialogOpen(false);
+            toast.success('Write-off data saved. You can now click "Log Invoice" to complete the process.');
           }}
         />
       </>
@@ -326,42 +560,86 @@ export const InvoicePreviewDialog = ({
       id: Date.now().toString(),
       description: '',
       amount: 0,
-      includeVAT: false
+      vatPercent: 0,
+      locked: false
     };
     setExpenses([...expenses, newExpense]);
   };
 
   const removeExpense = (id: string) => {
+    const exp = expenses.find(e => e.id === id);
+    if (exp?.locked) return; // prevent removing prefilled
     setExpenses(expenses.filter(expense => expense.id !== id));
   };
 
   const updateExpense = (id: string, field: keyof ExpenseItem, value: string | number | boolean) => {
-    setExpenses(expenses.map(expense => 
-      expense.id === id ? { ...expense, [field]: value } : expense
-    ));
+    setExpenses(expenses.map(expense => {
+      if (expense.id !== id) return expense;
+      if (expense.locked) return expense;
+      return { ...expense, [field]: value };
+    }));
   };
 
-  const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-  const subtotal = invoiceData.amount + totalExpenses;
-  const vatAmount = includeVAT ? subtotal * 0.23 : 0;
-  const totalAmount = subtotal + vatAmount;
+  const computedExpenses = expenses.reduce((sum, expense) => {
+    const vatPct = typeof (expense as any).vatPercent === 'number' ? (expense as any).vatPercent : 0;
+    const isLocked = (expense as any).locked === true;
+    const base = Number(expense.amount || 0);
+    const gross = isLocked ? base : base + (base * vatPct / 100);
+    return sum + gross;
+  }, 0);
+  const totalExpenses = includeExpenses ? computedExpenses : 0;
+  // VAT applies to Professional Services amount; always reflect edited VAT
+  const vatAmount = (invoiceData.amount * (vatRate / 100));
+  const totalAmount = invoiceData.amount + totalExpenses + vatAmount;
 
-  const handleCreateInvoice = () => {
-    const finalInvoice = {
-      ...invoiceData,
-      invoiceNumber,
-      itemizeTimeLogs,
-      includeTimeAmount,
-      includeValueAmount,
-      includeBillableRate,
-      includeExpenses,
-      expenses: includeExpenses ? expenses : [],
-      totalAmount,
-      status: 'draft' as const
-    };
-    
-    onInvoiceCreate?.(finalInvoice);
-    onClose();
+  const handleCreateInvoice = async () => {
+    // Build payload for /wip/invoice
+    const baseExpenseIds: string[] = Array.isArray((invoiceData as any).expenseIdsBase)
+      ? (invoiceData as any).expenseIdsBase
+      : [];
+    const wipOpenBalanceIds: string[] = Array.isArray((invoiceData as any).wipOpenBalanceIdsBase)
+      ? (invoiceData as any).wipOpenBalanceIdsBase
+      : [];
+    const timeLogIds: string[] = Array.isArray((invoiceData as any).timeLogIdsBase)
+      ? (invoiceData as any).timeLogIdsBase
+      : [];
+    const newExpenses = includeExpenses
+      ? (expenses || []).filter((e) => !e.locked).map((e) => {
+          const netAmount = Number(e.amount || 0);
+          const vatPercentage = Number(e.vatPercent || 0);
+          const vatAmount = netAmount * (vatPercentage / 100);
+          const total = netAmount + vatAmount;
+          return {
+            description: e.description || '',
+            netAmount,
+            vatPercentage,
+            vatAmount,
+            totalAmount: total,
+          };
+        })
+      : [];
+
+    const payload = {
+      date: (invoiceData.date || new Date().toISOString()).split('T')[0],
+      clientId: (invoiceData as any).clientId,
+      netAmount: Number(invoiceData.amount || 0),
+      vatPercentage: Number(vatRate || 0),
+      vatAmount: Number((invoiceData.amount || 0) * (vatRate / 100)),
+      expenseAmount: includeExpenses ? Number(totalExpenses) : 0,
+      totalAmount: Number(totalAmount),
+      timeLogIds,
+      expenseIds: includeExpenses ? baseExpenseIds : [],
+      wipOpenBalanceIds,
+      newExpenses,
+    } as any;
+
+    try {
+      const resp: any = await createInvoice(payload).unwrap();
+      onInvoiceCreate?.(resp?.data || payload);
+      onClose();
+    } catch (e) {
+      console.error('Failed to create invoice', e);
+    }
   };
 
   const handlePreviewPDF = () => {
@@ -383,8 +661,8 @@ export const InvoicePreviewDialog = ({
           <body>
             <div class="header">
               <div>
-                <h2>ABC Accounting</h2>
-                <p>Main Street<br/>Dublin, Co. Dublin<br/>D56GH66<br/>Phone: (01) 1234567</p>
+                <h2>${invoiceData.company?.name || 'ABC Accounting'}</h2>
+                ${invoiceData.company?.email ? `<p>${invoiceData.company.email}</p>` : ''}
               </div>
               <div>
                 <div class="invoice-title">INVOICE</div>
@@ -394,7 +672,10 @@ export const InvoicePreviewDialog = ({
             </div>
             <div class="client-info">
               <h3>Invoice To:</h3>
-              <p>${invoiceData.clientName} (${invoiceData.clientCode})<br/>${invoiceData.clientAddress}</p>
+              <p>
+                ${invoiceData.clientName}${invoiceData.clientCode ? ` (${invoiceData.clientCode})` : ''}
+                ${invoiceData.clientAddress ? `<br/>${invoiceData.clientAddress}` : ''}
+              </p>
             </div>
             <div>
               <h3>Description</h3>
@@ -437,6 +718,7 @@ export const InvoicePreviewDialog = ({
 
           <InvoicePreviewSection
             invoiceData={invoiceData}
+            company={invoiceData.company}
             invoiceNumber={invoiceNumber}
             onInvoiceNumberChange={setInvoiceNumber}
             itemizeTimeLogs={itemizeTimeLogs}
@@ -450,6 +732,9 @@ export const InvoicePreviewDialog = ({
             onUpdateExpense={updateExpense}
             totalExpenses={totalExpenses}
             totalAmount={totalAmount}
+            vatRate={vatRate}
+            onVatRateChange={setVatRate}
+            vatAmount={vatAmount}
             onAddLoggedExpenses={() => {
               // Functionality for adding logged expenses
               console.log('Add logged expenses functionality');
@@ -465,7 +750,7 @@ export const InvoicePreviewDialog = ({
             <FileText className="h-4 w-4 mr-2" />
             Preview PDF
           </Button>
-          <Button onClick={handleCreateInvoice}>
+          <Button onClick={handleCreateInvoice} disabled={isCreating}>
             Generate Invoice
           </Button>
         </DialogFooter>

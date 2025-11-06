@@ -3,9 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plus } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency';
-import NewJobDialog from './NewJobDialog';
+// Removed NewJobDialog usage
 
 interface TimeLog {
   id: string;
@@ -40,7 +39,7 @@ interface ClientJobsDialogProps {
 }
 
 const ClientJobsDialog = ({ open, onOpenChange, clientName, jobs, onAddJob }: ClientJobsDialogProps) => {
-  const [showNewJobDialog, setShowNewJobDialog] = useState(false);
+  // Removed add new job flow
   const getCategoryBadge = (category: TimeLog['category']) => {
     const variants = {
       'client work': 'bg-blue-100 text-blue-800',
@@ -87,14 +86,7 @@ const ClientJobsDialog = ({ open, onOpenChange, clientName, jobs, onAddJob }: Cl
                 Total Invoiced Balance: {formatCurrency(totalInvoicedBalance)}
               </div>
             </div>
-            <Button
-              onClick={() => setShowNewJobDialog(true)}
-              size="sm"
-              className="flex items-center gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              New Job
-            </Button>
+            
           </div>
         </DialogHeader>
         
@@ -157,20 +149,7 @@ const ClientJobsDialog = ({ open, onOpenChange, clientName, jobs, onAddJob }: Cl
         </div>
       </DialogContent>
       
-      <NewJobDialog
-        open={showNewJobDialog}
-        onOpenChange={setShowNewJobDialog}
-        onSave={(jobData) => {
-          // Transform the new job data format to the expected format
-          const transformedData = {
-            name: jobData.jobName,
-            type: jobData.jobType,
-            fee: jobData.estimatedCost
-          };
-          onAddJob?.(transformedData);
-          setShowNewJobDialog(false);
-        }}
-      />
+      
     </Dialog>
   );
 };

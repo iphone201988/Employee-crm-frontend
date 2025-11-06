@@ -41,7 +41,7 @@ const WIPOpeningBalanceDialog = ({
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Add WIP Opening Balance{jobName ? ` - ${jobName}` : ''}</DialogTitle>
+          <DialogTitle>{`+ Opening WIP Balance to ${jobName || clientName}`}</DialogTitle>
         </DialogHeader>
         <div className="space-y-6 mt-4">
           <div>

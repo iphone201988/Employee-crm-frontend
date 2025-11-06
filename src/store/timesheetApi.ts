@@ -69,6 +69,10 @@ export interface DropdownOptionals {
     _id: string;
     name: string;
   }>;
+  timeCategories: Array<{
+    _id: string;
+    name: string;
+  }>
 }
 
 export interface GetTimesheetResponse {

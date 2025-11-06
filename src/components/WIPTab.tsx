@@ -217,10 +217,12 @@ const WIPTab = () => {
                               />
                             ) : (
                               <JobNameLink 
+                                
                                 jobName={job.jobName}
                                 jobFee={job.jobFee}
                                 wipAmount={job.wipAmount}
                                 hoursLogged={job.hoursLogged}
+                                jobId={job.id}
                               />
                             )}
                           </TableCell>
@@ -357,6 +359,7 @@ const WIPTab = () => {
                             jobFee={job.jobFee}
                             wipAmount={job.wipAmount}
                             hoursLogged={job.hoursLogged}
+                            jobId={job.id}
                           />
                         )}
                       </TableCell>
