@@ -968,61 +968,61 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                 <div className="overflow-x-auto">
                     <table className="w-full min-w-[1200px]">
                         <thead className="bg-muted/50">
-                            <tr>
-                                <th className="text-left px-2 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-20 sm:w-24">
+                            <tr className="!text-[#381980] bg-[#edecf4]">
+                                <th className="text-left px-2 sm:px-3 py-3 text-xs font-medium text-muted-foreground w-20 sm:w-24">
                                     <button className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleTimesheetSort('ref')}>
-                                        <span className="hidden sm:inline w-20">CLIENT REF</span>
+                                        <span className="hidden sm:inline !text-[#381980] w-20  ">CLIENT REF</span>
                                         <span className="sm:hidden">REF</span>
                                         {getTimesheetSortIcon('ref')}
                                     </button>
                                 </th>
                                 <th className="text-left px-2 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-24 sm:w-32">
                                     <button className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleTimesheetSort('client')}>
-                                        <span className="hidden sm:inline">CLIENT NAME</span>
+                                        <span className="hidden sm:inline !text-[#381980]">CLIENT NAME</span>
                                         <span className="sm:hidden">CLIENT</span>
                                         {getTimesheetSortIcon('client')}
                                     </button>
                                 </th>
                                 <th className="text-left px-2 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-32 sm:w-40">
                                     <button className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleTimesheetSort('job')}>
-                                        <span className="hidden sm:inline">JOB NAME</span>
+                                        <span className="hidden sm:inline !text-[#381980]">JOB NAME</span>
                                         <span className="sm:hidden">JOB</span>
                                         {getTimesheetSortIcon('job')}
                                     </button>
                                 </th>
                                 <th className="text-left px-2 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-20 sm:w-24">
                                     <button className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleTimesheetSort('category')}>
-                                        <span className="hidden sm:inline">TIME PURPOSE</span>
+                                        <span className="hidden sm:inline !text-[#381980]">TIME PURPOSE</span>
                                         <span className="sm:hidden">CAT</span>
                                         {getTimesheetSortIcon('category')}
                                     </button>
                                 </th>
                                 <th className="text-left px-2 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-36 sm:w-48">
                                     <button className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleTimesheetSort('description')}>
-                                        <span className="hidden sm:inline">DESCRIPTION</span>
+                                        <span className="hidden sm:inline !text-[#381980]">DESCRIPTION</span>
                                         <span className="sm:hidden">DESC</span>
                                         {getTimesheetSortIcon('description')}
                                     </button>
                                 </th>
-                                <th className="text-center px-2 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-16 sm:w-20">BILLABLE</th>
-                                <th className="text-left px-2 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-36 sm:w-16">
-                                    <button className="w-36 flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleTimesheetSort('rate')}>
+                                <th className="text-center px-2 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-16 sm:w-20 !text-[#381980]">BILLABLE</th>
+                                <th className="text-left px-2 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-36 sm:w-16 !text-[#381980]">
+                                    <button className="w-36 flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors !text-[#381980]" onClick={() => handleTimesheetSort('rate')}>
                                         BILLABLE RATE
                                         {getTimesheetSortIcon('rate')}
                                     </button>
                                 </th>
                                 {weekDays.slice(1, 6).map((day, index) => (
-                                    <th key={day.key} className="text-center px-1 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-12 sm:w-16">
+                                    <th key={day.key} className="text-center px-1 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-12 sm:w-16 !text-[#381980]">
                                         {day.label} {day.date}
                                     </th>
                                 ))}
                                 {!hideWeekend && weekDays.slice(6).map((day, index) => (
-                                    <th key={day.key} className="text-center px-1 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-12 sm:w-16">
+                                    <th key={day.key} className="text-center px-1 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-12 sm:w-16 !text-[#381980]">
                                         {day.label} {day.date}
                                     </th>
                                 ))}
                                 {!hideWeekend && weekDays.slice(0, 1).map((day, index) => (
-                                    <th key={day.key} className="text-center px-1 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-12 sm:w-16">
+                                    <th key={day.key} className="text-center px-1 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-12 sm:w-16 !text-[#381980]">
                                         {day.label} {day.date}
                                     </th>
                                 ))}

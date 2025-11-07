@@ -855,7 +855,7 @@ export function TimesheetDashboard() {
             <Popover>
               <PopoverTrigger asChild>
                 <button className="w-32 h-10 bg-white text-[#381980] font-semibold rounded-md border px-3 flex items-center justify-between">
-                  <span className="truncate">Team Name</span>
+                  <span className="truncate text-[14px]">Team Name</span>
                   <ChevronDown className="w-4 h-4" />
                 </button>
               </PopoverTrigger>
@@ -894,7 +894,7 @@ export function TimesheetDashboard() {
             <Popover>
               <PopoverTrigger asChild>
                 <button className="w-32 h-10 bg-white text-[#381980] font-semibold rounded-md border px-3 flex items-center justify-between">
-                  <span className="truncate">Department</span>
+                  <span className="truncate text-[14px]">Department</span>
                   <ChevronDown className="w-4 h-4" />
                 </button>
               </PopoverTrigger>
@@ -938,7 +938,7 @@ export function TimesheetDashboard() {
           <div className="space-y-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="bg-white text-xs sm:text-sm">
+                <Button variant="outline" size="sm" className="bg-white text-xs sm:text-sm w-32 h-10 bg-white text-[#381980] font-semibold rounded-md border px-3 flex items-center justify-between">
                   Status
                   <ChevronDown className="ml-1 sm:ml-2 w-3 h-3 sm:w-4 sm:h-4" />
                 </Button>
