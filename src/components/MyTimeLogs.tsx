@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useGetCurrentUserQuery } from '@/store/authApi';
 
-import { Clock, Users, ChevronDown, ChevronRight, ChevronLeft, ChevronRight as ChevronRightIcon, Settings, Download, FileText, Edit2, Search, RefreshCw, Move, Plus, Trash2, Check, Calendar, X, GripVertical } from 'lucide-react';
+import { Clock, Users, ChevronDown, ChevronRight, ChevronLeft, ChevronRight as ChevronRightIcon, Settings, Download, FileText, Edit2, Search, RefreshCw, Move, Plus, Trash2, Check, Calendar, X, GripVertical, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { formatCurrency } from '@/lib/currency';
 import { getProfileImage, getUserInitials } from '@/utils/profiles';
@@ -73,6 +73,12 @@ const MyTimeLogs = () => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  
+  // Sort state
+  type SortField = 'date' | 'clientRef' | 'clientName' | 'jobName' | 'jobType' | 'teamMember' | 'description' | 'timePurpose' | 'billable' | 'hours' | 'rate' | 'amount' | 'status';
+  type SortDirection = 'asc' | 'desc' | null;
+  const [sortField, setSortField] = useState<SortField | null>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>(null);
    
   // Get current user from API
   const { data: user, isLoading: isUserLoading } = useGetCurrentUserQuery();
@@ -179,6 +185,7 @@ const MyTimeLogs = () => {
     id: log?._id,
     date: log?.date,
     teamMember: log?.user?.name || '',
+    teamMemberAvatar: log?.user?.avatarUrl || '',
     clientName: log?.client?.name || '',
     clientId: log?.client?._id || '',
     clientRef: log?.client?.clientRef || '',
@@ -205,8 +212,32 @@ const MyTimeLogs = () => {
 
 
 
+  // Handle sorting
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      if (sortDirection === 'asc') {
+        setSortDirection('desc');
+      } else if (sortDirection === 'desc') {
+        setSortField(null);
+        setSortDirection(null);
+      } else {
+        setSortDirection('asc');
+      }
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortIcon = (field: SortField) => {
+    if (sortField !== field) return <ArrowUpDown className="w-3 h-3 opacity-50" />;
+    if (sortDirection === 'asc') return <ArrowUp className="w-3 h-3" />;
+    if (sortDirection === 'desc') return <ArrowDown className="w-3 h-3" />;
+    return <ArrowUpDown className="w-3 h-3 opacity-50" />;
+  };
+
   // Filter the time logs
-  const filteredTimeLogs = useMemo(() => {
+  const filteredTimeLogsBase = useMemo(() => {
     return timeLogsData.filter(log => {
       if (filters.status && filters.status !== 'all') {
         const statusMap: Record<string, string> = { notInvoiced: 'notInvoiced', invoiced: 'invoiced', paid: 'paid' };
@@ -222,6 +253,79 @@ const MyTimeLogs = () => {
       return true;
     });
   }, [timeLogsData, filters]);
+
+  // Apply sorting to filtered logs
+  const filteredTimeLogs = useMemo(() => {
+    if (!sortField || !sortDirection) return filteredTimeLogsBase;
+    
+    return [...filteredTimeLogsBase].sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+      
+      switch (sortField) {
+        case 'date':
+          aValue = new Date(a.date).getTime();
+          bValue = new Date(b.date).getTime();
+          break;
+        case 'clientRef':
+          aValue = (a.clientRef || '').toLowerCase();
+          bValue = (b.clientRef || '').toLowerCase();
+          break;
+        case 'clientName':
+          aValue = (a.clientName || '').toLowerCase();
+          bValue = (b.clientName || '').toLowerCase();
+          break;
+        case 'jobName':
+          aValue = (a.jobName || '').toLowerCase();
+          bValue = (b.jobName || '').toLowerCase();
+          break;
+        case 'jobType':
+          aValue = (a.jobType || '').toLowerCase();
+          bValue = (b.jobType || '').toLowerCase();
+          break;
+        case 'teamMember':
+          aValue = (a.teamMember || '').toLowerCase();
+          bValue = (b.teamMember || '').toLowerCase();
+          break;
+        case 'description':
+          aValue = (a.description || '').toLowerCase();
+          bValue = (b.description || '').toLowerCase();
+          break;
+        case 'timePurpose':
+          aValue = (a.timePurpose || '').toLowerCase();
+          bValue = (b.timePurpose || '').toLowerCase();
+          break;
+        case 'billable':
+          aValue = a.billable ? 1 : 0;
+          bValue = b.billable ? 1 : 0;
+          break;
+        case 'hours':
+          aValue = a.hours || 0;
+          bValue = b.hours || 0;
+          break;
+        case 'rate':
+          aValue = a.rate || 0;
+          bValue = b.rate || 0;
+          break;
+        case 'amount':
+          aValue = a.amount || 0;
+          bValue = b.amount || 0;
+          break;
+        case 'status':
+          aValue = (a.status || '').toLowerCase();
+          bValue = (b.status || '').toLowerCase();
+          break;
+        default:
+          return 0;
+      }
+      
+      if (sortDirection === 'asc') {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
+      }
+    });
+  }, [filteredTimeLogsBase, sortField, sortDirection]);
 
   const toggleSelect = (id: string, checked: boolean) => {
     setSelectedIds(prev => {
@@ -1052,9 +1156,21 @@ const MyTimeLogs = () => {
                       <TableHead className="p-3 text-foreground h-12 text-[#381980]"><input type="checkbox" onChange={(e) => toggleSelectAllVisible(e.target.checked, filteredTimeLogs)} /></TableHead>
                       {columnOrder.map((key) => {
                         if (!visibleColumns[key as keyof typeof visibleColumns]) return null;
+                        const sortableFields: SortField[] = ['date', 'clientRef', 'clientName', 'jobName', 'jobType', 'teamMember', 'description', 'timePurpose', 'billable', 'hours', 'rate', 'amount', 'status'];
+                        const isSortable = sortableFields.includes(key as SortField);
                         return (
                           <TableHead key={key} className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">
-                            {columnDisplayNames[key]}
+                            {isSortable ? (
+                              <button 
+                                className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" 
+                                onClick={() => handleSort(key as SortField)}
+                              >
+                                {columnDisplayNames[key]}
+                                {getSortIcon(key as SortField)}
+                              </button>
+                            ) : (
+                              columnDisplayNames[key]
+                            )}
                           </TableHead>
                         );
                       })}
@@ -1068,9 +1184,21 @@ const MyTimeLogs = () => {
                       </TableHead>
                       {columnOrder.map((key) => {
                         if (!visibleColumns[key as keyof typeof visibleColumns]) return null;
+                        const sortableFields: SortField[] = ['date', 'clientRef', 'clientName', 'jobName', 'jobType', 'teamMember', 'description', 'timePurpose', 'billable', 'hours', 'rate', 'amount', 'status'];
+                        const isSortable = sortableFields.includes(key as SortField);
                         return (
                           <TableHead key={key} className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">
-                            {columnDisplayNames[key]}
+                            {isSortable ? (
+                              <button 
+                                className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" 
+                                onClick={() => handleSort(key as SortField)}
+                              >
+                                {columnDisplayNames[key]}
+                                {getSortIcon(key as SortField)}
+                              </button>
+                            ) : (
+                              columnDisplayNames[key]
+                            )}
                       </TableHead>
                         );
                       })}
@@ -1311,7 +1439,7 @@ const MyTimeLogs = () => {
                                         <div className="flex items-center gap-2">
                                           <Avatar className="h-8 w-8">
                                             <AvatarImage
-                                              src={getProfileImage(log.teamMember)}
+                                              src={log.teamMemberAvatar ? (import.meta.env.VITE_BACKEND_BASE_URL + log.teamMemberAvatar) : getProfileImage(log.teamMember)}
                                               alt={log.teamMember}
                                             />
                                             <AvatarFallback className="text-xs">
@@ -1424,7 +1552,7 @@ const MyTimeLogs = () => {
                                   <div className="flex items-center gap-2">
                                     <Avatar className="h-8 w-8">
                                       <AvatarImage
-                                        src={getProfileImage(log.teamMember)}
+                                        src={log.teamMemberAvatar ? (import.meta.env.VITE_BACKEND_BASE_URL + log.teamMemberAvatar) : getProfileImage(log.teamMember)}
                                         alt={log.teamMember}
                                       />
                                       <AvatarFallback className="text-xs">

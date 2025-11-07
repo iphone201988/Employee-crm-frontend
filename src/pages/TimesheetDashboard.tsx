@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, Filter, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, RotateCcw, RefreshCw, ArrowLeft, Plus, X, Trash2, Edit2 } from "lucide-react";
+import { Search, Filter, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, RotateCcw, RefreshCw, ArrowLeft, Plus, X, Trash2, Edit2, Check } from "lucide-react";
+import { useDeleteTimesheetsMutation } from "@/store/timesheetApi";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { MyTimeSheet } from "@/components/TimeDashboard/MyTimeSheet";
 import CustomTabs from "@/components/Tabs";
 import { getCurrentWeekRange, formatSeconds } from "@/utils/timesheetUtils";
@@ -17,6 +19,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useGetTabAccessQuery, useLazyGetTabAccessQuery, useGetCurrentUserQuery } from "@/store/authApi";
 import { useGetDropdownOptionsQuery } from "@/store/teamApi";
 import { useGetNotesQuery, useAddNoteMutation, Note } from "@/store/notesApi";
@@ -137,13 +140,18 @@ export function TimesheetDashboard() {
   const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   // Keep current name-based filters for display, but track IDs to be used with APIs
-  const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([]);
-  const [selectedDepartmentIds, setSelectedDepartmentIds] = useState<string[]>([]);
+  const [selectedTeamIds, setSelectedTeamIds] = useState<Set<string>>(new Set());
+  const [selectedDepartmentIds, setSelectedDepartmentIds] = useState<Set<string>>(new Set());
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
-  const [apiPagination, setApiPagination] = useState<{ currentPage: number; totalPages: number; totalItems: number; limit: number } | null>(null);
+  const [limit, setLimit] = useState(10);
+  const [apiPagination, setApiPagination] = useState<{ currentPage: number; totalPages: number; totalItems: number; limit: number; totalRecords?: number } | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleteTimesheets, { isLoading: isDeleting }] = useDeleteTimesheetsMutation();
+  
+  // Check if user has bulk delete timesheets permission
+  const canBulkDelete = currentUserData?.data?.permissions?.bulkDeleteTimesheets || currentUserData?.data?.permissions?.bulkDeleteLogs || false;
   const [hideWeekend, setHideWeekend] = useState(false);
   const [timesheetSortField, setTimesheetSortField] = useState<'ref' | 'client' | 'job' | 'category' | 'description' | 'rate' | null>(null);
   const [timesheetSortDirection, setTimesheetSortDirection] = useState<'asc' | 'desc' | null>(null);
@@ -336,7 +344,7 @@ export function TimesheetDashboard() {
         const token = localStorage.getItem('userToken');
         const params = new URLSearchParams();
         params.set('page', String(page));
-        params.set('limit', String(itemsPerPage));
+        params.set('limit', String(limit));
         // filters
         if (searchQuery) params.set('search', searchQuery);
         // status preference: dropdown selection wins, else active tab badge
@@ -356,8 +364,8 @@ export function TimesheetDashboard() {
           params.set('weekStart', getDateRange.start);
           params.set('weekEnd', getDateRange.end);
         }
-        if (selectedTeamIds[0]) params.set('userId', selectedTeamIds[0]);
-        if (selectedDepartmentIds[0]) params.set('departmentId', selectedDepartmentIds[0]);
+        if (selectedTeamIds.size > 0) params.set('userId', Array.from(selectedTeamIds).join(','));
+        if (selectedDepartmentIds.size > 0) params.set('departmentId', Array.from(selectedDepartmentIds).join(','));
 
         const url = `${import.meta.env.VITE_API_URL}/timesheet/all${params ? `?${params}` : ''}`;
         const res = await fetch(url, {
@@ -383,13 +391,13 @@ export function TimesheetDashboard() {
       }
       return () => controller.abort();
     };
-  }, [itemsPerPage, searchQuery, selectedStatuses, activeFilter, getDateRange, activeTab, selectedTeamIds, selectedDepartmentIds]);
+  }, [limit, searchQuery, selectedStatuses, activeFilter, getDateRange, activeTab, selectedTeamIds, selectedDepartmentIds]);
 
   useEffect(() => {
     if (activeTab === 'allTimesheets') {
       fetchTimesheets(currentPage);
     }
-  }, [fetchTimesheets, currentPage, activeTab]);
+  }, [fetchTimesheets, currentPage, activeTab, limit]);
   
   // Refetch when filter or period changes (only for allTimesheets tab)
   useEffect(() => {
@@ -468,11 +476,46 @@ export function TimesheetDashboard() {
     }
     getTabAccess(activeTab).unwrap();
   }, [visibleTabs, activeTab]);
+  const toggleSelect = (id: string, checked: boolean) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (checked) next.add(id); else next.delete(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAllVisible = (checked: boolean, items: any[]) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      items.forEach(item => { if (checked) next.add(item.id); else next.delete(item.id); });
+      return next;
+    });
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedIds.size === 0) return;
+    try {
+      await deleteTimesheets({ timesheetIds: Array.from(selectedIds) }).unwrap();
+      setSelectedIds(new Set());
+      // Refetch timesheets after deletion
+      if (activeTab === 'allTimesheets' && fetchTimesheets) {
+        await fetchTimesheets(currentPage);
+      }
+      toast.success('Timesheets deleted successfully');
+    } catch (e: any) {
+      console.error('Failed to delete timesheets', e);
+      toast.error(e?.data?.message || 'Failed to delete timesheets');
+    }
+  };
+
   const handleRefresh = () => {
     // Reset all filters and regenerate data
     setSearchQuery("");
     setSelectedDepartments([]);
     setSelectedStatuses([]);
+    setSelectedTeamIds(new Set());
+    setSelectedDepartmentIds(new Set());
+    setSelectedIds(new Set());
     setSortField(null);
     setSortDirection(null);
     setCurrentPage(1);
@@ -554,10 +597,7 @@ export function TimesheetDashboard() {
 
   // Pagination (from API)
   const totalPages = apiPagination?.totalPages || 1;
-  const totalItems = apiPagination?.totalItems || filteredData.length;
-  const currentLimit = apiPagination?.limit || itemsPerPage;
-  const startItem = (currentPage - 1) * currentLimit + 1;
-  const endItem = Math.min(currentPage * currentLimit, totalItems);
+  const totalItems = apiPagination?.totalItems || apiPagination?.totalRecords || filteredData.length;
   // Dynamic filter sources
   const teamOptions = allFilterOptions?.data?.teams || [];
   const statuses = ["approved", "review", "rejected", "not-submitted"] as const;
@@ -799,221 +839,336 @@ export function TimesheetDashboard() {
     </div>}
 
     {/* Search and Filters - Only show in allTimesheets tab */}
-    {activeTab === "allTimesheets" && <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mb-3">
-      <div className="relative flex-1 max-w-sm">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input placeholder="Search..." className="pl-10 bg-white" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="bg-white text-xs sm:text-sm">
-              <span className="hidden sm:inline">Team Name</span>
-              <span className="sm:hidden">Team</span>
-              <ChevronDown className="ml-1 sm:ml-2 w-3 h-3 sm:w-4 sm:h-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            {(teamOptions as any[]).map((t) => (
-              <DropdownMenuCheckboxItem
-                key={t._id}
-                checked={selectedTeamIds.includes(t._id)}
-                onCheckedChange={(checked) => {
+    {activeTab === "allTimesheets" && (
+      <div className="p-[6px] rounded-sm bg-[#E7E5F2] flex justify-between items-center mb-3">
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="relative flex-1 w-full max-w-[200px]">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input 
+              placeholder="Search..." 
+              className="pl-10 w-[200px] bg-white text-[#381980] font-semibold placeholder:text-[#381980]" 
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="w-32 h-10 bg-white text-[#381980] font-semibold rounded-md border px-3 flex items-center justify-between">
+                  <span className="truncate">Team Name</span>
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 p-2" align="start">
+                <div className="max-h-64 overflow-auto">
+                  <div
+                    className={`px-2 py-1.5 rounded-[4px] cursor-pointer ${selectedTeamIds.size === 0 ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                    onClick={() => setSelectedTeamIds(new Set())}
+                  >
+                    All
+                  </div>
+                  {(teamOptions as any[]).map((t) => {
+                    const active = selectedTeamIds.has(t._id);
+                    return (
+                      <div
+                        key={t._id}
+                        className={`flex items-center justify-between px-2 py-1.5 rounded-[4px] cursor-pointer ${active ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                        onClick={() => {
+                          setSelectedTeamIds(prev => {
+                            const next = new Set(prev);
+                            if (next.has(t._id)) next.delete(t._id); else next.add(t._id);
+                            return next;
+                          });
+                        }}
+                      >
+                        <span className="truncate">{t.name}</span>
+                        {active && <Check className="w-4 h-4" />}
+                      </div>
+                    );
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+          <div className="space-y-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="w-32 h-10 bg-white text-[#381980] font-semibold rounded-md border px-3 flex items-center justify-between">
+                  <span className="truncate">Department</span>
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 p-2" align="start">
+                <div className="max-h-64 overflow-auto">
+                  <div
+                    className={`px-2 py-1.5 rounded-[4px] cursor-pointer ${selectedDepartmentIds.size === 0 ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                    onClick={() => setSelectedDepartmentIds(new Set())}
+                  >
+                    All
+                  </div>
+                  {(departmentOptions as any[]).map((dept) => {
+                    const active = selectedDepartmentIds.has(dept._id);
+                    return (
+                      <div
+                        key={dept._id}
+                        className={`flex items-center justify-between px-2 py-1.5 rounded-[4px] cursor-pointer ${active ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                        onClick={() => {
+                          setSelectedDepartmentIds(prev => {
+                            const next = new Set(prev);
+                            if (next.has(dept._id)) {
+                              next.delete(dept._id);
+                              setSelectedDepartments(prev => prev.filter(d => d !== dept.name));
+                            } else {
+                              next.add(dept._id);
+                              setSelectedDepartments(prev => [...prev, dept.name]);
+                            }
+                            return next;
+                          });
+                        }}
+                      >
+                        <span className="truncate">{dept.name}</span>
+                        {active && <Check className="w-4 h-4" />}
+                      </div>
+                    );
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+          <div className="space-y-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="bg-white text-xs sm:text-sm">
+                  Status
+                  <ChevronDown className="ml-1 sm:ml-2 w-3 h-3 sm:w-4 sm:h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                {statuses.map(status => <DropdownMenuCheckboxItem key={status} checked={selectedStatuses.includes(status)} onCheckedChange={checked => {
                   if (checked) {
-                    setSelectedTeamIds([...selectedTeamIds, t._id]);
+                    setSelectedStatuses([...selectedStatuses, status]);
                   } else {
-                    setSelectedTeamIds(selectedTeamIds.filter(id => id !== t._id));
+                    setSelectedStatuses(selectedStatuses.filter(s => s !== status));
                   }
-                }}
-              >
-                {t.name}
-              </DropdownMenuCheckboxItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="bg-white text-xs sm:text-sm">
-              <span className="hidden sm:inline">Department</span>
-              <span className="sm:hidden">Dept</span>
-              <ChevronDown className="ml-1 sm:ml-2 w-3 h-3 sm:w-4 sm:h-4" />
+                }}>
+                  {status.charAt(0).toUpperCase() + status.slice(1).replace('-', ' ')}
+                </DropdownMenuCheckboxItem>)}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          <div className="space-y-2">
+            <Button
+              variant="outline"
+              className="bg-[#381980] w-[42px] rounded-sm text-primary-foreground p-2 hover:bg-primary/90 !text-[#fff]"
+              onClick={handleRefresh}
+            >
+              <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4" />
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            {(departmentOptions as any[]).map((dept) => (
-              <DropdownMenuCheckboxItem
-                key={dept._id}
-                checked={selectedDepartmentIds.includes(dept._id)}
-                onCheckedChange={(checked) => {
-                  if (checked) {
-                    setSelectedDepartmentIds([...selectedDepartmentIds, dept._id]);
-                    setSelectedDepartments([...selectedDepartments, dept.name]);
-                  } else {
-                    setSelectedDepartmentIds(selectedDepartmentIds.filter(id => id !== dept._id));
-                    setSelectedDepartments(selectedDepartments.filter(d => d !== dept.name));
-                  }
-                }}
-              >
-                {dept.name}
-              </DropdownMenuCheckboxItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="bg-white text-xs sm:text-sm">
-              Status
-              <ChevronDown className="ml-1 sm:ml-2 w-3 h-3 sm:w-4 sm:h-4" />
+          </div>
+        </div>
+        {canBulkDelete && (
+          <div className="space-y-2">
+            <Button
+              onClick={handleDeleteSelected}
+              disabled={isDeleting || selectedIds.size === 0}
+              className='bg-[#381980] w-[42px] rounded-sm text-primary-foreground p-2 hover:bg-primary/90 !text-[#fff] flex items-center justify-center'
+            >
+              <Trash2 size={16} />
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            {statuses.map(status => <DropdownMenuCheckboxItem key={status} checked={selectedStatuses.includes(status)} onCheckedChange={checked => {
-              if (checked) {
-                setSelectedStatuses([...selectedStatuses, status]);
-              } else {
-                setSelectedStatuses(selectedStatuses.filter(s => s !== status));
-              }
-            }}>
-              {status.charAt(0).toUpperCase() + status.slice(1).replace('-', ' ')}
-            </DropdownMenuCheckboxItem>)}
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <Button variant="outline" size="sm" className="bg-primary text-primary-foreground p-2 hover:bg-primary/90" onClick={handleRefresh}>
-          <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4" />
-        </Button>
+          </div>
+        )}
       </div>
-    </div>}
+    )}
 
     {/* Data Table - Only show in allTimesheets tab */}
     {activeTab === "allTimesheets" && <>
-      <div className="bg-card rounded-lg border overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[800px]">
-            <thead className="bg-muted/50">
-              <tr>
-                <th className="text-left px-2 sm:px-4 py-3 text-xs sm:text-sm font-medium text-muted-foreground min-w-[120px]">
-                  <button className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleSort('name')}>
-                    <span className="hidden sm:inline">TEAM NAME</span>
-                    <span className="sm:hidden">NAME</span>
-                    {getSortIcon('name')}
-                  </button>
-                </th>
-                <th className="text-left px-2 sm:px-4 py-3 text-xs sm:text-sm font-medium text-muted-foreground min-w-[100px]">
-                  <button className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleSort('department')}>
-                    <span className="hidden sm:inline">DEPARTMENT</span>
-                    <span className="sm:hidden">DEPT</span>
-                    {getSortIcon('department')}
-                  </button>
-                </th>
-                <th className="text-left px-2 sm:px-4 py-3 text-xs sm:text-sm font-medium text-muted-foreground min-w-[80px]">
-                  <button className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleSort('capacity')}>
-                    CAPACITY
-                    {getSortIcon('capacity')}
-                  </button>
-                </th>
-                <th className="text-left px-2 sm:px-4 py-3 text-xs sm:text-sm font-medium text-muted-foreground min-w-[80px]">
-                  <button className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleSort('logged')}>
-                    LOGGED
-                    {getSortIcon('logged')}
-                  </button>
-                </th>
-                <th className="text-left px-2 sm:px-4 py-3 text-xs sm:text-sm font-medium text-muted-foreground min-w-[80px]">
-                  <button className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleSort('variance')}>
-                    VARIANCE
-                    {getSortIcon('variance')}
-                  </button>
-                </th>
-                <th className="text-left px-2 sm:px-4 py-3 text-xs sm:text-sm font-medium text-muted-foreground min-w-[100px]">STATUS</th>
-                <th className="text-left px-2 sm:px-4 py-3 text-xs sm:text-sm font-medium text-muted-foreground min-w-[60px]">NOTES</th>
-                <th className="text-left px-2 sm:px-4 py-3 text-xs sm:text-sm font-medium text-muted-foreground min-w-[100px]">
-                  <button className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleSort('submitted')}>
-                    SUBMITTED
-                    {getSortIcon('submitted')}
-                  </button>
-                </th>
-                <th className="text-left px-2 sm:px-4 py-3 text-xs sm:text-sm font-medium text-muted-foreground min-w-[150px]">ACTIONS</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isFetching && <tr><td className="px-4 py-6 text-sm" colSpan={9}>Loading timesheets...</td></tr>}
-              {fetchError && !isFetching && <tr><td className="px-4 py-6 text-sm text-red-600" colSpan={9}>{fetchError}</td></tr>}
-              {!isFetching && !fetchError && filteredData.map((item: any) => <tr key={item.id} className="border-t border-border hover:bg-muted/25">
-                <td className="px-2 sm:px-4 py-2">
-                  <div className="flex items-center gap-2 sm:gap-3">
-                    {/* {item.avatarUrl} */}
-                    <Avatar className="w-6 h-6 sm:w-8 sm:h-8 flex-shrink-0">
-                      <AvatarImage src={import.meta.env.VITE_BACKEND_BASE_URL + item.avatarUrl || ''} />
-                      <AvatarFallback className="text-xs">{item.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
-                    </Avatar>
-                    <span className="text-sm sm:text-base text-foreground truncate">{item.name}</span>
-                  </div>
-                </td>
-                <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm text-muted-foreground">{item.department || '-'}</td>
-                <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm text-foreground">{formatSeconds(item.capacitySec)}</td>
-                <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm text-foreground">{formatSeconds(item.loggedSec)}</td>
-                <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm text-foreground">{formatVariance(item.varianceSec)}</td>
-                <td className="px-2 sm:px-4 py-2">
-                  <StatusBadge status={item.status}>
-                    {item.displayStatus}
-                  </StatusBadge>
-                </td>
-                <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm text-muted-foreground">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className={`text-xs ${item.notes > 0 ? 'bg-blue-50 text-blue-700 hover:bg-blue-100' : 'text-muted-foreground hover:bg-muted'}`}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setSelectedTimesheetId(item.id);
-                      setSelectedTimesheetName(item.name);
-                      setShowNotesDialog(true);
-                    }}
-                  >
-                    {item.notes || 0}
-                  </Button>
-                </td>
-                <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm text-muted-foreground">{item.submitted}</td>
-                <td className="px-2 sm:px-4 py-2">
-                  <div className="flex flex-col sm:flex-row gap-1">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-xs"
-                      onClick={() => handleViewTimesheet(item.id, item.userId)}
-                    >
-                      <span className="hidden sm:inline">View Timesheet</span>
-                      <span className="sm:hidden">View</span>
-                    </Button>
-                    {item.status === "not-submitted" && <Button variant="outline" size="sm" className="text-xs">Remind</Button>}
-                  </div>
-                </td>
-              </tr>)}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <Card>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader className='bg-[#E7E5F2]'>
+                <TableRow className="border-b border-border bg-muted/50 text-[#381980]">
+                  {canBulkDelete && (
+                    <TableHead className="p-3 text-foreground h-12 text-[#381980]">
+                      <input 
+                        type="checkbox" 
+                        onChange={(e) => toggleSelectAllVisible(e.target.checked, filteredData)} 
+                      />
+                    </TableHead>
+                  )}
+                  <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">
+                    <button className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleSort('name')}>
+                      <span className="hidden sm:inline">TEAM NAME</span>
+                      <span className="sm:hidden">NAME</span>
+                      {getSortIcon('name')}
+                    </button>
+                  </TableHead>
+                  <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">
+                    <button className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleSort('department')}>
+                      <span className="hidden sm:inline">DEPARTMENT</span>
+                      <span className="sm:hidden">DEPT</span>
+                      {getSortIcon('department')}
+                    </button>
+                  </TableHead>
+                  <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">
+                    <button className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleSort('capacity')}>
+                      CAPACITY
+                      {getSortIcon('capacity')}
+                    </button>
+                  </TableHead>
+                  <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">
+                    <button className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleSort('logged')}>
+                      LOGGED
+                      {getSortIcon('logged')}
+                    </button>
+                  </TableHead>
+                  <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">
+                    <button className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleSort('variance')}>
+                      VARIANCE
+                      {getSortIcon('variance')}
+                    </button>
+                  </TableHead>
+                  <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">STATUS</TableHead>
+                  <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">NOTES</TableHead>
+                  <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">
+                    <button className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleSort('submitted')}>
+                      SUBMITTED
+                      {getSortIcon('submitted')}
+                    </button>
+                  </TableHead>
+                  <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">ACTIONS</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isFetching && (
+                  <TableRow>
+                    <TableCell colSpan={canBulkDelete ? 10 : 9} className="p-4 text-sm text-center">
+                      Loading timesheets...
+                    </TableCell>
+                  </TableRow>
+                )}
+                {fetchError && !isFetching && (
+                  <TableRow>
+                    <TableCell colSpan={canBulkDelete ? 10 : 9} className="p-4 text-sm text-red-600 text-center">
+                      {fetchError}
+                    </TableCell>
+                  </TableRow>
+                )}
+                {!isFetching && !fetchError && filteredData.map((item: any) => (
+                  <TableRow key={item.id} className="border-b border-border transition-colors h-12">
+                    {canBulkDelete && (
+                      <TableCell className="p-4">
+                        <input 
+                          type="checkbox" 
+                          checked={selectedIds.has(item.id)} 
+                          onChange={(e) => toggleSelect(item.id, e.target.checked)} 
+                        />
+                      </TableCell>
+                    )}
+                    <TableCell className="p-4">
+                      <div className="flex items-center gap-2 sm:gap-3">
+                        <Avatar className="w-6 h-6 sm:w-8 sm:h-8 flex-shrink-0">
+                          <AvatarImage src={import.meta.env.VITE_BACKEND_BASE_URL + item.avatarUrl || ''} />
+                          <AvatarFallback className="text-xs">{item.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                        </Avatar>
+                        <span className="text-sm sm:text-base text-foreground truncate">{item.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="p-4 text-sm text-muted-foreground">{item.department || '-'}</TableCell>
+                    <TableCell className="p-4 text-sm text-foreground">{formatSeconds(item.capacitySec)}</TableCell>
+                    <TableCell className="p-4 text-sm text-foreground">{formatSeconds(item.loggedSec)}</TableCell>
+                    <TableCell className="p-4 text-sm text-foreground">{formatVariance(item.varianceSec)}</TableCell>
+                    <TableCell className="p-4">
+                      <StatusBadge status={item.status}>
+                        {item.displayStatus}
+                      </StatusBadge>
+                    </TableCell>
+                    <TableCell className="p-4 text-sm text-muted-foreground">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={`text-xs ${item.notes > 0 ? 'bg-blue-50 text-blue-700 hover:bg-blue-100' : 'text-muted-foreground hover:bg-muted'}`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setSelectedTimesheetId(item.id);
+                          setSelectedTimesheetName(item.name);
+                          setShowNotesDialog(true);
+                        }}
+                      >
+                        {item.notes || 0}
+                      </Button>
+                    </TableCell>
+                    <TableCell className="p-4 text-sm text-muted-foreground">{item.submitted}</TableCell>
+                    <TableCell className="p-4">
+                      <div className="flex flex-col sm:flex-row gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
+                          onClick={() => handleViewTimesheet(item.id, item.userId)}
+                        >
+                          <span className="hidden sm:inline">View Timesheet</span>
+                          <span className="sm:hidden">View</span>
+                        </Button>
+                        {item.status === "not-submitted" && <Button variant="outline" size="sm" className="text-xs">Remind</Button>}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
 
-      {/* Pagination - API-based */}
-      {totalItems > currentLimit && <div className="flex flex-col sm:flex-row items-center justify-between px-4 py-3 mt-1 gap-2">
-        <div className="text-xs sm:text-sm text-muted-foreground text-center sm:text-left">
-          Showing {startItem} to {endItem} of {totalItems} results
+      {/* Pagination Controls */}
+      {apiPagination && apiPagination.totalPages > 0 && (
+        <div className="space-y-4 mt-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">Show:</span>
+              <select 
+                value={limit} 
+                onChange={(e) => { 
+                  setCurrentPage(1); 
+                  setLimit(Number(e.target.value)); 
+                }} 
+                className="border border-gray-300 rounded px-2 py-1 text-sm" 
+                disabled={isFetching}
+              >
+                <option value={5}>5 per page</option>
+                <option value={10}>10 per page</option>
+                <option value={20}>20 per page</option>
+                <option value={50}>50 per page</option>
+              </select>
+            </div>
+            <div className="text-sm text-gray-500">
+              Showing {totalItems > 0 ? ((currentPage - 1) * (apiPagination.limit || limit)) + 1 : 0} to {Math.min(currentPage * (apiPagination.limit || limit), totalItems)} of {totalItems} timesheets
+            </div>
+          </div>
+          {apiPagination.totalPages > 1 && (
+            <div className="flex justify-center items-center gap-2">
+              <Button 
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
+                disabled={currentPage === 1 || isFetching} 
+                variant="outline" 
+                size="sm"
+              >
+                <ChevronLeft className="h-4 w-4" /> Previous
+              </Button>
+              <Button 
+                onClick={() => setCurrentPage(p => p + 1)} 
+                disabled={currentPage >= apiPagination.totalPages || isFetching} 
+                variant="outline" 
+                size="sm"
+              >
+                Next <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} disabled={currentPage === 1} className="text-xs sm:text-sm">
-            <ChevronLeft className="w-3 h-3 sm:w-4 sm:h-4" />
-            <span className="hidden sm:inline ml-1">Previous</span>
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))} disabled={currentPage === totalPages} className="text-xs sm:text-sm">
-            <span className="hidden sm:inline mr-1">Next</span>
-            <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4" />
-          </Button>
-        </div>
-      </div>}
+      )}
     </>}
 
     {/* My Timesheets Tab Content */}

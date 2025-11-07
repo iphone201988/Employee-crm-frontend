@@ -160,6 +160,10 @@ export interface DeleteTimeLogsRequest {
   timeLogIds: string[];
 }
 
+export interface DeleteTimesheetsRequest {
+  timesheetIds: string[];
+}
+
 export interface UpdateTimeLogRequest {
   date: string; // ISO
   status: 'notInvoiced' | 'invoiced' | 'paid';
@@ -276,6 +280,14 @@ export const timesheetApi = createApi({
       }),
       invalidatesTags: ['TimeEntry'],
     }),
+    deleteTimesheets: builder.mutation<{ success: boolean; message: string; data: { deletedCount: number; timesheetIds: string[] } }, DeleteTimesheetsRequest>({
+      query: (body) => ({
+        url: '/delete',
+        method: 'DELETE',
+        body,
+      }),
+      invalidatesTags: ['Timesheet'],
+    }),
     updateTimeLog: builder.mutation<{ success: boolean; message: string }, { id: string; data: UpdateTimeLogRequest }>({
       query: ({ id, data }) => ({
         url: `/update-time-log/${id}`,
@@ -328,6 +340,7 @@ export const {
   useAddTimeLogMutation,
   useListTimeLogsQuery,
   useDeleteTimeLogsMutation,
+  useDeleteTimesheetsMutation,
   useUpdateTimeLogMutation,
   useChangeTimesheetStatusMutation,
 } = timesheetApi;
