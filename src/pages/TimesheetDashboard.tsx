@@ -771,23 +771,23 @@ export function TimesheetDashboard() {
 
     {/* Filter Badges - Only show in allTimesheets tab */}
     {activeTab === "allTimesheets" && <div className="flex flex-col sm:flex-row gap-2 mb-3">
-      <div className="flex items-center gap-3 mt-4 border border-[#381980] w-max p-[6px] rounded-sm pl-4">
+      <div className="flex items-center gap-3 mt-4  w-max p-[6px] rounded-sm pl-4">
         <p className='text-[#381980] font-semibold text-[14px]'>Filter by:</p>
-        <div className="flex gap-2">
+        <div className="flex gap-0">
           <button
             onClick={() => setActiveFilter("allTimesheets")}
-            className={`px-3 py-1 text-sm font-medium transition-colors rounded-sm ${activeFilter === "allTimesheets"
-              ? 'bg-[#381980] text-white'
-              : 'bg-[#E7E5F2] text-[#381980ac] hover:bg-[#381980] hover:text-white'
+            className={`px-4 py-2 text-sm font-medium transition-colors  ${activeFilter === "allTimesheets"
+              ? 'bg-[#381980] text-white rounded-l-full'
+              : 'bg-transparent text-[#71717A] '
               }`}
           >
             All Timesheets
           </button>
           <button
             onClick={() => setActiveFilter("not-submitted")}
-            className={`px-3 py-1 text-sm font-medium transition-colors rounded-sm ${activeFilter === "not-submitted"
+            className={`px-4 py-2 text-sm font-medium transition-colors  ${activeFilter === "not-submitted"
               ? 'bg-[#381980] text-white'
-              : 'bg-[#E7E5F2] text-[#381980ac] hover:bg-[#381980] hover:text-white'
+              : 'bg-transparent text-[#71717A] '
               }`}
           >
             Not Submitted
@@ -795,9 +795,9 @@ export function TimesheetDashboard() {
           {autoApproveTimesheets && (
             <button
               onClick={() => setActiveFilter("autoApproved")}
-              className={`px-3 py-1 text-sm font-medium transition-colors rounded-sm ${activeFilter === "autoApproved"
+              className={`px-4 py-2 text-sm font-medium transition-colors  ${activeFilter === "autoApproved"
                 ? 'bg-[#381980] text-white'
-                : 'bg-[#E7E5F2] text-[#381980ac] hover:bg-[#381980] hover:text-white'
+                : 'bg-transparent text-[#71717A] '
                 }`}
             >
               Auto-Approve
@@ -807,27 +807,27 @@ export function TimesheetDashboard() {
             <>
               <button
                 onClick={() => setActiveFilter("review")}
-                className={`px-3 py-1 text-sm font-medium transition-colors rounded-sm ${activeFilter === "review"
+                className={`px-4 py-2 text-sm font-medium transition-colors  ${activeFilter === "review"
                   ? 'bg-[#381980] text-white'
-                  : 'bg-[#E7E5F2] text-[#381980ac] hover:bg-[#381980] hover:text-white'
+                  : 'bg-transparent text-[#71717A] '
                   }`}
               >
                 For Review
               </button>
               <button
                 onClick={() => setActiveFilter("rejected")}
-                className={`px-3 py-1 text-sm font-medium transition-colors rounded-sm ${activeFilter === "rejected"
+                className={`px-4 py-2 text-sm font-medium transition-colors  ${activeFilter === "rejected"
                   ? 'bg-[#381980] text-white'
-                  : 'bg-[#E7E5F2] text-[#381980ac] hover:bg-[#381980] hover:text-white'
+                  : 'bg-transparent text-[#71717A] '
                   }`}
               >
                 Rejected
               </button>
               <button
                 onClick={() => setActiveFilter("approved")}
-                className={`px-3 py-1 text-sm font-medium transition-colors rounded-sm ${activeFilter === "approved"
-                  ? 'bg-[#381980] text-white'
-                  : 'bg-[#E7E5F2] text-[#381980ac] hover:bg-[#381980] hover:text-white'
+                className={`px-4 py-2 text-sm font-medium transition-colors  ${activeFilter === "approved"
+                  ? 'bg-[#381980] text-white rounded-r-full'
+                  : 'bg-transparent text-[#71717A] '
                   }`}
               >
                 Approved

@@ -814,7 +814,7 @@ const AllTimeLogsTab = () => {
             <Button
               variant={viewMode === 'flat' ? 'default' : 'outline'}
               onClick={() => setViewMode('flat')}
-              className='rounded-sm bg-[#E7E5F2] text-[#381980ac]'
+              className='rounded-sm bg-[#E7E5F2] h-7 text-[#381980ac]'
               size="sm"
             >
               None
@@ -822,7 +822,7 @@ const AllTimeLogsTab = () => {
             <Button
               variant={viewMode === 'clients' ? 'default' : 'outline'}
               onClick={() => setViewMode('clients')}
-              className='rounded-sm bg-[#E7E5F2] text-[#381980ac]'
+              className='rounded-sm bg-[#E7E5F2] h-7 text-[#381980ac]'
               size="sm"
             >
               Client Name
@@ -830,7 +830,7 @@ const AllTimeLogsTab = () => {
             <Button
               variant={viewMode === 'teamMembers' ? 'default' : 'outline'}
               onClick={() => setViewMode('teamMembers')}
-              className='rounded-sm bg-[#E7E5F2] text-[#381980ac]'
+              className='rounded-sm bg-[#E7E5F2] h-7 text-[#381980ac]'
               size="sm"
             >
               Team Name
@@ -838,7 +838,7 @@ const AllTimeLogsTab = () => {
             <Button
               variant={viewMode === 'jobTypes' ? 'default' : 'outline'}
               onClick={() => setViewMode('jobTypes')}
-              className='rounded-sm bg-[#E7E5F2] text-[#381980ac]'
+              className='rounded-sm bg-[#E7E5F2] h-7 text-[#381980ac]'
               size="sm"
             >
               Job Types
@@ -846,7 +846,7 @@ const AllTimeLogsTab = () => {
             <Button
               variant={viewMode === 'jobNames' ? 'default' : 'outline'}
               onClick={() => setViewMode('jobNames')}
-              className='rounded-sm bg-[#E7E5F2] text-[#381980ac]'
+              className='rounded-sm bg-[#E7E5F2] h-7 text-[#381980ac]'
               size="sm"
             >
               Job Name
@@ -854,10 +854,10 @@ const AllTimeLogsTab = () => {
             <Button
               variant={viewMode === 'category' ? 'default' : 'outline'}
               onClick={() => setViewMode('category')}
-              className='rounded-sm bg-[#E7E5F2] text-[#381980ac]'
+              className='rounded-sm bg-[#E7E5F2] h-7 text-[#381980ac]'
               size="sm"
             >
-              Time purpose
+              Time Purpose
             </Button>
           </div>
 
@@ -878,7 +878,7 @@ const AllTimeLogsTab = () => {
             <Popover>
               <PopoverTrigger asChild>
                 <button className="w-32 h-10 bg-white text-[#381980] font-semibold rounded-md border px-3 flex items-center justify-between">
-                  <span className="truncate">Client Name</span>
+                  <span className="truncate text-[14px]">Client Name</span>
                   <ChevronDown className="w-4 h-4" />
                 </button>
               </PopoverTrigger>
@@ -917,7 +917,7 @@ const AllTimeLogsTab = () => {
             <Popover>
               <PopoverTrigger asChild>
                 <button className="w-28 h-10 bg-white text-[#381980] font-semibold rounded-md border px-3 flex items-center justify-between">
-                  <span className="truncate">Job Name</span>
+                  <span className="truncate text-[14px]">Job Name</span>
                   <ChevronDown className="w-4 h-4" />
                 </button>
               </PopoverTrigger>
@@ -956,7 +956,7 @@ const AllTimeLogsTab = () => {
             <Popover>
               <PopoverTrigger asChild>
                 <button className="w-28 h-10 bg-white text-[#381980] font-semibold rounded-md border px-3 flex items-center justify-between">
-                  <span className="truncate">Job Type</span>
+                  <span className="truncate text-[14px]">Job Type</span>
                   <ChevronDown className="w-4 h-4" />
                 </button>
               </PopoverTrigger>
@@ -995,7 +995,7 @@ const AllTimeLogsTab = () => {
             <Popover>
               <PopoverTrigger asChild>
                 <button className="w-32 h-10 bg-white text-[#381980] font-semibold rounded-md border px-3 flex items-center justify-between">
-                  <span className="truncate">Team Name</span>
+                  <span className="truncate text-[14px]">Team Name</span>
                   <ChevronDown className="w-4 h-4" />
                 </button>
               </PopoverTrigger>
@@ -1034,7 +1034,7 @@ const AllTimeLogsTab = () => {
             <Popover>
               <PopoverTrigger asChild>
                 <button className="w-24 h-10 bg-white text-[#381980] font-semibold rounded-md border px-3 flex items-center justify-between">
-                  <span className="truncate">Purpose</span>
+                  <span className="truncate text-[14px]">Purpose</span>
                   <ChevronDown className="w-4 h-4" />
                 </button>
               </PopoverTrigger>
