@@ -354,7 +354,7 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
           <div className="overflow-auto">
             <Table>
               <TableHeader>
-                <TableRow className="h-12">
+                <TableRow className="h-12 !bg-[#edecf4] text-[#381980]">
                   <TableHead className="w-[400px] cursor-pointer hover:bg-muted/50" onClick={() => handleSort('name')}>
                     <div className="w-[250px] flex items-center gap-2">Team Member <ArrowUpDown className="h-4 w-4 text-muted-foreground" /></div>
                   </TableHead>

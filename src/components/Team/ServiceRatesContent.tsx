@@ -235,9 +235,9 @@ export const ServiceRatesContent: React.FC<ServiceRatesContentProps> = ({ onUnsa
                     <div className="overflow-auto">
                         <Table>
                             <TableHeader>
-                                <TableRow className="h-12">
+                                <TableRow className="h-12 !bg-[#edecf4] text-[#381980]">
                                     <TableHead
-                                        className="sticky left-0 bg-white z-10 border-r w-[250px] cursor-pointer hover:bg-muted/50"
+                                        className="sticky left-0  z-10 border-r w-[250px] cursor-pointer hover:bg-muted/50"
                                         onClick={() => handleSort('name')}
                                     >
                                         <div className="flex items-center gap-2">

@@ -173,9 +173,9 @@ const ServicesTab = () => {
                     <div className="overflow-x-auto">
                         <Table>
                             <TableHeader>
-                                <TableRow>
-                                    <TableHead className="w-20 border-r font-medium sticky left-0 bg-white z-10">CLIENT REF</TableHead>
-                                    <TableHead className="w-40 border-r font-medium sticky left-[81px] bg-white z-10">CLIENT NAME</TableHead>
+                                <TableRow className='!bg-[#edecf4] text-[#381980]'>
+                                    <TableHead className="w-20 border-r font-medium sticky left-0  z-10">CLIENT REF</TableHead>
+                                    <TableHead className="w-40 border-r font-medium sticky left-[81px]  z-10">CLIENT NAME</TableHead>
                                     <TableHead className="w-32 border-r font-medium">TYPE</TableHead>
                                     {jobCategories.map(jobCategory => (
                                         <TableHead key={jobCategory.jobCategoryId} className="w-24 border-r text-center font-medium">

@@ -440,13 +440,13 @@ const WriteOffMergedTab = () => {
 
 
       {/* Filter Tabs */}
-      <div className="flex items-center justify-between bg-white p-4 rounded-lg">
+      <div className="flex items-center justify-between p-[6px] rounded-sm bg-[#E7E5F2]">
         <div className="flex items-center gap-2">
           <Button
             size="sm"
             variant={activeFilter === 'clients' ? 'default' : 'outline'}
             onClick={() => setActiveFilter('clients')}
-            className="px-3 py-1 h-8 text-sm"
+            className="px-3 py-1 h-8 text-sm rounded-sm"
           >
             Clients
           </Button>
@@ -454,7 +454,7 @@ const WriteOffMergedTab = () => {
             size="sm"
             variant={activeFilter === 'jobs' ? 'default' : 'outline'}
             onClick={() => setActiveFilter('jobs')}
-            className="px-3 py-1 h-8 text-sm"
+            className="px-3 py-1 h-8 text-sm rounded-sm"
           >
             Jobs
           </Button>
@@ -462,7 +462,7 @@ const WriteOffMergedTab = () => {
             size="sm"
             variant={activeFilter === 'job-type' ? 'default' : 'outline'}
             onClick={() => setActiveFilter('job-type')}
-            className="px-3 py-1 h-8 text-sm"
+            className="px-3 py-1 h-8 text-sm rounded-sm"
           >
             Job Type
           </Button>
@@ -470,7 +470,7 @@ const WriteOffMergedTab = () => {
             size="sm"
             variant={activeFilter === 'team' ? 'default' : 'outline'}
             onClick={() => setActiveFilter('team')}
-            className="px-3 py-1 h-8 text-sm"
+            className="px-3 py-1 h-8 text-sm rounded-sm"
           >
             Team
           </Button>
@@ -480,7 +480,7 @@ const WriteOffMergedTab = () => {
         <Button
           onClick={() => setShowLogView(true)}
           variant="outline"
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 px-3 py-1 h-8 text-sm rounded-sm"
         >
           Write Off Log
         </Button>
@@ -504,27 +504,27 @@ const WriteOffMergedTab = () => {
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
-              <TableHeader>
+              <TableHeader className='!bg-[#edecf4] !text-[#381980]'>
                 <TableRow>
                   {activeFilter === 'clients' && (
-                    <TableHead className="text-left">
+                    <TableHead className="text-left px-3">
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => handleSort('ref')}
-                        className="h-8 px-1 font-medium justify-start"
+                        className="h-8 px-1 font-medium justify-start text-[12px]"
                       >
                         Client Ref.
                         <ArrowUpDown className="ml-1 h-4 w-4" />
                       </Button>
                     </TableHead>
                   )}
-                  <TableHead className="text-left">
+                  <TableHead className="text-left px-3">
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => handleSort('name')}
-                      className="h-8 px-1 font-medium justify-start"
+                      className="h-8 px-1 font-medium justify-start text-[12px]"
                     >
                       {activeFilter === 'clients' ? 'Client Name' :
                         activeFilter === 'jobs' ? 'Job Name' :
@@ -534,23 +534,23 @@ const WriteOffMergedTab = () => {
                   </TableHead>
                   {activeFilter === 'jobs' && (
                     <>
-                      <TableHead className="text-left">
+                      <TableHead className="text-left px-3">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleSort('clientRef')}
-                          className="h-8 px-1 font-medium justify-start"
+                          className="h-8 px-1 font-medium justify-start text-[12px]"
                         >
                           Client Ref.
                           <ArrowUpDown className="ml-1 h-4 w-4" />
                         </Button>
                       </TableHead>
-                      <TableHead className="text-left">
+                      <TableHead className="text-left px-3">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleSort('clientName')}
-                          className="h-8 px-1 font-medium justify-start"
+                          className="h-8 px-1 font-medium justify-start text-[12px]"
                         >
                           Client Name
                           <ArrowUpDown className="ml-1 h-4 w-4" />
@@ -558,67 +558,67 @@ const WriteOffMergedTab = () => {
                       </TableHead>
                     </>
                   )}
-                  <TableHead className="text-left">
+                  <TableHead className="text-left px-3">
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => handleSort('writeOffOccasions')}
-                      className="h-8 px-1 font-medium justify-start"
+                      className="h-8 px-1 font-medium justify-start text-[12px]"
                     >
                       Occasions
                       <ArrowUpDown className="ml-1 h-4 w-4" />
                     </Button>
                   </TableHead>
-                  <TableHead className="text-left">
+                  <TableHead className="text-left px-3">
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => handleSort('totalWriteOffValue')}
-                      className="h-8 px-1 font-medium justify-start"
+                      className="h-8 px-1 font-medium justify-start text-[12px]"
                     >
                       Total Write Off Value
                       <ArrowUpDown className="ml-1 h-4 w-4" />
                     </Button>
                   </TableHead>
-                  <TableHead className="text-left">
+                  <TableHead className="text-left px-3">
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => handleSort('noJobsWithWriteOff')}
-                      className="h-8 px-1 font-medium justify-start"
+                      className="h-8 px-1 font-medium justify-start text-[12px]"
                     >
                       Jobs With Write Off
                       <ArrowUpDown className="ml-1 h-4 w-4" />
                     </Button>
                   </TableHead>
-                  <TableHead className="text-left">
+                  <TableHead className="text-left px-3">
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => handleSort('totalFees')}
-                      className="h-8 px-1 font-medium justify-start"
+                      className="h-8 px-1 font-medium justify-start text-[12px]"
                     >
                       Total Fees
                       <ArrowUpDown className="ml-1 h-4 w-4" />
                     </Button>
                   </TableHead>
-                  <TableHead className="text-left">
+                  <TableHead className="text-left px-3">
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => handleSort('writeOffValue')}
-                      className="h-8 px-1 font-medium justify-start"
+                      className="h-8 px-1 font-medium justify-start text-[12px]"
                     >
                       Write Off Value
                       <ArrowUpDown className="ml-1 h-4 w-4" />
                     </Button>
                   </TableHead>
-                  <TableHead className="text-left">
+                  <TableHead className="text-left px-3">
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => handleSort('percentageWriteOff')}
-                      className="h-8 px-1 font-medium justify-start"
+                      className="h-8 px-1 font-medium justify-start text-[12px]"
                     >
                       % Write Off
                       <ArrowUpDown className="ml-1 h-4 w-4" />

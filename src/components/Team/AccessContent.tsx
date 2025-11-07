@@ -271,12 +271,12 @@ const AccessContent: React.FC<AccessContentProps> = ({ onUnsavedChangesChange })
           <CardContent className="p-0">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead className="sticky left-0 bg-white z-10 border-r w-[250px] cursor-pointer hover:bg-muted/50">
+                <TableRow className='!bg-[#edecf4] text-[#381980]'>
+                  <TableHead className="sticky left-0  z-10 border-r w-[250px] cursor-pointer hover:bg-muted/50">
                     <div className="w-[250px] flex items-center gap-2">Team Member </div>
                   </TableHead>
                   {Object.entries(systemFeatures).map(([category, { features }]) => (
-                    <TableHead key={category} className="sticky left-0 bg-white z-10 border-r w-[250px] cursor-pointer hover:bg-muted/50">
+                    <TableHead key={category} className="sticky left-0  z-10 border-r w-[250px] cursor-pointer hover:bg-muted/50">
                       <div className="space-y-2">
                         <div className="font-semibold">{category}</div>
                         {/* <div className="space-y-1">

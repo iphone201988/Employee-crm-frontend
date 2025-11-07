@@ -484,7 +484,7 @@ const JobTemplatesTab = () => {
         <CardContent className="p-0">
           <Table>
             <TableHeader>
-              <TableRow>
+              <TableRow className='!bg-[#edecf4] text-[#381980]'>
                 <TableHead className="w-48 font-medium">Service</TableHead>
                 <TableHead className="w-32 text-center font-medium">Number of Templates</TableHead>
                 <TableHead className="w-32 text-center font-medium">Draft</TableHead>

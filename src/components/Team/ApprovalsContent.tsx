@@ -186,12 +186,12 @@ const ApprovalsContent: React.FC<ApprovalsContentProps> = ({ onUnsavedChangesCha
           <CardContent className="p-0">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead className="sticky left-0 bg-white z-10 border-r w-[250px] cursor-pointer hover:bg-muted/50">
+                <TableRow className='!bg-[#edecf4] text-[#381980]'>
+                  <TableHead className="sticky left-0  z-10 border-r w-[250px] cursor-pointer hover:bg-muted/50">
                     <div className="w-[250px] flex items-center gap-2">Team Member </div>
                   </TableHead>
                   {permissions.map((permission) => (
-                    <TableHead key={permission.key} className="sticky left-0 bg-white z-10 border-r w-[250px] cursor-pointer hover:bg-muted/50">
+                    <TableHead key={permission.key} className="sticky left-0  z-10 border-r w-[250px] cursor-pointer hover:bg-muted/50">
                       {permission.label}
                     </TableHead>
                   ))}

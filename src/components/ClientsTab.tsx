@@ -317,16 +317,16 @@ const ClientsTab = () => {
 
       {/* Clients Table */}
       <Card className="border-border bg-card">
-        <CardContent className="p-0">
+        <CardContent className="p-0 ">
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-sm">
               <thead>
-                <tr className="border-b border-border bg-muted/50">
+                <tr className="border-b border-border !bg-[#edecf4] text-[#381980]">
                   <th
                     className="text-left p-3 font-medium text-foreground h-12 cursor-pointer hover:bg-muted/70 transition-colors border-r"
                     onClick={() => handleSort('clientRef')}
                   >
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 text-[12px] text-[#381980]">
                       Client Ref.
                       {getSortIcon('clientRef')}
                     </div>
@@ -335,18 +335,18 @@ const ClientsTab = () => {
                     className="text-left p-3 font-medium text-foreground h-12 cursor-pointer hover:bg-muted/70 transition-colors border-r"
                     onClick={() => handleSort('name')}
                   >
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 text-[12px] text-[#381980]">
                       Client Name
                       {getSortIcon('name')}
                     </div>
                   </th>
-                  <th className="text-center p-3 font-medium text-foreground h-12 border-r">Jobs</th>
+                  <th className="text-center p-3 font-medium text-foreground h-12 border-r text-[12px] !text-[#381980]">Jobs</th>
                   
                   <th
                     className="text-center p-3 font-medium text-foreground h-12 border-r cursor-pointer hover:bg-muted/70 transition-colors"
                     onClick={() => handleSort('timeLogged')}
                   >
-                    <div className="flex items-center justify-center gap-1">
+                    <div className="flex items-center justify-center gap-1 text-[12px] text-[#381980]">
                       Time Logged
                       {getSortIcon('timeLogged')}
                     </div>
@@ -355,7 +355,7 @@ const ClientsTab = () => {
                     className="text-center p-3 font-medium text-foreground h-12 border-r cursor-pointer hover:bg-muted/70 transition-colors"
                     onClick={() => handleSort('name')}
                   >
-                    <div className="flex items-center justify-center gap-1">
+                    <div className="flex items-center justify-center gap-1 text-[12px] text-[#381980]">
                       Notes
                       {getSortIcon('name')}
                     </div>
@@ -364,7 +364,7 @@ const ClientsTab = () => {
                     className="text-right p-3 font-medium text-foreground h-12 border-r cursor-pointer hover:bg-muted/70 transition-colors"
                     onClick={() => handleSort('wipAmount')}
                   >
-                    <div className="flex items-center justify-end gap-1">
+                    <div className="flex items-center justify-end gap-1 text-[12px] text-[#381980]">
                       WIP Balance
                       {getSortIcon('wipAmount')}
                     </div>
@@ -373,7 +373,7 @@ const ClientsTab = () => {
                     className="text-right p-3 font-medium text-foreground h-12 border-r cursor-pointer hover:bg-muted/70 transition-colors"
                     onClick={() => handleSort('name')}
                   >
-                    <div className="flex items-center justify-end gap-1">
+                    <div className="flex items-center justify-end gap-1 text-[12px] text-[#381980]">
                       Invoices
                       {getSortIcon('name')}
                     </div>
@@ -382,7 +382,7 @@ const ClientsTab = () => {
                     className="text-right p-3 font-medium text-foreground h-12 border-r cursor-pointer hover:bg-muted/70 transition-colors"
                     onClick={() => handleSort('writeOff')}
                   >
-                    <div className="flex items-center justify-end gap-1">
+                    <div className="flex items-center justify-end gap-1 text-[12px] text-[#381980]">
                       Write Off €
                       {getSortIcon('writeOff')}
                     </div>
@@ -391,7 +391,7 @@ const ClientsTab = () => {
                     className="text-right p-3 font-medium text-foreground h-12 border-r cursor-pointer hover:bg-muted/70 transition-colors"
                     onClick={() => handleSort('balance')}
                   >
-                    <div className="flex items-center justify-end gap-1">
+                    <div className="flex items-center justify-end gap-1 text-[12px] text-[#381980]">
                       Balance
                       {getSortIcon('balance')}
                     </div>
@@ -400,12 +400,12 @@ const ClientsTab = () => {
                     className="text-right p-3 font-medium text-foreground h-12 border-r cursor-pointer hover:bg-muted/70 transition-colors"
                     onClick={() => handleSort('name')}
                   >
-                    <div className="flex items-center justify-end gap-1">
+                    <div className="flex items-center justify-end gap-1 text-[12px] text-[#381980]">
                       Expenses
                       {getSortIcon('name')}
                     </div>
                   </th>
-                  <th className="text-center p-3 font-medium text-foreground h-12">Actions</th>
+                  <th className="text-center p-3 font-medium text-foreground h-12 text-[12px] !text-[#381980]">Actions</th>
                 </tr>
               </thead>
               <tbody>

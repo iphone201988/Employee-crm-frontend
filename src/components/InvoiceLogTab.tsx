@@ -812,9 +812,9 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
       </div>
 
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="px-0 pt-5 pb-0">
           {/* Filters */}
-          <div className="flex gap-4 mb-6">
+          <div className="flex gap-4 mb-6 pl-5">
             <div className="flex flex-col gap-2">
               <Label htmlFor="client-filter">Client</Label>
               <Select value={clientIdFilter} onValueChange={setClientIdFilter}>
@@ -858,12 +858,12 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow>
+                  <TableRow className=' border-t !bg-[#edecf4] !text-[#381980]'>
                     <TableHead className="border-r p-3 font-medium text-foreground h-12">
                       <Button
                         variant="ghost"
                         onClick={() => handleSort('invoiceNumber')}
-                        className="flex items-center gap-2 p-0 h-auto font-medium hover:bg-transparent"
+                        className="flex items-center gap-2 p-0 h-auto font-medium hover:bg-transparent !text-[#381980] text-[12px] "
                       >
                         Invoice No. {getSortIcon('invoiceNumber')}
                       </Button>
@@ -872,17 +872,17 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
                       <Button
                         variant="ghost"
                         onClick={() => handleSort('invoiceDate')}
-                        className="flex items-center gap-2 p-0 h-auto font-medium hover:bg-transparent"
+                        className="flex items-center gap-2 p-0 h-auto font-medium hover:bg-transparent !text-[#381980] text-[12px]"
                       >
                         Invoice Date {getSortIcon('invoiceDate')}
                       </Button>
                     </TableHead>
-                    <TableHead className="border-r p-3 font-medium text-foreground h-12">Client Ref.</TableHead>
+                    <TableHead className="border-r p-3 font-medium text-foreground h-12 !text-[#381980] text-[12px]">Client Ref.</TableHead>
                     <TableHead className="border-r p-3 font-medium text-foreground h-12">
                       <Button
                         variant="ghost"
                         onClick={() => handleSort('clientName')}
-                        className="flex items-center gap-2 p-0 h-auto font-medium hover:bg-transparent"
+                        className="flex items-center gap-2 p-0 h-auto font-medium hover:bg-transparent !text-[#381980] text-[12px]"
                       >
                         Client Name {getSortIcon('clientName')}
                       </Button>
@@ -891,17 +891,17 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
                       <Button
                         variant="ghost"
                         onClick={() => handleSort('invoiceTotal')}
-                        className="flex items-center gap-2 p-0 h-auto font-medium hover:bg-transparent"
+                        className="flex items-center gap-2 p-0 h-auto font-medium hover:bg-transparent !text-[#381980] text-[12px]"
                       >
                         Net {getSortIcon('invoiceTotal')}
                       </Button>
                     </TableHead>
-                    <TableHead className="border-r p-3 font-medium text-foreground h-12">VAT</TableHead>
+                    <TableHead className="border-r p-3 font-medium text-foreground h-12 !text-[#381980] text-[12px]">VAT</TableHead>
                     <TableHead className="border-r p-3 font-medium text-foreground h-12">
                       <Button
                         variant="ghost"
                         onClick={() => handleSort('invoiceTotal')}
-                        className="flex items-center gap-2 p-0 h-auto font-medium hover:bg-transparent"
+                        className="flex items-center gap-2 p-0 h-auto font-medium hover:bg-transparent !text-[#381980] text-[12px]"
                       >
                         Gross {getSortIcon('invoiceTotal')}
                       </Button>
@@ -910,19 +910,19 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
                       <Button
                         variant="ghost"
                         onClick={() => handleSort('balance')}
-                        className="flex items-center gap-2 p-0 h-auto font-medium hover:bg-transparent"
+                        className="flex items-center gap-2 p-0 h-auto font-medium hover:bg-transparent !text-[#381980] text-[12px]"
                       >
                         Balance {getSortIcon('balance')}
                       </Button>
                     </TableHead>
-                    <TableHead className="border-r p-3 font-medium text-foreground h-12">Invoice Age</TableHead>
-                    <TableHead className="border-r p-3 font-medium text-foreground h-12">Time Logs</TableHead>
-                    <TableHead className="border-r p-3 font-medium text-foreground h-12">Actions</TableHead>
+                    <TableHead className="border-r p-3 font-medium text-foreground h-12 !text-[#381980] text-[12px]">Invoice Age</TableHead>
+                    <TableHead className="border-r p-3 font-medium text-foreground h-12 !text-[#381980] text-[12px]">Time Logs</TableHead>
+                    <TableHead className="border-r p-3 font-medium text-foreground h-12 !text-[#381980] text-[12px]">Actions</TableHead>
                     <TableHead className="p-3 font-medium text-foreground h-12">
                       <Button
                         variant="ghost"
                         onClick={() => handleSort('status')}
-                        className="flex items-center gap-2 p-0 h-auto font-medium hover:bg-transparent"
+                        className="flex items-center gap-2 p-0 h-auto font-medium hover:bg-transparent !text-[#381980] text-[12px]"
                       >
                         Status {getSortIcon('status')}
                       </Button>

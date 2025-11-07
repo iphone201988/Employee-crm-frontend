@@ -437,16 +437,16 @@ const AgedDebtorsTab = () => {
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-sm">
               <thead>
-                <tr className="border-b bg-gray-50">
-                  <th className="text-left p-3 font-medium text-foreground h-12">Client Ref.</th>
-                  <th className="text-left p-3 font-medium text-foreground h-12">Client</th>
-                  <th className="text-right p-3 font-medium text-foreground h-12">Balance</th>
-                  <th className="text-right p-3 font-medium text-foreground h-12">30 Days</th>
-                  <th className="text-right p-3 font-medium text-foreground h-12">60 Days</th>
-                  <th className="text-right p-3 font-medium text-foreground h-12">90 Days</th>
-                  <th className="text-right p-3 font-medium text-foreground h-12">120 Days</th>
-                  <th className="text-right p-3 font-medium text-foreground h-12">150 Days</th>
-                  <th className="text-right p-3 font-medium text-foreground h-12">180 Days</th>
+                <tr className="border-b !bg-[#edecf4] !text-[#381980] ">
+                  <th className="text-left p-3 font-medium text-foreground h-12 !text-[#381980] text-[12px]">Client Ref.</th>
+                  <th className="text-left p-3 font-medium text-foreground h-12 !text-[#381980] text-[12px]">Client</th>
+                  <th className="text-right p-3 font-medium text-foreground h-12 !text-[#381980] text-[12px]">Balance</th>
+                  <th className="text-right p-3 font-medium text-foreground h-12 !text-[#381980] text-[12px]">30 Days</th>
+                  <th className="text-right p-3 font-medium text-foreground h-12 !text-[#381980] text-[12px]">60 Days</th>
+                  <th className="text-right p-3 font-medium text-foreground h-12 !text-[#381980] text-[12px]">90 Days</th>
+                  <th className="text-right p-3 font-medium text-foreground h-12 !text-[#381980] text-[12px]">120 Days</th>
+                  <th className="text-right p-3 font-medium text-foreground h-12 !text-[#381980] text-[12px]">150 Days</th>
+                  <th className="text-right p-3 font-medium text-foreground h-12 !text-[#381980] text-[12px]">180 Days</th>
                 </tr>
               </thead>
               <tbody>

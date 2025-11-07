@@ -374,16 +374,16 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="border-b">
-                <tr>
-                  <th className="text-left p-4 font-bold text-[hsl(var(--table-header))]">Client Name / Job Name</th>
-                  <th className="text-center p-4 font-bold text-[hsl(var(--table-header))]">Jobs</th>
-                  <th className="text-center p-4 font-bold text-[hsl(var(--table-header))]">WIP Balance</th>
-                  <th className="text-center p-4 font-bold text-[hsl(var(--table-header))]">Expenses</th>
-                  <th className="text-center p-4 font-bold text-[hsl(var(--table-header))]">Last Invoiced</th>
-                  <th className="text-center p-4 font-bold text-[hsl(var(--table-header))]">Invoice Level</th>
-                  <th className="text-left p-4 font-bold text-[hsl(var(--table-header))]">WIP Target</th>
-                  <th className="text-center p-4 font-bold text-[hsl(var(--table-header))]">WIP Target Met</th>
-                  <th className="text-center p-4 font-bold text-[hsl(var(--table-header))]">Ready To Invoice</th>
+                <tr className='!bg-[#edecf4] text-[#381980]'>
+                  <th className="text-left p-4 font-medium text-[12px] text-[hsl(var(--table-header))]">Client Name / Job Name</th>
+                  <th className="text-center p-4 font-medium text-[12px] text-[hsl(var(--table-header))]">Jobs</th>
+                  <th className="text-center p-4 font-medium text-[12px] text-[hsl(var(--table-header))]">WIP Balance</th>
+                  <th className="text-center p-4 font-medium text-[12px] text-[hsl(var(--table-header))]">Expenses</th>
+                  <th className="text-center p-4 font-medium text-[12px] text-[hsl(var(--table-header))]">Last Invoiced</th>
+                  <th className="text-center p-4 font-medium text-[12px] text-[hsl(var(--table-header))]">Invoice Level</th>
+                  <th className="text-left p-4 font-medium text-[12px] text-[hsl(var(--table-header))]">WIP Target</th>
+                  <th className="text-center p-4 font-medium text-[12px] text-[hsl(var(--table-header))]">WIP Target Met</th>
+                  <th className="text-center p-4 font-medium text-[12px] text-[hsl(var(--table-header))]">Ready To Invoice</th>
                 </tr>
               </thead>
               <tbody>

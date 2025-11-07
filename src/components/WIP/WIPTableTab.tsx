@@ -178,8 +178,8 @@ const WIPTableTab = ({ onInvoiceCreate, onWriteOff }: WIPTableTabProps) => {
       />
 
       {/* Filters and Controls */}
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center gap-4">
+      <div className="flex justify-between items-center mb-4 p-[6px] rounded-sm bg-[#E7E5F2] ">
+        <div className="flex items-center gap-2">
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium">Target Met:</label>
             <div className="flex items-center gap-1 bg-muted rounded-md p-1">
@@ -187,7 +187,7 @@ const WIPTableTab = ({ onInvoiceCreate, onWriteOff }: WIPTableTabProps) => {
                 variant={targetMetFilter === 'all' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => setTargetMetFilter('all')}
-                className="h-8 px-3 text-xs"
+                className="h-8 px-3 text-xs rounded-sm"
               >
                 N/A
               </Button>
@@ -195,7 +195,7 @@ const WIPTableTab = ({ onInvoiceCreate, onWriteOff }: WIPTableTabProps) => {
                 variant={targetMetFilter === 'yes' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => setTargetMetFilter('yes')}
-                className="h-8 px-3 text-xs"
+                className="h-8 px-3 text-xs rounded-sm"
               >
                 Yes
               </Button>
@@ -203,7 +203,7 @@ const WIPTableTab = ({ onInvoiceCreate, onWriteOff }: WIPTableTabProps) => {
                 variant={targetMetFilter === 'no' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => setTargetMetFilter('no')}
-                className="h-8 px-3 text-xs"
+                className="h-8 px-3 text-xs rounded-sm"
               >
                 No
               </Button>

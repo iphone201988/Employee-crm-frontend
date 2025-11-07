@@ -368,9 +368,9 @@ const JobsTab = () => {
 
             {/* Reports Section */}
             <Card>
-                <CardContent className="p-6">
+                <CardContent className="p-0">
                     <div className="flex items-center justify-between mb-4">
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 p-4">
                             <Button
                                 variant={chartView === 'distribution' ? 'default' : 'outline'}
                                 size="sm"
@@ -418,34 +418,34 @@ const JobsTab = () => {
                         chartView === 'distribution' ? (
                             <Table>
                                 <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Team Member</TableHead>
-                                        <TableHead>Total Jobs</TableHead>
-                                        <TableHead>Job Type Breakdown</TableHead>
-                                        <TableHead>Status Breakdown</TableHead>
+                                    <TableRow className='!bg-[#edecf4] text-[#381980]'>
+                                        <TableHead className='px-4'>Team Member</TableHead>
+                                        <TableHead className='px-4'>Total Jobs</TableHead>
+                                        <TableHead className='px-4'>Job Type Breakdown</TableHead>
+                                        <TableHead className='px-4'>Status Breakdown</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {isLoadingData ? (
                                         <TableRow>
-                                            <TableCell colSpan={4} className="text-center py-4">
+                                            <TableCell colSpan={4} className="text-center py-4 ">
                                                 Loading...
                                             </TableCell>
                                         </TableRow>
                                     ) : teamMemberStats.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={4} className="text-center py-4">
+                                            <TableCell colSpan={4} className="text-center py-4 ">
                                                 No data.
                                             </TableCell>
                                         </TableRow>
                                     ) : (
                                         teamMemberStats.map(stat => (
                                             <TableRow key={stat._id}>
-                                                <TableCell>{stat.userName}</TableCell>
+                                                <TableCell className='px-4'>{stat.userName}</TableCell>
                                                 <TableCell>
                                                     <Badge variant="secondary">{stat.totalJobs}</Badge>
                                                 </TableCell>
-                                                <TableCell>
+                                                <TableCell className='px-4'>
                                                     <div className="flex flex-wrap gap-1">
                                                         {stat.jobTypesWithCount.map(jt => (
                                                             <Badge key={jt._id} variant="outline">
@@ -454,7 +454,7 @@ const JobsTab = () => {
                                                         ))}
                                                     </div>
                                                 </TableCell>
-                                                <TableCell>
+                                                <TableCell className='px-4'>
                                                     <div className="flex flex-wrap gap-1">
                                                         {Object.entries(stat.statusBreakdown).map(([s, c]) => (
                                                             c > 0 && (
@@ -523,7 +523,7 @@ const JobsTab = () => {
                     <CardContent className="p-0">
                         <Table>
                             <TableHeader>
-                                <TableRow>
+                                <TableRow className='!bg-[#edecf4] text-[#381980]'>
                                     <TableHead>Job Name</TableHead>
                                     <TableHead>Client</TableHead>
                                     <TableHead>Job Type</TableHead>
@@ -558,7 +558,7 @@ const JobsTab = () => {
                                 )}
                                 {jobs.map((job: any) => (
                                     <TableRow key={job._id}>
-                                        <TableCell>
+                                        <TableCell className='px-4'>
                                             <JobNameLink
                                                 jobId={job._id}
                                                 jobName={job.name}
@@ -567,17 +567,17 @@ const JobsTab = () => {
                                                 hoursLogged={0}
                                             />
                                         </TableCell>
-                                        <TableCell>
+                                        <TableCell className='px-4'>
                                             <ClientNameLink clientName={job.clientId.name} ciientId={job.clientId._id} />
                                         </TableCell>
-                                        <TableCell>{job?.jobTypeId?.name}</TableCell>
-                                        <TableCell>
+                                        <TableCell className='px-4'>{job?.jobTypeId?.name}</TableCell>
+                                        <TableCell className='px-4'>
                                             <Badge variant="outline" className={statusColors[job.status]}>
                                                 {formatTitle(job.status)}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell>{job.jobManagerId.name}</TableCell>
-                                        <TableCell>
+                                        <TableCell className='px-4'>{job.jobManagerId.name}</TableCell>
+                                        <TableCell className='px-4'>
                                             <div className="flex -space-x-2">
                                                 {job.teamMembers.map(tm => (
                                                     <Avatar key={tm._id} className="h-6 w-6 border-2 border-background">
@@ -586,10 +586,10 @@ const JobsTab = () => {
                                                 ))}
                                             </div>
                                         </TableCell>
-                                        <TableCell className="text-right">
+                                        <TableCell className="text-right px-4">
                                             {formatCurrency(job.jobCost)}
                                         </TableCell>
-                                        <TableCell className="text-center">
+                                        <TableCell className="text-center px-4">
                                             <div className="flex gap-1 justify-center">
                                                 <Button variant="ghost" size="icon" onClick={() => openViewDialog(job)}>
                                                     <Eye className="w-4 h-4" />

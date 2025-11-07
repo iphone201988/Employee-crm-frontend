@@ -98,13 +98,13 @@ const AgedWIPTab = () => {
       </div>
 
       <Card>
-        <CardHeader>
-        </CardHeader>
-        <CardContent>
+        {/* <CardHeader>
+        </CardHeader> */}
+        <CardContent className='p-0'>
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow>
+                <TableRow className=' !bg-[#edecf4] text-[#381980]'>
                   <TableHead className="font-medium">Client Ref</TableHead>
                   <TableHead className="font-medium">Client Name</TableHead>
                   <TableHead className="font-medium text-right">WIP Balance</TableHead>
@@ -119,8 +119,8 @@ const AgedWIPTab = () => {
               <TableBody>
                 {agedWIPData.map((entry) => (
                   <TableRow key={entry.clientRef} className="hover:bg-muted/50">
-                    <TableCell className="font-medium">{entry.clientRef}</TableCell>
-                    <TableCell>
+                    <TableCell className="font-medium px-4">{entry.clientRef}</TableCell>
+                    <TableCell className='px-4'>
                       <span
                         className="cursor-pointer text-blue-600 hover:text-blue-800 hover:underline"
                         onClick={() => {
@@ -131,25 +131,25 @@ const AgedWIPTab = () => {
                         {entry.clientName}
                       </span>
                     </TableCell>
-                    <TableCell className="text-right font-medium">
+                    <TableCell className="text-right font-medium px-4">
                       {formatCurrency(entry.wipBalance)}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right px-4">
                       {entry.days30 > 0 ? formatCurrency(entry.days30) : '-'}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right px-4">
                       {entry.days60 > 0 ? formatCurrency(entry.days60) : '-'}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right px-4">
                       {entry.days90 > 0 ? formatCurrency(entry.days90) : '-'}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right px-4">
                       {entry.days120 > 0 ? formatCurrency(entry.days120) : '-'}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right px-4">
                       {entry.days150 > 0 ? formatCurrency(entry.days150) : '-'}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right px-4">
                       {entry.days180Plus > 0 ? formatCurrency(entry.days180Plus) : '-'}
                     </TableCell>
                   </TableRow>
@@ -157,25 +157,25 @@ const AgedWIPTab = () => {
                 {/* Totals row */}
                 <TableRow className="bg-muted font-medium border-t-2">
                   <TableCell colSpan={2} className="font-bold">Total</TableCell>
-                  <TableCell className="text-right font-bold">
+                  <TableCell className="text-right font-bold px-4">
                     {formatCurrency(totals.wipBalance)}
                   </TableCell>
-                  <TableCell className="text-right font-bold">
+                  <TableCell className="text-right font-bold px-4">
                     {formatCurrency(totals.days30)}
                   </TableCell>
-                  <TableCell className="text-right font-bold">
+                  <TableCell className="text-right font-bold px-4">
                     {formatCurrency(totals.days60)}
                   </TableCell>
-                  <TableCell className="text-right font-bold">
+                  <TableCell className="text-right font-bold px-4">
                     {formatCurrency(totals.days90)}
                   </TableCell>
-                  <TableCell className="text-right font-bold">
+                  <TableCell className="text-right font-bold px-4">
                     {formatCurrency(totals.days120)}
                   </TableCell>
-                  <TableCell className="text-right font-bold">
+                  <TableCell className="text-right font-bold px-4">
                     {formatCurrency(totals.days150)}
                   </TableCell>
-                  <TableCell className="text-right font-bold">
+                  <TableCell className="text-right font-bold px-4">
                     {formatCurrency(totals.days180Plus)}
                   </TableCell>
                 </TableRow>

@@ -269,13 +269,13 @@ console.log('clientInfo===========', clientInfo);
           <CardContent className="p-0">
             <Table>
               <TableHeader>
-                <TableRow>
+                <TableRow className='!bg-[#edecf4] text-[#381980]'>
                   <TableHead className="w-20 border-r text-left">
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => handleClientInfoSort('clientRef')}
-                      className="h-8 px-1 font-medium justify-start"
+                      className="h-8 px-1 font-medium justify-start text-[12px]"
                     >
                       Client Ref
                       <ArrowUpDown className="ml-1 h-4 w-4" />
@@ -286,7 +286,7 @@ console.log('clientInfo===========', clientInfo);
                       variant="ghost"
                       size="sm"
                       onClick={() => handleClientInfoSort('name')}
-                      className="h-8 px-1 font-medium justify-start"
+                      className="h-8 px-1 font-medium justify-start text-[12px]"
                     >
                       Client Name
                       <ArrowUpDown className="ml-1 h-4 w-4" />
@@ -297,7 +297,7 @@ console.log('clientInfo===========', clientInfo);
                       variant="ghost"
                       size="sm"
                       onClick={() => handleClientInfoSort('clientType')}
-                      className="h-8 px-1 font-light justify-start"
+                      className="h-8 px-1 font-medium justify-start text-[12px]"
                     >
                       Business Type
                       <ArrowUpDown className="ml-1 h-4 w-4" />
@@ -308,7 +308,7 @@ console.log('clientInfo===========', clientInfo);
                       variant="ghost"
                       size="sm"
                       onClick={() => handleClientInfoSort('customerNumber')}
-                      className="h-8 px-1 font-light justify-start"
+                      className="h-8 px-1 font-medium justify-start text-[12px]"
                     >
                       Tax Number
                       <ArrowUpDown className="ml-1 h-4 w-4" />
@@ -319,7 +319,7 @@ console.log('clientInfo===========', clientInfo);
                       variant="ghost"
                       size="sm"
                       onClick={() => handleClientInfoSort('croNumber')}
-                      className="h-8 px-1 font-light justify-start"
+                      className="h-8 px-1 font-medium justify-start text-[12px]"
                     >
                       CRO Number
                       <ArrowUpDown className="ml-1 h-4 w-4" />
@@ -330,7 +330,7 @@ console.log('clientInfo===========', clientInfo);
                       variant="ghost"
                       size="sm"
                       onClick={() => handleClientInfoSort('address')}
-                      className="h-8 px-1 font-light justify-start"
+                      className="h-8 px-1 font-medium justify-start text-[12px]"
                     >
                       Address
                       <ArrowUpDown className="ml-1 h-4 w-4" />
@@ -341,7 +341,7 @@ console.log('clientInfo===========', clientInfo);
                       variant="ghost"
                       size="sm"
                       onClick={() => handleClientInfoSort('contact')}
-                      className="h-8 px-1 font-light justify-start"
+                      className="h-8 px-1 font-medium justify-start text-[12px]"
                     >
                       Contact Name
                       <ArrowUpDown className="ml-1 h-4 w-4" />
@@ -352,7 +352,7 @@ console.log('clientInfo===========', clientInfo);
                       variant="ghost"
                       size="sm"
                       onClick={() => handleClientInfoSort('email')}
-                      className="h-8 px-1 font-light justify-start"
+                      className="h-8 px-1 font-medium justify-start text-[12px]"
                     >
                       Email
                       <ArrowUpDown className="ml-1 h-4 w-4" />
@@ -363,7 +363,7 @@ console.log('clientInfo===========', clientInfo);
                       variant="ghost"
                       size="sm"
                       onClick={() => handleClientInfoSort('emailNote')}
-                      className="h-8 px-1 font-light justify-start"
+                      className="h-8 px-1 font-medium justify-start text-[12px]"
                     >
                       Email Note
                       <ArrowUpDown className="ml-1 h-4 w-4" />
@@ -374,7 +374,7 @@ console.log('clientInfo===========', clientInfo);
                       variant="ghost"
                       size="sm"
                       onClick={() => handleClientInfoSort('phone')}
-                      className="h-8 px-1 font-light justify-start"
+                      className="h-8 px-1 font-medium justify-start text-[12px]"
                     >
                       Phone
                       <ArrowUpDown className="ml-1 h-4 w-4" />
@@ -385,7 +385,7 @@ console.log('clientInfo===========', clientInfo);
                       variant="ghost"
                       size="sm"
                       onClick={() => handleClientInfoSort('phoneNote')}
-                      className="h-8 px-1 font-light justify-start"
+                      className="h-8 px-1 font-medium justify-start text-[12px]"
                     >
                       Phone Note
                       <ArrowUpDown className="ml-1 h-4 w-4" />
@@ -396,7 +396,7 @@ console.log('clientInfo===========', clientInfo);
                       variant="ghost"
                       size="sm"
                       onClick={() => handleClientInfoSort('onboardedDate')}
-                      className="h-8 px-1 font-light justify-start"
+                      className="h-8 px-1 font-medium justify-start text-[12px]"
                     >
                       Onboarded Date
                       <ArrowUpDown className="ml-1 h-4 w-4" />
@@ -407,7 +407,7 @@ console.log('clientInfo===========', clientInfo);
                       variant="ghost"
                       size="sm"
                       onClick={() => handleClientInfoSort('amlCompliant')}
-                      className="h-8 px-1 font-light justify-start"
+                      className="h-8 px-1 font-medium justify-start text-[12px]"
                     >
                       AML Compliant
                       <ArrowUpDown className="ml-1 h-4 w-4" />

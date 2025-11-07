@@ -631,12 +631,12 @@ const ExpensesLogTab = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
 
         {/* Filter buttons container: allows buttons to wrap */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap mt-4 border border-[#381980] w-max p-[6px] rounded-sm">
           <Button
             variant={statusFilter === 'all' ? 'default' : 'outline'}
             size="sm"
             onClick={() => setStatusFilter('all')}
-            className="h-8 px-3 text-xs border-0"
+            className="h-8 px-3 text-[14px] border-0 rounded-sm"
           >
             {/* <Filter className="h-4 w-4" />/ */}
             All
@@ -647,7 +647,7 @@ const ExpensesLogTab = () => {
                 variant={statusFilter === 'not invoiced' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setStatusFilter('not invoiced')}
-                className="h-8 px-3 text-xs  border-0"
+                className="h-8 px-3 text-[14px]  border-0 rounded-sm"
               >
                 {/* <Filter className="h-4 w-4" /> */}
                 Not Invoiced
@@ -656,7 +656,7 @@ const ExpensesLogTab = () => {
                 variant={statusFilter === 'invoiced' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setStatusFilter('invoiced')}
-                className="h-8 px-3 text-xs border-0"
+                className="h-8 px-3 text-[14px] border-0 rounded-sm"
               >
                 {/* <Filter className="h-4 w-4" /> */}
                 Invoiced
@@ -669,7 +669,7 @@ const ExpensesLogTab = () => {
                 variant={statusFilter === 'not paid' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setStatusFilter('not paid')}
-                className="h-8 px-3 text-xs border-0"
+                className="h-8 px-3 text-[14px]  border-0 rounded-sm"
               >
                 {/* <Filter className="h-4 w-4" /> */}
                 Not Paid
@@ -678,7 +678,7 @@ const ExpensesLogTab = () => {
                 variant={statusFilter === 'paid' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setStatusFilter('paid')}
-                className="h-8 px-3 text-xs border-0"
+                className="h-8 px-3 text-[14px]  border-0 rounded-sm"
               >
                 {/* <Filter className="h-4 w-4" /> */}
                 Paid
@@ -703,10 +703,10 @@ const ExpensesLogTab = () => {
 
       {/* Expenses Table */}
       <Card>
-        <CardContent className="p-6">
+        <CardContent className="p-0">
           <Table>
             <TableHeader>
-              <TableRow>
+              <TableRow className='!bg-[#edecf4] text-[#381980]'>
                 <TableHead className="w-24 text-left">Date</TableHead>
                 <TableHead className="w-40 text-left">Submitted By</TableHead>
                 {activeTab === 'clientExpenses' && <TableHead className="w-40 text-left">Client</TableHead>}
@@ -725,16 +725,16 @@ const ExpensesLogTab = () => {
               {Object.entries(groupedExpenses).map(([groupName, expenses]) => (
                 <React.Fragment key={groupName}>
                   {/* Group header row */}
-                  <TableRow className="bg-muted/50">
-                    <TableCell colSpan={activeTab === 'clientExpenses' ? 12 : 11} className="font-semibold py-3">
+                  <TableRow className="bg-muted/50 ">
+                    <TableCell colSpan={activeTab === 'clientExpenses' ? 12 : 11} className="font-semibold py-3 px-4">
                       {groupName} ({expenses.length} expense{expenses.length > 1 ? 's' : ''})
                     </TableCell>
                   </TableRow>
                   {/* Expense rows */}
                   {expenses.map((expense) => (
                     <TableRow key={expense.id}>
-                      <TableCell className="font-medium text-left">{formatDate(expense.date)}</TableCell>
-                      <TableCell className="text-left">
+                      <TableCell className="font-medium text-left px-4">{formatDate(expense.date)}</TableCell>
+                      <TableCell className="text-left px-4">
                         <div className="flex items-center gap-2">
                           <Avatar className="h-8 w-8 flex-shrink-0">
                             <AvatarImage src={import.meta.env.VITE_BACKEND_BASE_URL + expense.submitterAvatar} alt={expense.submittedBy} />
@@ -744,7 +744,7 @@ const ExpensesLogTab = () => {
                         </div>
                       </TableCell>
                       {activeTab === 'clientExpenses' && (
-                        <TableCell className="text-left">
+                        <TableCell className="text-left px-4">
                           {expense.client ? (
                             <ClientNameLink name={expense.client} ciientId={expense.clientId} />
                           ) : (
@@ -752,18 +752,18 @@ const ExpensesLogTab = () => {
                           )}
                         </TableCell>
                       )}
-                      <TableCell className="text-left">
+                      <TableCell className="text-left px-4">
                         <span className="block truncate" title={expense.description}>
                           {expense.description}
                         </span>
                       </TableCell>
-                      <TableCell className="text-left">
+                      <TableCell className="text-left px-4">
                         <span className="truncate block">{expense.category}</span>
                       </TableCell>
-                      <TableCell className="text-left font-medium">€{expense.netAmount.toFixed(2)}</TableCell>
-                      <TableCell className="text-left">{expense.vatRate}%</TableCell>
-                      <TableCell className="text-left font-medium">€{expense.vatAmount.toFixed(2)}</TableCell>
-                      <TableCell className="text-left font-medium">€{expense.amount.toFixed(2)}</TableCell>
+                      <TableCell className="text-left  px-4 font-medium">€{expense.netAmount.toFixed(2)}</TableCell>
+                      <TableCell className="text-left px-4 ">{expense.vatRate}%</TableCell>
+                      <TableCell className="text-left px-4  font-medium">€{expense.vatAmount.toFixed(2)}</TableCell>
+                      <TableCell className="text-left  px-4 font-medium">€{expense.amount.toFixed(2)}</TableCell>
                       <TableCell className="text-left">
                         <div className="flex items-center gap-2">
                           {getStatusBadge(expense.status)}
@@ -780,7 +780,7 @@ const ExpensesLogTab = () => {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="text-center">
+                      <TableCell className="text-center px-4">
                         {expense.attachments && expense.attachments.length > 0 ? (
                           <Button
                             variant="ghost"
@@ -798,7 +798,7 @@ const ExpensesLogTab = () => {
                           <div>N/A</div>
                         )}
                       </TableCell>
-                      <TableCell className="text-left">
+                      <TableCell className="text-left px-4">
                         <div className="text-right">
                           <button 
                             onClick={(e) => handleSettingsClick(e, expense.id)}

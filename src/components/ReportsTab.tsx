@@ -324,7 +324,7 @@ const ReportsTab = () => {
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow>
+                <TableRow className='!bg-[#edecf4] text-[#381980]'>
                   <TableHead className="w-10"></TableHead>
                   <TableHead><Button variant="ghost" size="sm" className="h-6 px-1 text-xs" onClick={() => handleSort('name')}>Team Member <ArrowUpDown className="ml-1 h-3 w-3" /></Button></TableHead>
                   <TableHead className="text-center"><Button variant="ghost" size="sm" className="h-6 px-1 text-xs" onClick={() => handleSort('capacity')}>Capacity <ArrowUpDown className="ml-1 h-3 w-3" /></Button></TableHead>

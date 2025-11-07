@@ -174,19 +174,19 @@ const JobBuilderTab = () => {
         }
       `}</style>
       <Card>
-        <CardContent>
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 pt-6">
-            <TabsList className="grid w-full grid-cols-3">
+        <CardContent className='p-0'>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 pt-6 ">
+            <TabsList className="grid w-full grid-cols-3 px-5">
               <TabsTrigger value="loaded">Loaded ({getTabCounts().loaded})</TabsTrigger>
               <TabsTrigger value="for-review">For Review ({getTabCounts()["for-review"]})</TabsTrigger>
               <TabsTrigger value="built">Built ({getTabCounts().built})</TabsTrigger>
             </TabsList>
             
-            <TabsContent value={activeTab} className="space-y-4 pt-6">
+            <TabsContent value={activeTab} className="space-y-4 pt-3">
               <div className="overflow-x-auto">
                 <Table className="responsive-table">
                   <TableHeader>
-                    <TableRow>
+                    <TableRow className='!bg-[#edecf4] text-[#381980]'>
                       <TableHead className="w-[15%]">Client Name</TableHead>
                       <TableHead className="w-[5%] text-center">Job Count</TableHead>
                       <TableHead className="w-[10%]">Job Type</TableHead>
