@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { WIPTableSummaryCards } from './WIPTableSummaryCards';
 import { WIPTable } from "@/components/WIPTable/WIPTable";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ interface WIPTableTabProps {
 
 const WIPTableTab = ({ onInvoiceCreate, onWriteOff }: WIPTableTabProps) => {
   const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
-  const [allCollapsed, setAllCollapsed] = useState(true);
+  const [allCollapsed, setAllCollapsed] = useState(false);
   const [targetMetFilter, setTargetMetFilter] = useState<string>('all');
   const [showManualReviewOnly, setShowManualReviewOnly] = useState(false);
   const [showWarningJobsOnly, setShowWarningJobsOnly] = useState(false);
@@ -107,6 +107,8 @@ const WIPTableTab = ({ onInvoiceCreate, onWriteOff }: WIPTableTabProps) => {
             wipOpenBalanceIds: Array.isArray(job.wipopenbalances)
               ? job.wipopenbalances.map((ob: any) => ob._id)
               : [],
+            startDate: job.startDate || null,
+            endDate: job.endDate || null,
           };
         }),
         clientWipBalance: totalClientWIP,
@@ -133,6 +135,14 @@ const WIPTableTab = ({ onInvoiceCreate, onWriteOff }: WIPTableTabProps) => {
   };
 
   const filteredWipData = wipData;
+
+  // Expand all clients by default when data is loaded
+  useEffect(() => {
+    if (filteredWipData.length > 0 && expandedClients.size === 0) {
+      setExpandedClients(new Set(filteredWipData.map(client => client.id)));
+      setAllCollapsed(false);
+    }
+  }, [filteredWipData, expandedClients.size]);
 
   const toggleAllClients = () => {
     if (allCollapsed) {
@@ -225,7 +235,7 @@ const WIPTableTab = ({ onInvoiceCreate, onWriteOff }: WIPTableTabProps) => {
             size="sm"
             onClick={() => setShowWarningJobsOnly(!showWarningJobsOnly)}
           >
-            WIP Warning Jobs
+            Show WIP Warning
           </Button>
         </div>
       </div>

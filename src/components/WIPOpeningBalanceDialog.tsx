@@ -11,6 +11,8 @@ interface WIPOpeningBalanceDialogProps {
   currentWIPBalance: number;
   onAddBalance: (amount: number) => void;
   jobName?: string;
+  jobStartDate?: string | null;
+  jobEndDate?: string | null;
 }
 
 const WIPOpeningBalanceDialog = ({ 
@@ -19,7 +21,9 @@ const WIPOpeningBalanceDialog = ({
   clientName, 
   currentWIPBalance, 
   onAddBalance,
-  jobName 
+  jobName,
+  jobStartDate,
+  jobEndDate
 }: WIPOpeningBalanceDialogProps) => {
   const [amount, setAmount] = useState('');
 
@@ -37,11 +41,32 @@ const WIPOpeningBalanceDialog = ({
     onClose();
   };
 
+  // Format dates for display (DD/MM/YYYY)
+  const formatDateForDisplay = (dateString: string | null | undefined): string => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
+  // Build title with job dates if available
+  const getDialogTitle = () => {
+    const name = jobName || clientName;
+    if (jobName && jobStartDate && jobEndDate) {
+      const startDate = formatDateForDisplay(jobStartDate);
+      const endDate = formatDateForDisplay(jobEndDate);
+      return `Add Opening WIP Balance ${name} (${startDate} - ${endDate})`;
+    }
+    return `Add Opening WIP Balance ${name}`;
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{`+ Opening WIP Balance to ${jobName || clientName}`}</DialogTitle>
+          <DialogTitle>{getDialogTitle()}</DialogTitle>
         </DialogHeader>
         <div className="space-y-6 mt-4">
           <div>

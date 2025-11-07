@@ -710,6 +710,8 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
                                   wipBalance: job.wipAmount,
                                   clientId: client.id,
                                   jobId: job.id,
+                                  jobStartDate: (job as any).startDate,
+                                  jobEndDate: (job as any).endDate,
                                   onAddBalance: (amount: number) => handleAddWIPBalance(client.id, amount, job.id)
                                 });
                                 setShowWIPBalanceDialog(true);
@@ -852,6 +854,8 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
           clientName={wipBalanceData.clientName}
           currentWIPBalance={wipBalanceData.wipBalance}
           jobName={wipBalanceData.jobName}
+          jobStartDate={wipBalanceData.jobStartDate}
+          jobEndDate={wipBalanceData.jobEndDate}
           onAddBalance={wipBalanceData.onAddBalance || ((amount) => {
             const clientId = wipTableData.find(c => c.clientName === wipBalanceData.clientName)?.id;
             if (clientId) {
