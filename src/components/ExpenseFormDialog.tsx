@@ -107,12 +107,12 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({ isOpen, on
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Add {expenseType === 'client' ? 'Client' : 'Team'} Expense</DialogTitle>
+      <DialogContent className="max-w-xl !rounded-none p-0 border-none for-close">
+        <DialogHeader className="bg-[#381980] sticky z-50 top-0 left-0 w-full text-center ">
+          <DialogTitle className="text-center text-white py-4">Add {expenseType === 'client' ? 'Client' : 'Team'} Expense</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-4  form-change">
+          <div className="grid grid-cols-2 gap-4 px-[20px]">
             <div>
               <label className="text-sm font-medium">Date</label>
               <Input 
@@ -145,7 +145,7 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({ isOpen, on
               )}
             </div>
           </div>
-          <div>
+          <div className='px-[20px]'>
             <label className="text-sm font-medium">Description</label>
             <Input 
               placeholder="Enter expense description" 
@@ -157,7 +157,7 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({ isOpen, on
               <p className="text-red-500 text-xs mt-1">{formErrors.description}</p>
             )}
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 px-[20px]">
             <div>
               <label className="text-sm font-medium">Category</label>
               <Select 
@@ -195,7 +195,7 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({ isOpen, on
               )}
             </div>
           </div>
-          <div>
+          <div className='px-[20px]'>
             <label className="text-sm font-medium">VAT %</label>
             <Input 
               type="number" 
@@ -205,7 +205,7 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({ isOpen, on
               onChange={(e) => handleFieldChange('vatPercentage', e.target.value)}
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 px-[20px]">
             <div>
               <label className="text-sm font-medium">Status</label>
               <Select 
@@ -235,11 +235,11 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({ isOpen, on
               />
             </div>
           </div>
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={onClose}>
+          <div className="flex justify-end gap-2 pt-4 p-[20px] bg-[#381980]">
+            <Button variant="outline" onClick={onClose} className="rounded-[6px] text-[#017DB9]">
               Cancel
             </Button>
-            <Button onClick={handleSubmit} disabled={isAddingExpense}>
+            <Button onClick={handleSubmit} disabled={isAddingExpense} className="!bg-[#017DB9] rounded-[6px]">
               {isAddingExpense ? 'Saving...' : 'Save Expense'}
             </Button>
           </div>

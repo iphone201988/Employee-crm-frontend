@@ -147,8 +147,8 @@ export const JobForm = ({ job, onSubmit, onCancel }: JobFormProps) => {
     const isLoading = isLoadingDropdowns || isCreatingJob || isUpdatingJob;
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="space-y-4 " noValidate>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 px-[20px]">
                 <InputComponent label="Job Name" id="jobName" value={formData.name} onChange={handleInputChange('name')} error={errors.name} />
 
                 <div className="relative" ref={clientInputContainerRef}>
@@ -258,15 +258,15 @@ export const JobForm = ({ job, onSubmit, onCancel }: JobFormProps) => {
                 </div>
             </div>
 
-            <InputComponent label="Description" id="description" type="textarea" value={formData.description} onChange={handleInputChange('description')} placeholder="Job description..." />
+            <InputComponent className='px-[20px]' label="Description" id="description" type="textarea" value={formData.description} onChange={handleInputChange('description')} placeholder="Job description..." />
 
             {submitError && (
                 <div className="text-sm text-red-600 bg-red-50 p-3 rounded-md border border-red-200">{submitError}</div>
             )}
 
-            <div className="flex justify-end gap-2 pt-4 border-t">
-                <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>Cancel</Button>
-                <Button type="submit" disabled={isLoading}>
+            <div className="flex justify-end gap-2 pt-4 border-t bg-[#381980] p-[20px]">
+                <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading} className="rounded-[6px] text-[#017DB9]">Cancel</Button>
+                <Button type="submit" disabled={isLoading} className="!bg-[#017DB9] rounded-[6px]">
                     {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing...</> : (job ? 'Update Job' : 'Add Job')}
                 </Button>
             </div>

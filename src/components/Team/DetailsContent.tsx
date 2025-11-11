@@ -344,7 +344,7 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
           {isUpdating ? 'Saving...' : 'Save Changes'}
         </Button>
         <Button className="flex items-center gap-2" onClick={handleAddMember}>
-          <Plus className="h-4 w-4" /> Add Team Member
+          <Plus className="h-4 w-4" /> Add Team Member  
         </Button>
       </div>
 

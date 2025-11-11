@@ -125,11 +125,13 @@ const Avatars = ({ activeTab, title }: AvatarsProps) => {
 
      {/* Add Job Popup (reuse JobForm inside a dialog) */}
      <Dialog open={showAddJob} onOpenChange={setShowAddJob}>
-       <DialogContent className="max-w-2xl">
-         <DialogHeader>
-           <DialogTitle>Add New Job</DialogTitle>
+       <DialogContent className="max-w-xl !rounded-none p-0 border-none for-close">
+         <DialogHeader className="bg-[#381980] sticky z-50 top-0 left-0 w-full text-center ">
+           <DialogTitle className="text-center text-white py-4">Add New Job</DialogTitle>
          </DialogHeader>
-         <JobForm job={null} onSubmit={() => {}} onCancel={() => setShowAddJob(false)} />
+         <div className="space-y-6 form-change ">
+          <JobForm  job={null} onSubmit={() => {}} onCancel={() => setShowAddJob(false)} />
+         </div>
        </DialogContent>
      </Dialog>
 

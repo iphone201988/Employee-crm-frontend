@@ -121,3 +121,21 @@ button.inline-flex.items-center.justify-center.gap-2.whitespace-nowrap.text-sm.f
   color: #fff;
 }
 
+.form-change input,.form-change select,.form-change textarea,.form-change button{
+  background: #fff;
+}
+
+.form-change label{
+  color: #381980 !important;
+}
+
+/* .for-close button.absolute.right-4.top-4.rounded-sm.opacity-70.ring-offset-background.transition-opacity.hover\:opacity-100.focus\:outline-none.focus\:ring-2.focus\:ring-ring.focus\:ring-offset-2.disabled\:pointer-events-none.data-\[state\=open\]\:bg-accent.data-\[state\=open\]\:text-muted-foreground {
+    z-index: 999999999999999;
+    position: sticky;
+    right: 10px;
+    top: 13px;
+    background: #fff;
+    opacity: 1;
+    border-radius: 100%;
+    padding: 4px;
+} */

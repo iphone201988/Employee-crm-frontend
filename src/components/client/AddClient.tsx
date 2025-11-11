@@ -7,7 +7,7 @@ import { useAddClientMutation, useUpdateClientMutation } from "@/store/clientApi
 import { useGetAllCategorieasQuery } from "@/store/categoryApi";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import { DateOrNAInput } from '@/components/DateOrNAInput';
 
 
@@ -178,14 +178,14 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
     };
 
     return (
-        <Dialog open={dialogOpen} onOpenChange={handleDialogClose}>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                    <DialogTitle>{editMode ? 'Edit Client' : 'Add Client'}</DialogTitle>
+        <Dialog  open={dialogOpen} onOpenChange={handleDialogClose} >
+            <DialogContent className="max-w-xl max-h-[70vh] overflow-y-auto !rounded-none p-0 border-none for-close">
+                <DialogHeader className="bg-[#381980] sticky z-50 top-0 left-0 w-full text-center ">
+                    <DialogTitle className="text-center text-white py-4">{editMode ? 'Edit Client' : 'Add Client'}</DialogTitle>
                 </DialogHeader>
 
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    <div className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-6 form-change">
+                    <div className="space-y-4 px-[20px]">
                         <h3 className="text-lg font-semibold text-gray-800">Basic Information</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <InputComponent
@@ -281,7 +281,7 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
                     </div>
 
                     {/* Address */}
-                    <div className="space-y-4">
+                    <div className="space-y-4 px-[20px]">
                         <h3 className="text-lg font-semibold text-gray-800">Address</h3>
                         <InputComponent
                             label="Address (Optional)"
@@ -295,7 +295,7 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
                     </div>
 
                     {/* Contact Information */}
-                    <div className="space-y-4">
+                    <div className="space-y-4 px-[20px]">
                         <h3 className="text-lg font-semibold text-gray-800">Contact Information</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <InputComponent
@@ -342,7 +342,7 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
                         </div>
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="space-y-4 px-[20px]">
                         <h3 className="text-lg font-semibold text-gray-800">Compliance</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
@@ -379,16 +379,18 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
                         </div>
                     )}
 
-                    <div className="flex justify-end space-x-3 pt-6 border-t">
+                    <div className="flex justify-end space-x-3 pt-6 border-t p-[20px] bg-[#381980]">
                         <Button
                             type="button"
                             variant="outline"
                             onClick={() => handleDialogClose(false)}
                             disabled={isSubmitting}
+                            className="rounded-[6px] text-[#017DB9]"
                         >
                             Cancel
                         </Button>
                         <Button
+                        className="!bg-[#017DB9] rounded-[6px]"
                             type="submit"
                             disabled={isSubmitting || isLoadingCategories}
                         >

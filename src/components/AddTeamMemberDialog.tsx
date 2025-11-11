@@ -225,11 +225,13 @@ const AddTeamMemberDialog = ({ open, onOpenChange, memberToEdit }: AddTeamMember
 
     return (
         <Dialog open={open} onOpenChange={handleDialogClose}>
-            <DialogContent className="max-w-2xl">
-                <DialogHeader><DialogTitle>{isEditMode ? 'Edit' : 'Add'} Team Member</DialogTitle></DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-6">
+            <DialogContent className="max-w-2xl !rounded-none p-0 border-none for-close">
+                <DialogHeader className="bg-[#381980] sticky z-50 top-0 left-0 w-full text-center ">
+                    <DialogTitle className="text-center text-white py-4">{isEditMode ? 'Edit' : 'Add'} Team Member</DialogTitle>
+                    </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-6 form-change">
                     {/* ... other form fields remain the same ... */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 px-[20px]">
                         <InputComponent
                             label="Team Name"
                             id="name"
@@ -287,16 +289,17 @@ const AddTeamMemberDialog = ({ open, onOpenChange, memberToEdit }: AddTeamMember
                             </div>
                         )}
                     </div>
-                    <div>
-                        <Label>Profile Image</Label>
-                        <div className="mt-2">
+                    <div className='px-[20px]'>
+                        <Label >Profile Image</Label>
+                        <div className="mt-2 rounded-[6px]">
                             {imagePreview ? (
-                                <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-4 rounded-[6px]">
                                     <Avatar className="h-14 w-14">
                                         <AvatarImage src={imagePreview} alt="Image Preview" />
                                         <AvatarFallback>IMG</AvatarFallback>
                                     </Avatar>
                                     <Button
+                                     className=' rounded-[6px]'
                                         type="button" variant="destructive" size="sm"
                                         onClick={() => {
                                             setImagePreview(null);
@@ -321,7 +324,7 @@ const AddTeamMemberDialog = ({ open, onOpenChange, memberToEdit }: AddTeamMember
                     </div>
 
                     {/* MODIFIED: Daily capacity inputs now use text and time format */}
-                    <div>
+                    <div className='px-[20px]'>
                         <Label>Daily Capacity</Label>
                         <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 mt-2">
                             {days.map((day) => (
@@ -344,9 +347,9 @@ const AddTeamMemberDialog = ({ open, onOpenChange, memberToEdit }: AddTeamMember
                         <div className="text-sm text-red-600 bg-red-50 p-3 rounded-md border border-red-200">{submitError}</div>
                     )}
 
-                    <div className="flex justify-end gap-2 pt-4 border-t">
-                        <Button type="button" variant="outline" onClick={() => handleDialogClose(false)}>Cancel</Button>
-                        <Button type="submit" disabled={isLoading}>
+                    <div className="flex justify-end gap-2 pt-4 border-t  p-[20px] bg-[#381980]">
+                        <Button type="button"  className="rounded-[6px] text-[#017DB9]" variant="outline" onClick={() => handleDialogClose(false)}>Cancel</Button>
+                        <Button type="submit" disabled={isLoading}  className="!bg-[#017DB9] rounded-[6px]">
                             {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEditMode ? 'Saving...' : 'Adding...'}</> : (isEditMode ? 'Save Changes' : 'Add Member')}
                         </Button>
                     </div>
