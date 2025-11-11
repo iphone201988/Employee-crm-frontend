@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { DashboardCard, DashboardGrid } from "@/components/ui/dashboard-card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -7,11 +7,15 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Search, ArrowUpDown } from 'lucide-react';
+import { Search, ArrowUpDown, ChevronDown, Check, RefreshCw, Download, Move, GripVertical } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency';
 import { formatTime, TimeFormat } from '@/utils/timeFormat';
 import ClientNameLink from './ClientNameLink';
 import { useGetWriteOffDashboardQuery, useGetWriteOffQuery } from '@/store/wipApi';
+import { useGetDropdownOptionsQuery } from '@/store/teamApi';
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
 interface WriteOffMergedData {
   id?: string;
@@ -37,6 +41,9 @@ interface WriteOffDetail {
   by: string;
   logic: string;
   reason: string;
+  clientName?: string;
+  clientId?: string;
+  jobName?: string;
 }
 
 const WriteOffMergedTab = () => {
@@ -52,6 +59,55 @@ const WriteOffMergedTab = () => {
   const [limit, setLimit] = useState(10);
   const [logPage, setLogPage] = useState(1);
   const [logLimit, setLogLimit] = useState(10);
+  
+  // Filter states for Write Off Log
+  const [logSearchQuery, setLogSearchQuery] = useState('');
+  const [selectedLogClientIds, setSelectedLogClientIds] = useState<Set<string>>(new Set());
+  const [selectedLogJobNameIds, setSelectedLogJobNameIds] = useState<Set<string>>(new Set());
+  const [selectedLogLogic, setSelectedLogLogic] = useState<string>('all');
+  
+  // Column visibility state for Write Off Log
+  const [logVisibleColumns, setLogVisibleColumns] = useState({
+    date: true,
+    clientName: true,
+    jobName: true,
+    amount: true,
+    by: true,
+    reason: true,
+    logic: true
+  });
+
+  // Column order state for Write Off Log
+  const [logColumnOrder, setLogColumnOrder] = useState([
+    'date',
+    'clientName',
+    'jobName',
+    'amount',
+    'by',
+    'reason',
+    'logic'
+  ]);
+
+  // Drag and drop state for Write Off Log
+  const [logDraggedItem, setLogDraggedItem] = useState<string | null>(null);
+
+  // Column display names mapping for Write Off Log
+  const logColumnDisplayNames: Record<string, string> = {
+    date: 'Date',
+    clientName: 'Client Name',
+    jobName: 'Job Name',
+    amount: 'Write-off Value',
+    by: 'Write-off By',
+    reason: 'Write-off Reason',
+    logic: 'Write-off Logic'
+  };
+  
+  // Fetch dropdown options for filters
+  const { data: logClientOptionsResp } = useGetDropdownOptionsQuery('client');
+  const { data: logJobListOptionsResp } = useGetDropdownOptionsQuery('jobList');
+  
+  const logClientOptions = (logClientOptionsResp?.data?.clients || []).map((c: any) => ({ value: c._id, label: c.name }));
+  const logJobNameOptions = (logJobListOptionsResp?.data?.jobs || []).map((j: any) => ({ value: j._id, label: j.name }));
 
   // API integration: map active filter to backend type
   const apiType: 'client' | 'job' | 'jobtype' | 'team' = useMemo(() => {
@@ -196,8 +252,11 @@ const WriteOffMergedTab = () => {
           amount: Number(d.amount || 0),
           date: d.date ? new Date(d.date).toLocaleDateString('en-GB') : '-',
           by: d.by || 'N/A',
-          logic: d.logic || '-',
-          reason: d.reason || '-'
+          logic: d.logic === 'proportionally' ? 'Proportionally' : d.logic === 'manually' ? 'Manually' : d.logic || 'N/A',
+          reason: d.reason || 'N/A',
+          clientName: typeof d.clientDetails === 'object' && d.clientDetails !== null && d.clientDetails !== 'N/A' ? d.clientDetails.name : 'N/A',
+          clientId: typeof d.clientDetails === 'object' && d.clientDetails !== null && d.clientDetails !== 'N/A' ? d.clientDetails._id : undefined,
+          jobName: typeof d.jobDetails === 'object' && d.jobDetails !== null && d.jobDetails !== 'N/A' ? d.jobDetails.name : 'N/A'
         }))
       : [];
     setSelectedOccasions({ name: item.name, occasions: details.length, details });
@@ -207,9 +266,23 @@ const WriteOffMergedTab = () => {
     setSelectedJobs({ name: item.name, jobs: item.jobsWithWriteOff || [] });
   };
 
-  // Fetch write-off log data
+  // Reset to first page when filters change
+  useEffect(() => {
+    if (showLogView) {
+      setLogPage(1);
+    }
+  }, [logSearchQuery, selectedLogClientIds, selectedLogJobNameIds, selectedLogLogic, showLogView]);
+
+  // Fetch write-off log data with filters
   const { data: writeOffLogResp, isLoading: isLoadingLog } = useGetWriteOffQuery(
-    showLogView ? { page: logPage, limit: logLimit } : undefined,
+    showLogView ? { 
+      page: logPage, 
+      limit: logLimit,
+      search: logSearchQuery || undefined,
+      clientId: selectedLogClientIds.size > 0 ? Array.from(selectedLogClientIds).join(',') : undefined,
+      jobId: selectedLogJobNameIds.size > 0 ? Array.from(selectedLogJobNameIds).join(',') : undefined,
+      logic: selectedLogLogic !== 'all' ? selectedLogLogic : undefined
+    } : undefined,
     { skip: !showLogView }
   );
 
@@ -240,6 +313,94 @@ const WriteOffMergedTab = () => {
 
   const logTotalWriteOffs = writeOffLogResp?.totalWriteOffs || logData.reduce((sum, entry) => sum + entry.amount, 0);
 
+  // Toggle column visibility for Write Off Log
+  const toggleLogColumn = (column: keyof typeof logVisibleColumns) => {
+    setLogVisibleColumns(prev => ({ ...prev, [column]: !prev[column] }));
+  };
+
+  // Drag and drop handlers for Write Off Log
+  const handleLogDragStart = (e: React.DragEvent, item: string) => {
+    setLogDraggedItem(item);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleLogDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleLogDrop = (e: React.DragEvent, targetItem: string) => {
+    e.preventDefault();
+    if (!logDraggedItem || logDraggedItem === targetItem) return;
+
+    const newOrder = [...logColumnOrder];
+    const draggedIndex = newOrder.indexOf(logDraggedItem);
+    const targetIndex = newOrder.indexOf(targetItem);
+
+    // Remove dragged item and insert at target position
+    newOrder.splice(draggedIndex, 1);
+    newOrder.splice(targetIndex, 0, logDraggedItem);
+
+    setLogColumnOrder(newOrder);
+    setLogDraggedItem(null);
+  };
+
+  const handleLogDragEnd = () => {
+    setLogDraggedItem(null);
+  };
+
+  // Export to CSV for Write Off Log
+  const exportLogToCSV = () => {
+    const headers: string[] = [];
+    const dataMappers: ((entry: any) => string)[] = [];
+
+    // Add columns in the order specified by logColumnOrder
+    logColumnOrder.forEach((key) => {
+      if (!logVisibleColumns[key as keyof typeof logVisibleColumns]) return;
+
+      headers.push(logColumnDisplayNames[key]);
+
+      switch (key) {
+        case 'date':
+          dataMappers.push((entry) => entry.date ? new Date(entry.date).toLocaleDateString('en-GB') : 'N/A');
+          break;
+        case 'clientName':
+          dataMappers.push((entry) => entry.client || 'N/A');
+          break;
+        case 'jobName':
+          dataMappers.push((entry) => entry.job || 'N/A');
+          break;
+        case 'amount':
+          dataMappers.push((entry) => formatCurrency(entry.amount));
+          break;
+        case 'by':
+          dataMappers.push((entry) => entry.by || 'N/A');
+          break;
+        case 'reason':
+          dataMappers.push((entry) => `"${(entry.reason || '').replace(/"/g, '""')}"`);
+          break;
+        case 'logic':
+          dataMappers.push((entry) => entry.logic || 'N/A');
+          break;
+      }
+    });
+
+    // Use current page logs only
+    const pageStart = (logPage - 1) * logLimit;
+    const currentPageLogs = logData.slice(pageStart, pageStart + logLimit);
+    const csvContent = `${headers.join(',')}\n${currentPageLogs.map(entry =>
+      dataMappers.map(mapper => mapper(entry)).join(',')
+    ).join('\n')}`;
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'write-off-log.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
   if (showLogView) {
     return (
       <div className="space-y-6">
@@ -257,60 +418,285 @@ const WriteOffMergedTab = () => {
           </div>
         </div>
 
+        {/* Filters - Same design as AllTimeLogsTab */}
+        <div className="p-[6px] rounded-sm bg-[#E7E5F2] flex justify-between items-center">
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="relative flex-1 w-full max-w-[200px]">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input 
+                placeholder="Search..." 
+                className="pl-10 w-[200px] bg-white text-[#381980] font-semibold placeholder:text-[#381980]" 
+                value={logSearchQuery}
+                onChange={(e) => setLogSearchQuery(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button className="w-32 h-10 bg-white text-[#381980] font-semibold rounded-md border px-3 flex items-center justify-between">
+                    <span className="truncate text-[14px]">Client Name</span>
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56 p-2" align="start">
+                  <div className="max-h-64 overflow-auto">
+                    <div
+                      className={`px-2 py-1.5 rounded-[4px] cursor-pointer ${selectedLogClientIds.size === 0 ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                      onClick={() => setSelectedLogClientIds(new Set())}
+                    >
+                      All
+                    </div>
+                    {logClientOptions.map((o: any) => {
+                      const active = selectedLogClientIds.has(o.value);
+                      return (
+                        <div
+                          key={o.value}
+                          className={`flex items-center justify-between px-2 py-1.5 rounded-[4px] cursor-pointer ${active ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                          onClick={() => {
+                            setSelectedLogClientIds(prev => {
+                              const next = new Set(prev);
+                              if (next.has(o.value)) next.delete(o.value); else next.add(o.value);
+                              return next;
+                            });
+                          }}
+                        >
+                          <span className="truncate">{o.label}</span>
+                          {active && <Check className="w-4 h-4" />}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="space-y-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button className="w-28 h-10 bg-white text-[#381980] font-semibold rounded-md border px-3 flex items-center justify-between">
+                    <span className="truncate text-[14px]">Job Name</span>
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56 p-2" align="start">
+                  <div className="max-h-64 overflow-auto">
+                    <div
+                      className={`px-2 py-1.5 rounded-[4px] cursor-pointer ${selectedLogJobNameIds.size === 0 ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                      onClick={() => setSelectedLogJobNameIds(new Set())}
+                    >
+                      All
+                    </div>
+                    {logJobNameOptions.map((o: any) => {
+                      const active = selectedLogJobNameIds.has(o.value);
+                      return (
+                        <div
+                          key={o.value}
+                          className={`flex items-center justify-between px-2 py-1.5 rounded-[4px] cursor-pointer ${active ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                          onClick={() => {
+                            setSelectedLogJobNameIds(prev => {
+                              const next = new Set(prev);
+                              if (next.has(o.value)) next.delete(o.value); else next.add(o.value);
+                              return next;
+                            });
+                          }}
+                        >
+                          <span className="truncate">{o.label}</span>
+                          {active && <Check className="w-4 h-4" />}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="space-y-2">
+              <Select
+                value={selectedLogLogic}
+                onValueChange={(value) => setSelectedLogLogic(value)}
+              >
+                <SelectTrigger className="w-32 h-10 bg-white text-[#381980] font-semibold">
+                  <SelectValue placeholder="Logic" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Logic</SelectItem>
+                  <SelectItem value="proportionally">Proportionally</SelectItem>
+                  <SelectItem value="manually">Manually</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Button
+                variant="outline"
+                className="bg-[#381980] w-[42px] rounded-sm text-primary-foreground p-2 hover:bg-primary/90 !text-[#fff]"
+                onClick={() => {
+                  setLogSearchQuery('');
+                  setSelectedLogClientIds(new Set());
+                  setSelectedLogJobNameIds(new Set());
+                  setSelectedLogLogic('all');
+                  setLogPage(1);
+                }}
+              >
+                <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+
         {/* Log Table */}
         <Card>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-left">Date</TableHead>
-                    <TableHead className="text-left">Client</TableHead>
-                    <TableHead className="text-left">Job</TableHead>
-                    <TableHead className="text-left">Amount</TableHead>
-                    <TableHead className="text-left">By</TableHead>
-                    <TableHead className="text-left">Reason</TableHead>
-                    <TableHead className="text-left">Logic</TableHead>
+                <TableHeader className='bg-[#E7E5F2]'>
+                  <TableRow className="border-b border-border bg-muted/50 text-[#381980]">
+                    {logColumnOrder.map((key) => {
+                      if (!logVisibleColumns[key as keyof typeof logVisibleColumns]) return null;
+                      return (
+                        <TableHead key={key} className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">
+                          {logColumnDisplayNames[key]}
+                        </TableHead>
+                      );
+                    })}
+                    {/* Column visibility toggle */}
+                    <TableHead className="p-3 text-foreground h-12 text-center">
+                      <div className="flex gap-[6px] justify-center">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 bg-white rounded-full"
+                          onClick={exportLogToCSV}
+                          aria-label="Export CSV"
+                          title="Export CSV (current page, visible columns)"
+                        >
+                          <Download className="h-3 w-3" color='#381980' />
+                        </Button>
+                        <Popover>
+                          <PopoverTrigger>
+                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0 bg-white rounded-full" aria-label="Show/Hide Columns" title="Show/Hide Columns">
+                              <Move className="h-3 w-3" color='#381980' />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent
+                            className="w-64 max-h-96 overflow-y-auto z-50"
+                            align="start"
+                            side="bottom"
+                            sideOffset={5}
+                            avoidCollisions={true}
+                            collisionPadding={10}
+                          >
+                            <div className="space-y-3">
+                              <h4 className="font-medium text-sm">Show/Hide Columns</h4>
+                              <div className="space-y-2">
+                                {logColumnOrder.map((key) => (
+                                  <div
+                                    key={key}
+                                    className={`flex items-center space-x-2 p-2 rounded-md cursor-move hover:bg-gray-50 transition-colors ${logDraggedItem === key ? 'opacity-50' : ''
+                                      }`}
+                                    draggable
+                                    onDragStart={(e) => handleLogDragStart(e, key)}
+                                    onDragOver={handleLogDragOver}
+                                    onDrop={(e) => handleLogDrop(e, key)}
+                                    onDragEnd={handleLogDragEnd}
+                                  >
+                                    <GripVertical className="h-4 w-4 text-gray-400 cursor-move" />
+                                    <Checkbox
+                                      id={key}
+                                      checked={(logVisibleColumns as any)[key]}
+                                      onCheckedChange={() => toggleLogColumn(key as keyof typeof logVisibleColumns)}
+                                    />
+                                    <Label htmlFor={key} className="text-sm cursor-pointer flex-1">
+                                      {logColumnDisplayNames[key]}
+                                    </Label>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoadingLog ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={logColumnOrder.filter(key => logVisibleColumns[key as keyof typeof logVisibleColumns]).length + 1} className="p-4 text-sm text-center">
                         Loading write-off log...
                       </TableCell>
                     </TableRow>
                   ) : logData.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={logColumnOrder.filter(key => logVisibleColumns[key as keyof typeof logVisibleColumns]).length + 1} className="p-4 text-sm text-center">
                         No write-off records found
                       </TableCell>
                     </TableRow>
                   ) : (
                     logData.map((entry) => (
-                      <TableRow key={entry.id}>
-                        <TableCell className="text-left">
-                          {entry.date ? new Date(entry.date).toLocaleDateString('en-GB') : 'N/A'}
+                      <TableRow key={entry.id} className="border-b border-border transition-colors h-12">
+                        {logColumnOrder.map((key) => {
+                          if (!logVisibleColumns[key as keyof typeof logVisibleColumns]) return null;
+                          
+                          let cellContent;
+                          switch (key) {
+                            case 'date':
+                              cellContent = entry.date ? new Date(entry.date).toLocaleDateString('en-GB') : 'N/A';
+                              break;
+                            case 'clientName':
+                              cellContent = (
+                                <ClientNameLink name={entry.client} ciientId={entry.clientId} />
+                              );
+                              break;
+                            case 'jobName':
+                              cellContent = entry.job;
+                              break;
+                            case 'amount':
+                              cellContent = <span className="font-medium text-red-600">{formatCurrency(entry.amount)}</span>;
+                              break;
+                            case 'by':
+                              cellContent = entry.by;
+                              break;
+                            case 'reason':
+                              cellContent = entry.reason;
+                              break;
+                            case 'logic':
+                              cellContent = entry.logic;
+                              break;
+                            default:
+                              cellContent = '-';
+                          }
+
+                          return (
+                            <TableCell key={key} className={`p-4 ${key === 'clientName' ? 'font-medium' : ''}`}>
+                              {cellContent}
+                            </TableCell>
+                          );
+                        })}
+                        <TableCell className="p-4">
+                          {/* Empty cell for actions column */}
                         </TableCell>
-                        <TableCell className="text-left font-medium">
-                          <ClientNameLink name={entry.client} ciientId={entry.clientId} />
-                        </TableCell>
-                        <TableCell className="text-left">{entry.job}</TableCell>
-                        <TableCell className="text-left font-medium text-red-600">{formatCurrency(entry.amount)}</TableCell>
-                        <TableCell className="text-left">{entry.by}</TableCell>
-                        <TableCell className="text-left">{entry.reason}</TableCell>
-                        <TableCell className="text-left">{entry.logic}</TableCell>
                       </TableRow>
                     ))
                   )}
                 </TableBody>
                 <tfoot className="bg-muted/50 border-t-2">
                   <tr>
-                    <td className="p-3 text-left font-medium" colSpan={3}>Total Write Offs</td>
-                    <td className="p-3 text-left font-medium text-red-600">
-                      {formatCurrency(logTotalWriteOffs)}
-                    </td>
-                    <td className="p-3" colSpan={3}></td>
+                    {(() => {
+                      const visibleColumns = logColumnOrder.filter(key => logVisibleColumns[key as keyof typeof logVisibleColumns]);
+                      const amountIndex = visibleColumns.indexOf('amount');
+                      const columnsBeforeAmount = amountIndex >= 0 ? amountIndex : visibleColumns.length;
+                      const columnsAfterAmount = amountIndex >= 0 ? visibleColumns.length - amountIndex - 1 : 0;
+                      
+                      return (
+                        <>
+                          <td className="p-3 text-left font-medium" colSpan={columnsBeforeAmount}>Total Write Offs</td>
+                          {logVisibleColumns.amount && (
+                            <td className="p-3 text-left font-medium text-red-600">
+                              {formatCurrency(logTotalWriteOffs)}
+                            </td>
+                          )}
+                          <td className="p-3" colSpan={columnsAfterAmount + 1}></td>
+                        </>
+                      );
+                    })()}
                   </tr>
                 </tfoot>
               </Table>
@@ -328,6 +714,7 @@ const WriteOffMergedTab = () => {
                   value={logLimit}
                   onChange={(e) => { setLogPage(1); setLogLimit(Number(e.target.value)); }}
                   className="border border-gray-300 rounded px-2 py-1 text-sm"
+                  disabled={isLoadingLog}
                 >
                   <option value={5}>5 per page</option>
                   <option value={10}>10 per page</option>
@@ -337,7 +724,7 @@ const WriteOffMergedTab = () => {
               </div>
               <div className="text-sm text-gray-500">
                 {(() => {
-                  const total = writeOffLogResp.pagination.total || 0;
+                  const total = writeOffLogResp?.pagination?.total || 0;
                   const start = total > 0 ? ((logPage - 1) * logLimit) + 1 : 0;
                   const end = Math.min(logPage * logLimit, total);
                   return `Showing ${start} to ${end} of ${total} records`;
@@ -345,13 +732,13 @@ const WriteOffMergedTab = () => {
               </div>
             </div>
             {(() => {
-              const totalPages = Math.max(1, Number(writeOffLogResp.pagination.totalPages || 1));
+              const totalPages = Math.max(1, Number(writeOffLogResp?.pagination?.totalPages || 1));
               if (totalPages <= 1) return null;
               return (
                 <div className="flex justify-center items-center gap-2">
-                  <Button onClick={() => setLogPage(p => Math.max(1, p - 1))} disabled={logPage === 1} variant="outline" size="sm">Previous</Button>
+                  <Button onClick={() => setLogPage(p => Math.max(1, p - 1))} disabled={logPage === 1 || isLoadingLog} variant="outline" size="sm">Previous</Button>
                   <span className="text-sm">Page {logPage} of {totalPages}</span>
-                  <Button onClick={() => setLogPage(p => Math.min(totalPages, p + 1))} disabled={logPage >= totalPages} variant="outline" size="sm">Next</Button>
+                  <Button onClick={() => setLogPage(p => Math.min(totalPages, p + 1))} disabled={logPage >= totalPages || isLoadingLog} variant="outline" size="sm">Next</Button>
                 </div>
               );
             })()}
@@ -442,6 +829,16 @@ const WriteOffMergedTab = () => {
       {/* Filter Tabs */}
       <div className="flex items-center justify-between p-[6px] rounded-sm bg-[#E7E5F2]">
         <div className="flex items-center gap-2">
+          {/* Search Bar */}
+          <div className="relative flex-1 w-full max-w-[200px]">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input 
+              placeholder="Search..." 
+              className="pl-10 w-[200px] bg-white text-[#381980] font-semibold placeholder:text-[#381980]" 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
           <Button
             size="sm"
             variant={activeFilter === 'clients' ? 'default' : 'outline'}
@@ -484,19 +881,6 @@ const WriteOffMergedTab = () => {
         >
           Write Off Log
         </Button>
-      </div>
-
-      {/* Search */}
-      <div className="flex items-center gap-4 bg-white p-4 rounded-lg">
-        <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-          <Input
-            placeholder="Search..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 bg-white"
-          />
-        </div>
       </div>
 
       {/* Data Table */}
@@ -558,14 +942,14 @@ const WriteOffMergedTab = () => {
                       </TableHead>
                     </>
                   )}
-                  <TableHead className="text-left px-3">
+                  <TableHead className="text-center px-3">
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => handleSort('writeOffOccasions')}
                       className="h-8 px-1 font-medium justify-start text-[12px]"
                     >
-                      Occasions
+                      Write-off Occasions’
                       <ArrowUpDown className="ml-1 h-4 w-4" />
                     </Button>
                   </TableHead>
@@ -598,7 +982,7 @@ const WriteOffMergedTab = () => {
                       onClick={() => handleSort('totalFees')}
                       className="h-8 px-1 font-medium justify-start text-[12px]"
                     >
-                      Total Fees
+                      Total Job Fees
                       <ArrowUpDown className="ml-1 h-4 w-4" />
                     </Button>
                   </TableHead>
@@ -647,24 +1031,26 @@ const WriteOffMergedTab = () => {
                         </TableCell>
                       </>
                     )}
-                    <TableCell className="p-3 text-left">
-                      <span
-                        className="inline-flex items-center justify-center h-8 w-8 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-colors bg-gradient-to-br from-primary/20 to-primary/30 text-primary border border-primary/20"
+                    <TableCell className="p-3 text-center">
+                      <Badge 
+                        variant="secondary" 
+                        className="bg-blue-100 text-blue-800 cursor-pointer hover:opacity-80"
                         onClick={() => handleOccasionsClick(item)}
                       >
                         {item.writeOffOccasions}
-                      </span>
+                      </Badge>
                     </TableCell>
-                    <TableCell className="p-3 text-left text-sm font-medium">
+                    <TableCell className="p-3 text-center text-sm font-medium">
                       {formatCurrency(item.totalWriteOffValue)}
                     </TableCell>
-                    <TableCell className="p-3 text-left text-sm">
-                      <span
-                        className="cursor-pointer hover:underline text-blue-600"
+                    <TableCell className="p-3 text-center text-sm">
+                      <Badge 
+                        variant="secondary" 
+                        className="bg-blue-100 text-blue-800 cursor-pointer hover:opacity-80"
                         onClick={() => handleJobsClick(item)}
                       >
                         {item.noJobsWithWriteOff}
-                      </span>
+                      </Badge>
                     </TableCell>
                     <TableCell className="p-3 text-left text-sm">
                       {formatCurrency(item.totalFees)}
@@ -684,9 +1070,9 @@ const WriteOffMergedTab = () => {
                   <td className="p-3 text-sm font-medium text-left">TOTALS</td>
                   {activeFilter === 'jobs' && <td className="p-3"></td>}
                   {activeFilter === 'jobs' && <td className="p-3"></td>}
-                  <td className="p-3 text-left text-sm font-medium">{totalOccasions}</td>
-                  <td className="p-3 text-left text-sm font-medium">{formatCurrency(totalWriteOffs)}</td>
-                  <td className="p-3 text-left text-sm font-medium">{totalJobs}</td>
+                  <td className="p-3 text-center text-sm font-medium">{totalOccasions}</td>
+                  <td className="p-3 text-center text-sm font-medium">{formatCurrency(totalWriteOffs)}</td>
+                  <td className="p-3 text-center text-sm font-medium">{totalJobs}</td>
                   <td className="p-3 text-left text-sm font-medium">
                     {formatCurrency(filteredData.reduce((sum, item) => sum + item.totalFees, 0))}
                   </td>
@@ -719,30 +1105,46 @@ const WriteOffMergedTab = () => {
 
             <div className="space-y-4">
               <h4 className="font-medium">Write Off Details:</h4>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-left">Amount</TableHead>
-                      <TableHead className="text-left">Date</TableHead>
-                      <TableHead className="text-left">By</TableHead>
-                      <TableHead className="text-left">Write Off Logic</TableHead>
-                      <TableHead className="text-left">Write Off Reason</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {selectedOccasions?.details.map((detail, index) => (
-                      <TableRow key={index}>
-                        <TableCell className="text-left">{formatCurrency(detail.amount)}</TableCell>
-                        <TableCell className="text-left">{detail.date}</TableCell>
-                        <TableCell className="text-left">{detail.by}</TableCell>
-                        <TableCell className="text-left">{detail.logic}</TableCell>
-                        <TableCell className="text-left">{detail.reason}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+              <Card>
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader className='bg-[#E7E5F2]'>
+                        <TableRow className="border-b border-border bg-muted/50 text-[#381980]">
+                          <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">Date</TableHead>
+                          <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">Client Name</TableHead>
+                          <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">Job Name</TableHead>
+                          <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">Write-off Value</TableHead>
+                          <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">Write-off By</TableHead>
+                          <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">Write-off Reason</TableHead>
+                          <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">Write-off Logic</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {selectedOccasions?.details.map((detail, index) => (
+                          <TableRow key={index} className="border-b border-border transition-colors h-12">
+                            <TableCell className="p-4">
+                              {detail.date}
+                            </TableCell>
+                            <TableCell className="p-4 font-medium">
+                              {detail.clientName && detail.clientId ? (
+                                <ClientNameLink name={detail.clientName} ciientId={detail.clientId} />
+                              ) : (
+                                detail.clientName || 'N/A'
+                              )}
+                            </TableCell>
+                            <TableCell className="p-4">{detail.jobName || 'N/A'}</TableCell>
+                            <TableCell className="p-4 font-medium text-red-600">{formatCurrency(detail.amount)}</TableCell>
+                            <TableCell className="p-4">{detail.by}</TableCell>
+                            <TableCell className="p-4">{detail.reason}</TableCell>
+                            <TableCell className="p-4">{detail.logic}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </DialogContent>

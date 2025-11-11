@@ -174,15 +174,19 @@ export const wipApi = createApi({
         return { url: `/wip/write-off-dashboard${qs ? `?${qs}` : ''}` };
       },
     }),
-    getWriteOff: builder.query<any, { page?: number; limit?: number; startDate?: string; endDate?: string } | void>({
+    getWriteOff: builder.query<any, { page?: number; limit?: number; startDate?: string; endDate?: string; search?: string; clientId?: string; jobId?: string; logic?: string } | void>({
       query: (args) => {
         const params = new URLSearchParams();
         if (args && typeof args === 'object') {
-          const { page, limit, startDate, endDate } = args;
+          const { page, limit, startDate, endDate, search, clientId, jobId, logic } = args;
           if (page) params.append('page', String(page));
           if (limit) params.append('limit', String(limit));
           if (startDate) params.append('startDate', startDate);
           if (endDate) params.append('endDate', endDate);
+          if (search) params.append('search', search);
+          if (clientId) params.append('clientId', clientId);
+          if (jobId) params.append('jobId', jobId);
+          if (logic) params.append('logic', logic);
         }
         const qs = params.toString();
         return { url: `/wip/write-off${qs ? `?${qs}` : ''}` };
