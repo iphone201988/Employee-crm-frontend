@@ -179,12 +179,14 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
 
     return (
         <Dialog  open={dialogOpen} onOpenChange={handleDialogClose} >
-            <DialogContent className="max-w-xl max-h-[70vh] overflow-y-auto !rounded-none p-0 border-none for-close">
+            <DialogContent className="max-w-xl  h-[80vh] !rounded-none p-0 border-none for-close">
+                <button className=" bg-[#381980] text-white absolute right-[-35px] top-0 p-[6px] rounded-full max-sm:hidden"><X size={16}/></button>
                 <DialogHeader className="bg-[#381980] sticky z-50 top-0 left-0 w-full text-center ">
                     <DialogTitle className="text-center text-white py-4">{editMode ? 'Edit Client' : 'Add Client'}</DialogTitle>
                 </DialogHeader>
 
-                <form onSubmit={handleSubmit} className="space-y-6 form-change">
+              <div className="overflow-auto h-full">
+                  <form onSubmit={handleSubmit} className="space-y-6 form-change ">
                     <div className="space-y-4 px-[20px]">
                         <h3 className="text-lg font-semibold text-gray-800">Basic Information</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -405,6 +407,7 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
                         </Button>
                     </div>
                 </form>
+              </div>
             </DialogContent>
         </Dialog>
     );

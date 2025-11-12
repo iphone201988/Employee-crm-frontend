@@ -1162,7 +1162,7 @@ const MyTimeLogs = () => {
                           <TableHead key={key} className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">
                             {isSortable ? (
                               <button 
-                                className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" 
+                                className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors uppercase" 
                                 onClick={() => handleSort(key as SortField)}
                               >
                                 {columnDisplayNames[key]}
@@ -1190,7 +1190,7 @@ const MyTimeLogs = () => {
                           <TableHead key={key} className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">
                             {isSortable ? (
                               <button 
-                                className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" 
+                                className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors uppercase" 
                                 onClick={() => handleSort(key as SortField)}
                               >
                                 {columnDisplayNames[key]}

@@ -1183,12 +1183,12 @@ const AllTimeLogsTab = () => {
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
-              <TableHeader className='bg-[#E7E5F2] '>
-                <TableRow className="border-b border-border bg-muted/50 text-[#381980]">
+              <TableHeader className='bg-[#E7E5F2]'>
+                <TableRow className="border-b border-border bg-muted/50 text-[#381980] ">
                   {viewMode === 'flat' ? (
                     <>
                       {canBulkDelete && (
-                        <TableHead className="p-3 text-foreground h-12 text-[#381980]">
+                        <TableHead className="p-3 text-foreground h-12 text-[#381980] !uppercase">
                           <input type="checkbox" onChange={(e) => toggleSelectAllVisible(e.target.checked, filteredTimeLogs)} />
                         </TableHead>
                       )}
@@ -1200,7 +1200,7 @@ const AllTimeLogsTab = () => {
                           <TableHead key={key} className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">
                             {isSortable ? (
                               <button 
-                                className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" 
+                                className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors uppercase" 
                                 onClick={() => handleSort(key as SortField)}
                               >
                                 {columnDisplayNames[key]}
@@ -1228,7 +1228,7 @@ const AllTimeLogsTab = () => {
                           <TableHead key={key} className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">
                             {isSortable ? (
                               <button 
-                                className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" 
+                                className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors uppercase" 
                                 onClick={() => handleSort(key as SortField)}
                               >
                                 {columnDisplayNames[key]}

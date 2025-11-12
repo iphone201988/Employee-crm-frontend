@@ -978,21 +978,21 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                 </th>
                                 <th className="text-left px-2 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-24 sm:w-32">
                                     <button className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleTimesheetSort('client')}>
-                                        <span className="hidden sm:inline !text-[#381980]">CLIENT NAME</span>
+                                        <span className="hidden sm:inline !text-[#381980] whitespace-nowrap">CLIENT NAME</span>
                                         <span className="sm:hidden">CLIENT</span>
                                         {getTimesheetSortIcon('client')}
                                     </button>
                                 </th>
                                 <th className="text-left px-2 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-32 sm:w-40">
                                     <button className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleTimesheetSort('job')}>
-                                        <span className="hidden sm:inline !text-[#381980]">JOB NAME</span>
+                                        <span className="hidden sm:inline !text-[#381980] whitespace-nowrap">JOB NAME</span>
                                         <span className="sm:hidden">JOB</span>
                                         {getTimesheetSortIcon('job')}
                                     </button>
                                 </th>
                                 <th className="text-left px-2 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-20 sm:w-24">
                                     <button className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleTimesheetSort('category')}>
-                                        <span className="hidden sm:inline !text-[#381980]">TIME PURPOSE</span>
+                                        <span className="hidden sm:inline !text-[#381980] whitespace-nowrap">TIME PURPOSE</span>
                                         <span className="sm:hidden">CAT</span>
                                         {getTimesheetSortIcon('category')}
                                     </button>
@@ -1012,21 +1012,21 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                     </button>
                                 </th>
                                 {weekDays.slice(1, 6).map((day, index) => (
-                                    <th key={day.key} className="text-center px-1 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-12 sm:w-16 !text-[#381980]">
+                                    <th key={day.key} className="text-center whitespace-nowrap px-1 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-12 sm:w-16 !text-[#381980]">
                                         {day.label} {day.date}
                                     </th>
                                 ))}
                                 {!hideWeekend && weekDays.slice(6).map((day, index) => (
-                                    <th key={day.key} className="text-center px-1 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-12 sm:w-16 !text-[#381980]">
+                                    <th key={day.key} className="text-center whitespace-nowrap px-1 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-12 sm:w-16 !text-[#381980]">
                                         {day.label} {day.date}
                                     </th>
                                 ))}
                                 {!hideWeekend && weekDays.slice(0, 1).map((day, index) => (
-                                    <th key={day.key} className="text-center px-1 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-12 sm:w-16 !text-[#381980]">
+                                    <th key={day.key} className="text-center whitespace-nowrap px-1 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-12 sm:w-16 !text-[#381980]">
                                         {day.label} {day.date}
                                     </th>
                                 ))}
-                                <th className="text-right px-1 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-8 sm:w-12"></th>
+                                <th className="text-right whitespace-nowrap px-1 sm:px-3 py-2 text-xs font-medium text-muted-foreground w-8 sm:w-12"></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1139,7 +1139,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                 <td className="px-3 py-2 text-sm">
                                         {billableRate ? <span className="text-sm">{'€' + billableRate}</span> : null}
                                 </td>
-                                <td className="px-3 py-2 text-center text-sm">
+                                <td className="px-3 py-2 text-center text-sm ">
                                         <Input 
                                             type="text" 
                                             value={getTimeInputValue(row.id, 'mon', row.hours.mon)} 
@@ -1147,7 +1147,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                             onFocus={() => handleTimeFocus(row.id, 'mon', row.hours.mon)}
                                             onBlur={() => handleTimeBlur(row.id, 'mon')}
                                             placeholder="hh:mm:ss" 
-                                            className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded" 
+                                            className="w-20  text-center border border-input p-1 h-8 bg-background text-sm rounded" 
                                         />
                                 </td>
                                 <td className="px-3 py-2 text-center text-sm">
@@ -1231,17 +1231,17 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                             <tr className="bg-blue-50">
                                 <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right">BILLABLE</td>
                                 {weekDays.slice(1, 6).map((day, index) => (
-                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal">
+                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap">
                                         {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].billable))}
                                     </td>
                                 ))}
                                 {!hideWeekend && weekDays.slice(6).map((day, index) => (
-                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal">
+                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap">
                                         {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].billable))}
                                     </td>
                                 ))}
                                 {!hideWeekend && weekDays.slice(0, 1).map((day, index) => (
-                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal">
+                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap">
                                         {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].billable))}
                                     </td>
                                 ))}
@@ -1250,17 +1250,17 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                             <tr className="bg-gray-50">
                                 <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right">NON BILLABLE</td>
                                 {weekDays.slice(1, 6).map((day, index) => (
-                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal">
+                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap">
                                         {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].nonBillable))}
                                     </td>
                                 ))}
                                 {!hideWeekend && weekDays.slice(6).map((day, index) => (
-                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal">
+                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap">
                                         {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].nonBillable))}
                                     </td>
                                 ))}
                                 {!hideWeekend && weekDays.slice(0, 1).map((day, index) => (
-                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal">
+                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap">
                                         {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].nonBillable))}
                                     </td>
                                 ))}
@@ -1269,17 +1269,17 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                             <tr className="bg-blue-50">
                                 <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right">LOGGED</td>
                                 {weekDays.slice(1, 6).map((day, index) => (
-                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal">
+                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap">
                                         {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].logged))}
                                     </td>
                                 ))}
                                 {!hideWeekend && weekDays.slice(6).map((day, index) => (
-                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal">
+                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap">
                                         {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].logged))}
                                     </td>
                                 ))}
                                 {!hideWeekend && weekDays.slice(0, 1).map((day, index) => (
-                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal">
+                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap">
                                         {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].logged))}
                                     </td>
                                 ))}
@@ -1288,17 +1288,17 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                             <tr className="bg-gray-100">
                                 <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right">CAPACITY</td>
                                 {weekDays.slice(1, 6).map((day, index) => (
-                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal">
+                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap">
                                         {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].capacity))}
                                     </td>
                                 ))}
                                 {!hideWeekend && weekDays.slice(6).map((day, index) => (
-                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal">
+                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap">
                                         {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].capacity))}
                                     </td>
                                 ))}
                                 {!hideWeekend && weekDays.slice(0, 1).map((day, index) => (
-                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal">
+                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap">
                                         {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].capacity))}
                                     </td>
                                 ))}
@@ -1307,17 +1307,17 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                             <tr className="bg-red-50">
                                 <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right">VARIANCE</td>
                                 {weekDays.slice(1, 6).map((day, index) => (
-                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal">
+                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap">
                                         {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].variance))}
                                     </td>
                                 ))}
                                 {!hideWeekend && weekDays.slice(6).map((day, index) => (
-                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal">
+                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap">
                                         {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].variance))}
                                     </td>
                                 ))}
                                 {!hideWeekend && weekDays.slice(0, 1).map((day, index) => (
-                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal">
+                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap">
                                         {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].variance))}
                                     </td>
                                 ))}

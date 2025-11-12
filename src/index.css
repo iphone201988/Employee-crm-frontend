@@ -139,3 +139,12 @@ button.inline-flex.items-center.justify-center.gap-2.whitespace-nowrap.text-sm.f
     border-radius: 100%;
     padding: 4px;
 } */
+
+table thead tr th{
+  text-transform: uppercase !important;
+  white-space: nowrap ;
+}
+table thead tr th button{
+  text-transform: uppercase !important;
+  white-space: nowrap ;
+}
