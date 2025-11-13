@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, Filter, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, RotateCcw, RefreshCw, ArrowLeft, Plus, X, Trash2, Edit2, Check } from "lucide-react";
+import { Search, Filter, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, RotateCcw, RefreshCw, ArrowLeft, Plus, X, Trash2, Edit2, Check, Save } from "lucide-react";
 import { useDeleteTimesheetsMutation } from "@/store/timesheetApi";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,7 @@ import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useGetTabAccessQuery, useLazyGetTabAccessQuery, useGetCurrentUserQuery } from "@/store/authApi";
 import { useGetDropdownOptionsQuery } from "@/store/teamApi";
-import { useGetNotesQuery, useAddNoteMutation, Note } from "@/store/notesApi";
+import { useGetNotesQuery, useAddNoteMutation, useUpdateNoteMutation, Note } from "@/store/notesApi";
 import { toast } from 'sonner';
 import Avatars from "@/components/Avatars";
 import { useSearchParams } from "react-router-dom";
@@ -1226,6 +1226,8 @@ interface TimesheetNotesDialogProps {
 
 const TimesheetNotesDialog = ({ timesheetId, timesheetName, open, onOpenChange, onClose }: TimesheetNotesDialogProps) => {
   const [newNote, setNewNote] = useState('');
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editingNoteText, setEditingNoteText] = useState('');
   
   // Fetch notes for this timesheet
   const { data: notesResponse, refetch: refetchNotes } = useGetNotesQuery(
@@ -1233,6 +1235,7 @@ const TimesheetNotesDialog = ({ timesheetId, timesheetName, open, onOpenChange, 
     { skip: !timesheetId || !open, refetchOnMountOrArgChange: true }
   );
   const [addNote, { isLoading: isAddingNote }] = useAddNoteMutation();
+  const [updateNote, { isLoading: isUpdatingNote }] = useUpdateNoteMutation();
   
   const notes = notesResponse?.data || [];
   
@@ -1253,10 +1256,40 @@ const TimesheetNotesDialog = ({ timesheetId, timesheetName, open, onOpenChange, 
     }
   };
 
-  // Reset newNote when dialog closes
+  const handleStartEdit = (note: Note) => {
+    setEditingNoteId(note._id);
+    setEditingNoteText(note.note);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingNoteId(null);
+    setEditingNoteText('');
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingNoteId || !editingNoteText.trim()) return;
+    
+    try {
+      await updateNote({
+        noteId: editingNoteId,
+        note: editingNoteText.trim(),
+      }).unwrap();
+      toast.success('Note updated successfully');
+      setEditingNoteId(null);
+      setEditingNoteText('');
+      refetchNotes();
+    } catch (error: any) {
+      toast.error(error?.data?.message || 'Failed to update note');
+      console.error('Failed to update note:', error);
+    }
+  };
+
+  // Reset states when dialog closes
   useEffect(() => {
     if (!open) {
       setNewNote('');
+      setEditingNoteId(null);
+      setEditingNoteText('');
     }
   }, [open]);
   
@@ -1307,13 +1340,55 @@ const TimesheetNotesDialog = ({ timesheetId, timesheetName, open, onOpenChange, 
                       )}
                       <div className="absolute left-0 top-1 w-4 h-4 bg-primary rounded-full border-2 border-background"></div>
                       <div className="bg-muted rounded-lg p-3">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Clock className="h-3 w-3 text-muted-foreground" />
-                          <span className="text-xs text-muted-foreground">
-                            {formatTimestamp(note.createdAt)} by {note.createdBy?.name || 'Unknown'}
-                          </span>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground">
+                              {formatTimestamp(note.createdAt)} by {note.createdBy?.name || 'Unknown'}
+                            </span>
+                          </div>
+                          {editingNoteId === note._id ? (
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0"
+                                onClick={handleSaveEdit}
+                                disabled={isUpdatingNote || !editingNoteText.trim()}
+                              >
+                                <Save className="h-3 w-3 text-green-600" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0"
+                                onClick={handleCancelEdit}
+                                disabled={isUpdatingNote}
+                              >
+                                <X className="h-3 w-3 text-red-600" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0"
+                              onClick={() => handleStartEdit(note)}
+                            >
+                              <Edit2 className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                            </Button>
+                          )}
                         </div>
-                        <p className="text-sm">{note.note}</p>
+                        {editingNoteId === note._id ? (
+                          <Textarea
+                            value={editingNoteText}
+                            onChange={(e) => setEditingNoteText(e.target.value)}
+                            className="min-h-[80px] text-sm"
+                            disabled={isUpdatingNote}
+                          />
+                        ) : (
+                          <p className="text-sm">{note.note}</p>
+                        )}
                       </div>
                     </div>
                   ))}

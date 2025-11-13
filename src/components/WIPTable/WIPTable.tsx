@@ -377,7 +377,7 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
                 <tr className='!bg-[#edecf4] text-[#381980]'>
                   <th className="text-left p-4 font-medium text-[12px] text-[hsl(var(--table-header))]">Client Name / Job Name</th>
                   <th className="text-center p-4 font-medium text-[12px] text-[hsl(var(--table-header))]">Jobs</th>
-                  <th className="text-center p-4 font-medium text-[12px] text-[hsl(var(--table-header))]">WIP Balance</th>
+                  <th className="text-left p-4 font-medium text-[12px] text-[hsl(var(--table-header))]">WIP Balance</th>
                   <th className="text-center p-4 font-medium text-[12px] text-[hsl(var(--table-header))]">Expenses</th>
                   <th className="text-center p-4 font-medium text-[12px] text-[hsl(var(--table-header))]">Last Invoiced</th>
                   <th className="text-center p-4 font-medium text-[12px] text-[hsl(var(--table-header))]">Invoice Level</th>
@@ -418,7 +418,7 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
                           {client.jobs.length}
                         </Badge>
                       </td>
-                      <td className="p-4 text-center">
+                      <td className="p-4 text-left">
                         <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={() => {
@@ -565,7 +565,8 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
                         {(invoiceLevel[client.id] || 'client') === 'client' ? (
                           <div className="flex justify-center">
                             {(() => {
-                              const totalWIP = client.jobs.reduce((sum, job) => sum + job.wipAmount, 0);
+                              // Use clientWipBalance which includes client open balance + all jobs' wipAmount + job open balances
+                              const totalWIP = (client as any).clientWipBalance || 0;
                               const currentTrigger = (clientTriggers[client.id] || (client as any).trigger) as string | undefined;
                               const isThreshold = !!currentTrigger && currentTrigger.includes('threshold');
                               if (!isThreshold) {
@@ -586,7 +587,8 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
                       <td className="p-4 text-center">
                         {(invoiceLevel[client.id] || 'client') === 'client' ? (
                           (() => {
-                            const totalWIP = client.jobs.reduce((sum, job) => sum + job.wipAmount, 0);
+                            // Use clientWipBalance which includes client open balance + all jobs' wipAmount + job open balances
+                            const totalWIP = (client as any).clientWipBalance || 0;
                             const currentTrigger = (clientTriggers[client.id] || (client as any).trigger) as string | undefined;
                             const isThreshold = !!currentTrigger && currentTrigger.includes('threshold');
                             if (!isThreshold) {

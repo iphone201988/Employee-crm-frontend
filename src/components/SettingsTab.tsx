@@ -352,7 +352,7 @@ const SettingsTab = ({
                     : "bg-blue-100 text-blue-800 border-blue-200"
                   }`}
                 >
-                  ${item.amount?.toLocaleString()}
+                  €{item.amount?.toLocaleString()}
                   <span className="mr-2 font-semibold">
                     &nbsp;({item.count})
                   </span>

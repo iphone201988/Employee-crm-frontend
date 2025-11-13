@@ -72,18 +72,18 @@ const ReportsTab = () => {
   // Calculate date range based on time filter and offset
   const { startDate, endDate } = useMemo(() => {
     const now = new Date();
-    
+
     if (timeFilter === 'daily') {
       const targetDate = new Date();
       targetDate.setDate(now.getDate() + currentPeriodOffset);
       const start = new Date(targetDate.setHours(0, 0, 0, 0));
       const end = new Date(targetDate.setHours(23, 59, 59, 999));
-      return { 
-        startDate: start.toISOString(), 
-        endDate: end.toISOString() 
+      return {
+        startDate: start.toISOString(),
+        endDate: end.toISOString()
       };
     }
-    
+
     if (timeFilter === 'weekly') {
       const startOfWeek = new Date();
       startOfWeek.setDate(now.getDate() - now.getDay() + 1 + currentPeriodOffset * 7);
@@ -91,33 +91,33 @@ const ReportsTab = () => {
       const endOfWeek = new Date(startOfWeek);
       endOfWeek.setDate(startOfWeek.getDate() + 6);
       endOfWeek.setHours(23, 59, 59, 999);
-      return { 
-        startDate: startOfWeek.toISOString(), 
-        endDate: endOfWeek.toISOString() 
+      return {
+        startDate: startOfWeek.toISOString(),
+        endDate: endOfWeek.toISOString()
       };
     }
-    
+
     if (timeFilter === 'monthly') {
       const d = new Date(now.getFullYear(), now.getMonth() + currentPeriodOffset, 1);
       const start = new Date(d.getFullYear(), d.getMonth(), 1);
       start.setHours(0, 0, 0, 0);
       const end = new Date(d.getFullYear(), d.getMonth() + 1, 0);
       end.setHours(23, 59, 59, 999);
-      return { 
-        startDate: start.toISOString(), 
-        endDate: end.toISOString() 
+      return {
+        startDate: start.toISOString(),
+        endDate: end.toISOString()
       };
     }
-    
+
     // Yearly
     const year = now.getFullYear() + currentPeriodOffset;
     const start = new Date(year, 0, 1);
     start.setHours(0, 0, 0, 0);
     const end = new Date(year, 11, 31);
     end.setHours(23, 59, 59, 999);
-    return { 
-      startDate: start.toISOString(), 
-      endDate: end.toISOString() 
+    return {
+      startDate: start.toISOString(),
+      endDate: end.toISOString()
     };
   }, [timeFilter, currentPeriodOffset]);
 
@@ -156,7 +156,7 @@ const ReportsTab = () => {
   // Convert API data to ReportData format
   const reportData = useMemo(() => {
     if (!reportsData?.data?.reports) return [];
-    
+
     return reportsData.data.reports.map(member => {
       // Calculate values from seconds
       const capacityHours = member.capacity / 3600;
@@ -164,13 +164,13 @@ const ReportsTab = () => {
       const billableHours = member.billable / 3600;
       const nonBillableHours = member.nonBillable / 3600;
       const writeOffHours = member.writeOff / 3600;
-      
+
       // Calculate resource cost: hourlyRate * logged hours
       const resourceCost = member.hourlyRate * loggedHours;
-      
+
       // Calculate profit: billableAmount - resourceCost
       const profit = member.billableAmount - resourceCost;
-      
+
       return {
         name: member.name,
         avatarUrl: member.avatarUrl,
@@ -233,18 +233,18 @@ const ReportsTab = () => {
 
   const totals = useMemo(() => {
     if (!reportsData?.data) return { capacity: 0, logged: 0, revenue: 0, teamMembers: 0 };
-    
+
     const totalCapacity = reportsData.data.totalCapacity / 3600; // Convert seconds to hours
     const totalLogged = reportsData.data.totalLogged / 3600; // Convert seconds to hours
     const totalRevenue = reportsData.data.totalRevenue;
     const teamMembers = reportsData.data.teamMembers;
-    
+
     return { capacity: totalCapacity, logged: totalLogged, revenue: totalRevenue, teamMembers };
   }, [reportsData]);
 
   const getPercentage = (value: number, total: number) => (total > 0 ? (value / total) * 100 : 0);
   const formatHours = (hours: number) => formatTime(hours, timeFormat);
-  
+
   // Format time as HH:MM:SS
   const formatHoursToHHMMSS = (hours: number) => {
     const totalSeconds = Math.max(0, Math.round((hours || 0) * 3600));
@@ -268,31 +268,34 @@ const ReportsTab = () => {
             {/* Wrap the list of avatars in a single TooltipProvider */}
             <TooltipProvider>
               {currentTabsUsers?.result.length > 0 &&
-                currentTabsUsers?.result.map((user: any, index) => (
-                  <Tooltip key={user?.id || index} delayDuration={100}>
-                    <TooltipTrigger asChild>
-                      <Avatar
-                        className="border-2 border-background w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0 rounded-full"
-                      // The native `title` attribute is no longer needed
-                      >
-                        <AvatarImage
-                          src={
-                            import.meta.env.VITE_BACKEND_BASE_URL + user?.avatarUrl
-                          }
-                          className="rounded-full"
-                        />
-                        <AvatarFallback className="text-xs rounded-full bg-gray-400">
-                          {user?.name.charAt(0)}
-                        </AvatarFallback>
-                      </Avatar>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{user?.name}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                ))}
+                currentTabsUsers.result
+                  .filter((user: any) => user.role !== "company") // filter out company role users
+                  .map((user: any, index) => (
+                    <Tooltip key={user?.id || index} delayDuration={100}>
+                      <TooltipTrigger asChild>
+                        <Avatar
+                          className="border-2 border-background w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0 rounded-full"
+                        // The native `title` attribute is no longer needed
+                        >
+                          <AvatarImage
+                            src={
+                              import.meta.env.VITE_BACKEND_BASE_URL + user?.avatarUrl
+                            }
+                            className="rounded-full"
+                          />
+                          <AvatarFallback className="text-xs rounded-full bg-gray-400">
+                            {user?.name.charAt(0)}
+                          </AvatarFallback>
+                        </Avatar>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{user?.name}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  ))}
             </TooltipProvider>
           </div>
+
         </div>
       </div>
       {/* Summary Cards */}
@@ -404,7 +407,7 @@ const ReportsTab = () => {
               Showing {((page - 1) * limit) + 1} to {Math.min(page * limit, reportsData.data.pagination.total)} of {reportsData.data.pagination.total} members
             </div>
           </div>
-          
+
           {Math.ceil(reportsData.data.pagination.total / limit) > 1 && (
             <div className="flex justify-center items-center gap-2">
               <Button
