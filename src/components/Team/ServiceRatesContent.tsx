@@ -242,7 +242,7 @@ export const ServiceRatesContent: React.FC<ServiceRatesContentProps> = ({ onUnsa
                                     >
                                         <div className="flex items-center gap-2">
                                             Team Member
-                                        <ArrowUpDown className="h-4 w-4" />
+                                        <ArrowUpDown className="h-3 w-3" />
                                         </div>
                                     </TableHead>
                                     <TableHead
@@ -251,7 +251,7 @@ export const ServiceRatesContent: React.FC<ServiceRatesContentProps> = ({ onUnsa
                                     >
                                         <div className="flex items-center gap-2">
                                             Hourly Rate
-                                             <ArrowUpDown className="h-4 w-4" />
+                                             <ArrowUpDown className="h-3 w-3" />
                                         </div>
                                     </TableHead>
                                     <TableHead
@@ -260,7 +260,7 @@ export const ServiceRatesContent: React.FC<ServiceRatesContentProps> = ({ onUnsa
                                     >
                                         <div className="flex items-center gap-2">
                                            Billable Rate
-                                         <ArrowUpDown className="h-4 w-4" />
+                                         <ArrowUpDown className="h-3 w-3" />
                                         </div>
                                     </TableHead>
                                     <TableHead className="w-[100px]">Lock</TableHead>
@@ -272,7 +272,7 @@ export const ServiceRatesContent: React.FC<ServiceRatesContentProps> = ({ onUnsa
                                         >
                                             <div className="flex items-center gap-2">
                                                 {service.name}
-                                                 <ArrowUpDown className="h-4 w-4" />
+                                                 <ArrowUpDown className="h-3 w-3" />
                                             </div>
                                         </TableHead>
                                     ))}

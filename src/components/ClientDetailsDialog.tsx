@@ -254,10 +254,10 @@ const ClientDetailsDialog = ({
 
   return <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
-      <DialogHeader>
+      <DialogHeader className='mt-6'>
         <div className="flex items-center justify-between">
           <DialogTitle className="text-xl font-bold">{editableData?.name}</DialogTitle>
-          <div className="flex gap-2">
+          <div className="flex gap-2 mr-8">
             {activeTab === 'details' && (
               isEditing ? (
                 <>

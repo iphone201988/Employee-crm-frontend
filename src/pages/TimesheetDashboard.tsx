@@ -694,7 +694,7 @@ export function TimesheetDashboard() {
     setCurrentPeriodOffset(prev => direction === 'prev' ? prev - 1 : prev + 1);
   };
 
-  return <div className="flex-1 p-6 bg-background">
+  return <div className="flex-1 p-6 bg-background max-lg:p-0">
     {/* Header */}
     <div className="mb-6">
 
@@ -771,7 +771,7 @@ export function TimesheetDashboard() {
 
     {/* Filter Badges - Only show in allTimesheets tab */}
     {activeTab === "allTimesheets" && <div className="flex flex-col sm:flex-row gap-2 mb-3">
-      <div className="flex items-center gap-3 mt-4  w-max p-[6px] rounded-sm pl-4">
+      <div className="flex items-center gap-3 mt-4  w-max p-[6px] rounded-sm pl-4 max-md:flex-col">
         <p className='text-[#381980] font-semibold text-[14px]'>Filter by:</p>
         <div className="flex gap-0">
           <button

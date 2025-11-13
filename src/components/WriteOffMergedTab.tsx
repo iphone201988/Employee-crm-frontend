@@ -899,7 +899,7 @@ const WriteOffMergedTab = () => {
                         className="h-8 px-1 font-medium justify-start text-[12px]"
                       >
                         Client Ref.
-                        <ArrowUpDown className="ml-1 h-4 w-4" />
+                        <ArrowUpDown className="ml-1 !h-3 !w-3" />
                       </Button>
                     </TableHead>
                   )}
@@ -913,7 +913,7 @@ const WriteOffMergedTab = () => {
                       {activeFilter === 'clients' ? 'Client Name' :
                         activeFilter === 'jobs' ? 'Job Name' :
                           activeFilter === 'job-type' ? 'Service Type' : 'Team Member'}
-                      <ArrowUpDown className="ml-1 h-4 w-4" />
+                      <ArrowUpDown className="ml-1 !h-3 !w-3" />
                     </Button>
                   </TableHead>
                   {activeFilter === 'jobs' && (
@@ -926,7 +926,7 @@ const WriteOffMergedTab = () => {
                           className="h-8 px-1 font-medium justify-start text-[12px]"
                         >
                           Client Ref.
-                          <ArrowUpDown className="ml-1 h-4 w-4" />
+                          <ArrowUpDown className="ml-1 !h-3 !w-3" />
                         </Button>
                       </TableHead>
                       <TableHead className="text-left px-3">
@@ -937,7 +937,7 @@ const WriteOffMergedTab = () => {
                           className="h-8 px-1 font-medium justify-start text-[12px]"
                         >
                           Client Name
-                          <ArrowUpDown className="ml-1 h-4 w-4" />
+                          <ArrowUpDown className="ml-1 !h-3 !w-3" />
                         </Button>
                       </TableHead>
                     </>
@@ -950,7 +950,7 @@ const WriteOffMergedTab = () => {
                       className="h-8 px-1 font-medium justify-start text-[12px]"
                     >
                       Write-off Occasions’
-                      <ArrowUpDown className="ml-1 h-4 w-4" />
+                      <ArrowUpDown className="ml-1 !h-3 !w-3" />
                     </Button>
                   </TableHead>
                   <TableHead className="text-left px-3">
@@ -961,7 +961,7 @@ const WriteOffMergedTab = () => {
                       className="h-8 px-1 font-medium justify-start text-[12px]"
                     >
                       Total Write Off Value
-                      <ArrowUpDown className="ml-1 h-4 w-4" />
+                      <ArrowUpDown className="ml-1 !h-3 !w-3" />
                     </Button>
                   </TableHead>
                   <TableHead className="text-left px-3">
@@ -972,7 +972,7 @@ const WriteOffMergedTab = () => {
                       className="h-8 px-1 font-medium justify-start text-[12px]"
                     >
                       Jobs With Write Off
-                      <ArrowUpDown className="ml-1 h-4 w-4" />
+                      <ArrowUpDown className="ml-1 !h-3 !w-3" />
                     </Button>
                   </TableHead>
                   <TableHead className="text-left px-3">
@@ -983,7 +983,7 @@ const WriteOffMergedTab = () => {
                       className="h-8 px-1 font-medium justify-start text-[12px]"
                     >
                       Total Job Fees
-                      <ArrowUpDown className="ml-1 h-4 w-4" />
+                      <ArrowUpDown className="ml-1 !h-3 !w-3" />
                     </Button>
                   </TableHead>
                   <TableHead className="text-left px-3">
@@ -994,7 +994,7 @@ const WriteOffMergedTab = () => {
                       className="h-8 px-1 font-medium justify-start text-[12px]"
                     >
                       Write Off Value
-                      <ArrowUpDown className="ml-1 h-4 w-4" />
+                      <ArrowUpDown className="ml-1 !h-3 !w-3" />
                     </Button>
                   </TableHead>
                   <TableHead className="text-left px-3">
@@ -1005,7 +1005,7 @@ const WriteOffMergedTab = () => {
                       className="h-8 px-1 font-medium justify-start text-[12px]"
                     >
                       % Write Off
-                      <ArrowUpDown className="ml-1 h-4 w-4" />
+                      <ArrowUpDown className="ml-1 !h-3 !w-3" />
                     </Button>
                   </TableHead>
                 </TableRow>

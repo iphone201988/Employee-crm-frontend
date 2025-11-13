@@ -596,10 +596,10 @@ const ClientInformationTab = () => {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleClientInfoSort(sortKey)}
-                          className="h-8 px-1 font-medium justify-start text-[12px]"
+                          className="h-8 px-1 font-medium justify-start text-[12px]  hover:bg-transparent hover:text-inherit"
                         >
                           {columnDisplayNames[key]}
-                          <ArrowUpDown className="ml-1 h-4 w-4" />
+                          <ArrowUpDown className="ml-1 !h-3 !w-3" />
                         </Button>
                       </TableHead>
                     );

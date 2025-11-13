@@ -856,7 +856,7 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <Table>
+              <Table className='arrow-up-fix'>
                 <TableHeader>
                   <TableRow className=' border-t !bg-[#edecf4] !text-[#381980]'>
                     <TableHead className="border-r p-3 font-medium text-foreground h-12">

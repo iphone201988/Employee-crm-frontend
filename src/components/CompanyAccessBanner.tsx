@@ -25,8 +25,8 @@ const CompanyAccessBanner: React.FC = () => {
 
   return (
     <Alert className="mb-4 border-blue-200 bg-blue-50">
-      <AlertDescription className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <AlertDescription className="flex items-center justify-between flex-wrap gap-2 max-sm:flex-col">
+        <div className="flex items-center gap-2 max-sm:flex-col">
           <span className="font-medium text-blue-800">
             You are currently accessing a company account as a Super Admin.
           </span>

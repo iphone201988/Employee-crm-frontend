@@ -356,13 +356,13 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
               <TableHeader>
                 <TableRow className="h-12 !bg-[#edecf4] text-[#381980]">
                   <TableHead className="w-[400px] cursor-pointer hover:bg-muted/50" onClick={() => handleSort('name')}>
-                    <div className="w-[250px] flex items-center gap-2">Team Member <ArrowUpDown className="h-4 w-4 text-muted-foreground" /></div>
+                    <div className="w-[250px] flex items-center gap-2">Team Member <ArrowUpDown className="h-3 w-3 " /></div>
                   </TableHead>
                   <TableHead className="w-[120px] cursor-pointer hover:bg-muted/50" onClick={() => handleSort('department')}>
-                    <div className="flex items-center gap-2">Department <ArrowUpDown className="h-4 w-4 text-muted-foreground" /></div>
+                    <div className="flex items-center gap-2">Department <ArrowUpDown className="h-3 w-3 " /></div>
                   </TableHead>
                   <TableHead className="w-[250px] cursor-pointer hover:bg-muted/50" onClick={() => handleSort('email')}>
-                    <div className="flex items-center gap-2">Email Address <ArrowUpDown className="h-4 w-4 text-muted-foreground" /></div>
+                    <div className="flex items-center gap-2">Email Address <ArrowUpDown className="h-3 w-3 " /></div>
                   </TableHead>
                   <TableHead className="min-w-[10px] text-center">Mon</TableHead>
                   <TableHead className="min-w-[10px] text-center">Tue</TableHead>

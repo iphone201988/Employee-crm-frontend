@@ -321,13 +321,13 @@ const AccessContent: React.FC<AccessContentProps> = ({ onUnsavedChangesChange })
                     </TableCell>
 
                     {Object.entries(systemFeatures).map(([category, { features }]) => (
-                      <TableCell key={category} className="p-4 border-r">
+                      <TableCell key={category} className="!p-4 border-r">
                         <div className="space-y-2">
                           {features.map((feature) => {
                             const value = member.featureAccess[feature.key as keyof AccessTeamMember['featureAccess']];
                             return (
                               <div key={feature.key} className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 whitespace-nowrap">
                                   <Checkbox
                                     id={`${member.id}-${feature.key}`}
                                     checked={value}

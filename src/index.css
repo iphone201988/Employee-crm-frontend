@@ -112,8 +112,6 @@ All colors MUST be HSL.
   }
 }
 
-
-
 .custom-dn button svg{width: 20px !important; height: 20px !important;}
 
 button.inline-flex.items-center.justify-center.gap-2.whitespace-nowrap.text-sm.font-medium.ring-offset-background.transition-colors.focus-visible\:outline-none.focus-visible\:ring-2.focus-visible\:ring-ring.focus-visible\:ring-offset-2.disabled\:pointer-events-none.disabled\:opacity-50.\[\&_svg\]\:pointer-events-none.\[\&_svg\]\:size-4.\[\&_svg\]\:shrink-0.hover\:bg-primary\/90.px-3.rounded-sm.bg-\[\#E7E5F2\].h-7.text-\[\#381980ac\]{
@@ -147,4 +145,8 @@ table thead tr th{
 table thead tr th button{
   text-transform: uppercase !important;
   white-space: nowrap ;
+}
+
+.arrow-up-fix thead tr th button svg {
+    height: 12px;
 }

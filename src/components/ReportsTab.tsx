@@ -329,14 +329,14 @@ const ReportsTab = () => {
               <TableHeader>
                 <TableRow className='!bg-[#edecf4] text-[#381980]'>
                   <TableHead className="w-10"></TableHead>
-                  <TableHead><Button variant="ghost" size="sm" className="h-6 px-1 text-xs" onClick={() => handleSort('name')}>Team Member <ArrowUpDown className="ml-1 h-3 w-3" /></Button></TableHead>
-                  <TableHead className="text-center"><Button variant="ghost" size="sm" className="h-6 px-1 text-xs" onClick={() => handleSort('capacity')}>Capacity <ArrowUpDown className="ml-1 h-3 w-3" /></Button></TableHead>
-                  <TableHead className="text-center"><Button variant="ghost" size="sm" className="h-6 px-1 text-xs" onClick={() => handleSort('logged')}>Logged <ArrowUpDown className="ml-1 h-3 w-3" /></Button></TableHead>
-                  <TableHead className="text-center"><Button variant="ghost" size="sm" className="h-6 px-1 text-xs" onClick={() => handleSort('billable')}>Billable <ArrowUpDown className="ml-1 h-3 w-3" /></Button></TableHead>
-                  <TableHead className="text-center"><Button variant="ghost" size="sm" className="h-6 px-1 text-xs" onClick={() => handleSort('nonBillable')}>Non-Billable <ArrowUpDown className="ml-1 h-3 w-3" /></Button></TableHead>
-                  <TableHead className="text-center"><Button variant="ghost" size="sm" className="h-6 px-1 text-xs" onClick={() => handleSort('wroteOff')}>Write Off <ArrowUpDown className="ml-1 h-3 w-3" /></Button></TableHead>
-                  <TableHead className="text-center"><Button variant="ghost" size="sm" className="h-6 px-1 text-xs" onClick={() => handleSort('resourceCost')}>Resource Cost <ArrowUpDown className="ml-1 h-3 w-3" /></Button></TableHead>
-                  <TableHead className="text-center"><Button variant="ghost" size="sm" className="h-6 px-1 text-xs" onClick={() => handleSort('profit')}>Profit <ArrowUpDown className="ml-1 h-3 w-3" /></Button></TableHead>
+                  <TableHead><Button variant="ghost" size="sm" className="h-6 px-1 text-xs hover:bg-transparent hover:text-inherit" onClick={() => handleSort('name')}>Team Member <ArrowUpDown className="ml-1 !h-3 !w-3" /></Button></TableHead>
+                  <TableHead className="text-center"><Button variant="ghost" size="sm" className="h-6 px-1 text-xs hover:bg-transparent hover:text-inherit" onClick={() => handleSort('capacity')}>Capacity <ArrowUpDown className="ml-1 !h-3 !w-3" /></Button></TableHead>
+                  <TableHead className="text-center"><Button variant="ghost" size="sm" className="h-6 px-1 text-xs hover:bg-transparent hover:text-inherit" onClick={() => handleSort('logged')}>Logged <ArrowUpDown className="ml-1 !h-3 !w-3" /></Button></TableHead>
+                  <TableHead className="text-center"><Button variant="ghost" size="sm" className="h-6 px-1 text-xs hover:bg-transparent hover:text-inherit" onClick={() => handleSort('billable')}>Billable <ArrowUpDown className="ml-1 !h-3 !w-3" /></Button></TableHead>
+                  <TableHead className="text-center"><Button variant="ghost" size="sm" className="h-6 px-1 text-xs hover:bg-transparent hover:text-inherit" onClick={() => handleSort('nonBillable')}>Non-Billable <ArrowUpDown className="ml-1 !h-3 !w-3" /></Button></TableHead>
+                  <TableHead className="text-center"><Button variant="ghost" size="sm" className="h-6 px-1 text-xs hover:bg-transparent hover:text-inherit" onClick={() => handleSort('wroteOff')}>Write Off <ArrowUpDown className="ml-1 !h-3 !w-3" /></Button></TableHead>
+                  <TableHead className="text-center"><Button variant="ghost" size="sm" className="h-6 px-1 text-xs hover:bg-transparent hover:text-inherit" onClick={() => handleSort('resourceCost')}>Resource Cost <ArrowUpDown className="ml-1 !h-3 !w-3" /></Button></TableHead>
+                  <TableHead className="text-center"><Button variant="ghost" size="sm" className="h-6 px-1 text-xs hover:bg-transparent hover:text-inherit" onClick={() => handleSort('profit')}>Profit <ArrowUpDown className="ml-1 !h-3 !w-3" /></Button></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

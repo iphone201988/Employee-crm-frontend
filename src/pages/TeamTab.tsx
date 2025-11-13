@@ -118,7 +118,7 @@ const TeamTab = () => {
     };
 
     return (
-        <div className="space-y-6 p-6">
+        <div className="space-y-6 p-6 max-lg:p-0">
             <div className="mb-6">
 
             <Avatars activeTab={activeTab} title={"Team"} />
