@@ -6,11 +6,15 @@ export interface ClientData {
     businessTypeId: any;
     taxNumber: string;
     croNumber?: string;
+    croLink?: string;
+    clientManagerId?: string;
     address: string;
-    contactName: string;
     email: string;
     phone: string;
     onboardedDate: Date | string;
+    clientStatus?: string;
+    yearEnd?: string;
+    arDate?: Date | string;
 }
 
 export interface ValidationResult {
@@ -54,10 +58,6 @@ export const validateAddress = (address: string): string | null => {
     return null;
 };
 
-export const validateContactName = (contactName: string): string | null => {
-    if (!contactName || !contactName.trim()) return 'Contact name is required';
-    return null;
-};
 
 export const validateEmail = (email: string): string | null => {
     if (!email || !email.trim()) return 'Email address is required';
@@ -88,7 +88,6 @@ export const validateClientForm = (formData: Partial<ClientData>): ValidationRes
     if (validateTaxNumber(formData.taxNumber || '')) errors.taxNumber = validateTaxNumber(formData.taxNumber || '');
     if (validateCroNumber(formData.croNumber || '')) errors.croNumber = validateCroNumber(formData.croNumber || '');
     if (validateAddress(formData.address || '')) errors.address = validateAddress(formData.address || '');
-    if (validateContactName(formData.contactName || '')) errors.contactName = validateContactName(formData.contactName || '');
     if (validateEmail(formData.email || '')) errors.email = validateEmail(formData.email || '');
     if (validatePhone(formData.phone || '')) errors.phone = validatePhone(formData.phone || '');
     if (validateOnboardedDate(formData.onboardedDate || '')) errors.onboardedDate = validateOnboardedDate(formData.onboardedDate || '');

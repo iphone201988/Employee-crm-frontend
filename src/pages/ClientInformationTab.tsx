@@ -5,8 +5,11 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowUpDown, Search, FileText, ChevronLeft, ChevronRight, Eye, Edit2, Trash2, Delete } from 'lucide-react';
+import { ArrowUpDown, Search, FileText, ChevronLeft, ChevronRight, Eye, Edit2, Trash2, Delete, Settings, Download, Move, GripVertical } from 'lucide-react';
 import { DashboardCard, DashboardGrid } from "@/components/ui/dashboard-card";
 import { Switch } from "@/components/ui/switch";
 import ClientsTab from '@/components/ClientsTab';
@@ -46,7 +49,36 @@ const ClientInformationTab = () => {
   const { data: clientsData, isLoading, error } = useGetClientsQuery({ page, limit });
 
   const clientInfo = clientsData?.data?.clients || [];
-console.log('clientInfo===========', clientInfo); 
+  const processedClientInfo = useMemo(() => {
+    return clientInfo.map((client: any) => {
+      let managerName = '';
+      let managerId = '';
+
+      if (typeof client?.clientManager === 'string') {
+        managerName = client.clientManager;
+      } else if (client?.clientManager && typeof client.clientManager === 'object') {
+        managerName = client.clientManager.name || '';
+      }
+
+      const managerField = client?.clientManagerId;
+      if (typeof managerField === 'string') {
+        managerId = managerField;
+      } else if (managerField && typeof managerField === 'object') {
+        managerId = managerField._id || '';
+        if (!managerName && managerField.name) {
+          managerName = managerField.name;
+        }
+      }
+
+      return {
+        ...client,
+        clientManager: managerName,
+        clientManagerId: managerId,
+      };
+    });
+  }, [clientInfo]);
+
+  console.log('clientInfo===========', processedClientInfo); 
   const [clientInfoSortConfig, setClientInfoSortConfig] = useState<{ key: string | null; direction: 'asc' | 'desc' }>({ key: null, direction: 'asc' });
   const [clientInfoSearch, setClientInfoSearch] = useState('');
   const [clientTypeFilter, setClientTypeFilter] = useState('all');
@@ -58,6 +90,78 @@ console.log('clientInfo===========', clientInfo);
   const [getTabAccess, { data: currentTabsUsers }] = useLazyGetTabAccessQuery()
   const isTabVisible = (tabId: string) => visibleTabs.some(tab => tab.id === tabId)
 
+  // Column visibility state
+  const [visibleColumns, setVisibleColumns] = useState({
+    clientRef: true,
+    clientName: true,
+    clientManager: true,
+    clientStatus: true,
+    businessType: true,
+    taxNumber: true,
+    yearEnd: true,
+    audit: true,
+    croNumber: true,
+    croLink: true,
+    arDate: true,
+    address: true,
+    phone: true,
+    phoneNote: true,
+    email: true,
+    emailNote: true,
+    onboardedDate: true,
+    amlCompliant: true
+  });
+
+  // Column order state
+  const [columnOrder, setColumnOrder] = useState([
+    'clientRef',
+    'clientName',
+    'clientManager',
+    'clientStatus',
+    'businessType',
+    'taxNumber',
+    'yearEnd',
+    'audit',
+    'croNumber',
+    'croLink',
+    'arDate',
+    'address',
+    'phone',
+    'phoneNote',
+    'email',
+    'emailNote',
+    'onboardedDate',
+    'amlCompliant'
+  ]);
+
+  // Drag and drop state
+  const [draggedItem, setDraggedItem] = useState<string | null>(null);
+
+  // Settings popup state
+  const [settingsPopup, setSettingsPopup] = useState<{ clientId: string; x: number; y: number } | null>(null);
+
+  // Column display names mapping
+  const columnDisplayNames: Record<string, string> = {
+    clientRef: 'CLIENT REF',
+    clientName: 'CLIENT NAME',
+    clientManager: 'CLIENT MANAGER',
+    clientStatus: 'CLIENT STATUS',
+    businessType: 'BUSINESS TYPE',
+    taxNumber: 'TAX/PPS NO.',
+    yearEnd: 'YEAR END',
+    audit: 'IN AUDIT',
+    croNumber: 'CRO NUMBER',
+    croLink: 'CRO LINK',
+    arDate: 'AR DATE',
+    address: 'ADDRESS',
+    phone: 'PHONE',
+    phoneNote: 'PHONE NOTE',
+    email: 'EMAIL',
+    emailNote: 'EMAIL NOTE',
+    onboardedDate: 'ONBOARDED DATE',
+    amlCompliant: 'AML COMPLAINT'
+  };
+
   // Helper function to convert ClientInfo to ClientData format
   const convertClientInfoToClientData = (clientInfo: ClientInfo): ClientData & { _id: string } => {
     return {
@@ -67,8 +171,10 @@ console.log('clientInfo===========', clientInfo);
       businessTypeId: clientInfo.businessTypeId?._id || '',
       taxNumber: clientInfo.taxNumber,
       croNumber: clientInfo.croNumber,
+      croLink: clientInfo.croLink || '',
+      clientManagerId: (clientInfo as any).clientManagerId || '',
+      clientManager: (clientInfo as any).clientManager || '',
       address: clientInfo.address,
-      contactName: clientInfo.contactName,
       email: clientInfo.email,
       emailNote: clientInfo.emailNote,
       phone: clientInfo.phone,
@@ -76,6 +182,33 @@ console.log('clientInfo===========', clientInfo);
       onboardedDate: new Date(clientInfo.onboardedDate),
       amlCompliant: clientInfo.amlCompliant,
       audit: clientInfo.audit,
+      clientStatus: clientInfo.clientStatus || 'Current',
+      yearEnd: clientInfo.yearEnd || '',
+      arDate: clientInfo.arDate ? new Date(clientInfo.arDate) : undefined,
+    };
+  };
+
+  // Helper function to convert ClientInfo to FullClientData format for EditClientModal
+  const convertClientInfoToFullClientData = (clientInfo: ClientInfo): any => {
+    return {
+      _id: clientInfo._id,
+      clientRef: clientInfo.clientRef,
+      name: clientInfo.name,
+      businessTypeId: clientInfo.businessTypeId,
+      taxNumber: clientInfo.taxNumber,
+      croNumber: clientInfo.croNumber,
+      croLink: clientInfo.croLink || '',
+      clientManagerId: (clientInfo as any).clientManagerId || '',
+      clientManager: (clientInfo as any).clientManager || '',
+      address: clientInfo.address,
+      email: clientInfo.email,
+      phone: clientInfo.phone,
+      onboardedDate: clientInfo.onboardedDate,
+      amlCompliant: clientInfo.amlCompliant,
+      audit: clientInfo.audit,
+      clientStatus: clientInfo.clientStatus || 'Current',
+      yearEnd: clientInfo.yearEnd || '',
+      arDate: clientInfo.arDate || undefined,
     };
   };
 
@@ -96,15 +229,16 @@ console.log('clientInfo===========', clientInfo);
 
   // Filter and sort client info
   const filteredAndSortedClientInfo = useMemo(() => {
-    let filtered = clientInfo;
+    let filtered = processedClientInfo;
 
     // Apply search filter
     if (clientInfoSearch) {
+      const searchValue = clientInfoSearch.toLowerCase();
       filtered = filtered.filter((client: any) =>
-        client.name.toLowerCase().includes(clientInfoSearch.toLowerCase()) ||
-        client.contactName.toLowerCase().includes(clientInfoSearch.toLowerCase()) ||
-        client.email.toLowerCase().includes(clientInfoSearch.toLowerCase()) ||
-        client.clientRef.toLowerCase().includes(clientInfoSearch.toLowerCase())
+        client.name.toLowerCase().includes(searchValue) ||
+        client.email.toLowerCase().includes(searchValue) ||
+        client.clientRef.toLowerCase().includes(searchValue) ||
+        (client.clientManager && client.clientManager.toLowerCase().includes(searchValue))
       );
     }
 
@@ -123,15 +257,27 @@ console.log('clientInfo===========', clientInfo);
       if (clientInfoSortConfig.key === 'name') {
         aValue = a.name;
         bValue = b.name;
+      } else if (clientInfoSortConfig.key === 'clientManager') {
+        aValue = a.clientManager || '';
+        bValue = b.clientManager || '';
+      } else if (clientInfoSortConfig.key === 'clientStatus') {
+        aValue = a.clientStatus || '';
+        bValue = b.clientStatus || '';
       } else if (clientInfoSortConfig.key === 'clientType') {
         aValue = a.businessTypeId?.name || '';
         bValue = b.businessTypeId?.name || '';
-      } else if (clientInfoSortConfig.key === 'contact') {
-        aValue = a.contactName;
-        bValue = b.contactName;
       } else if (clientInfoSortConfig.key === 'customerNumber') {
         aValue = a.taxNumber;
         bValue = b.taxNumber;
+      } else if (clientInfoSortConfig.key === 'yearEnd') {
+        aValue = a.yearEnd || '';
+        bValue = b.yearEnd || '';
+      } else if (clientInfoSortConfig.key === 'audit') {
+        aValue = a.audit ? 'Yes' : 'No';
+        bValue = b.audit ? 'Yes' : 'No';
+      } else if (clientInfoSortConfig.key === 'arDate') {
+        aValue = a.arDate ? new Date(a.arDate).getTime() : 0;
+        bValue = b.arDate ? new Date(b.arDate).getTime() : 0;
       } else {
         aValue = a[clientInfoSortConfig.key as keyof typeof a];
         bValue = b[clientInfoSortConfig.key as keyof typeof b];
@@ -143,16 +289,22 @@ console.log('clientInfo===========', clientInfo);
           : bValue.localeCompare(aValue);
       }
 
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        return clientInfoSortConfig.direction === 'asc'
+          ? aValue - bValue
+          : bValue - aValue;
+      }
+
       return 0;
     });
-  }, [clientInfo, clientInfoSearch, clientTypeFilter, clientInfoSortConfig]);
+  }, [processedClientInfo, clientInfoSearch, clientTypeFilter, clientInfoSortConfig]);
 
-  const availableClientTypes = [...new Set(clientInfo.map(client => client.businessTypeId?.name).filter(Boolean))];
+  const availableClientTypes = [...new Set(processedClientInfo.map(client => client.businessTypeId?.name).filter(Boolean))];
 
   useEffect(() => {
     if (Object.keys(serviceSelections).length === 0) {
       const initialSelections: { [key: string]: { [key: string]: boolean } } = {};
-      clientInfo.forEach(client => {
+      processedClientInfo.forEach(client => {
         initialSelections[client.clientRef] = {
           vat: Math.random() > 0.5,
           payroll: Math.random() > 0.5,
@@ -164,7 +316,7 @@ console.log('clientInfo===========', clientInfo);
       });
       setServiceSelections(initialSelections);
     }
-  }, [clientInfo]);
+  }, [processedClientInfo]);
 
   // Calculate service counts based on current selections
   const serviceCounts = useMemo(() => {
@@ -193,10 +345,162 @@ console.log('clientInfo===========', clientInfo);
   const deleteClientById = async (client: any) => {
     try {
       await deleteClient(client._id);
-      toast.success('Job deleted successfully!');
+      toast.success('Client deleted successfully!');
+      setSettingsPopup(null);
     } catch (error) {
-      console.error('Error deleting job:', error);
+      console.error('Error deleting client:', error);
+      toast.error('Failed to delete client');
     }
+  };
+
+  // Column visibility toggle
+  const toggleColumn = (column: keyof typeof visibleColumns) => {
+    setVisibleColumns(prev => ({ ...prev, [column]: !prev[column] }));
+  };
+
+  // Drag and drop handlers
+  const handleDragStart = (e: React.DragEvent, item: string) => {
+    setDraggedItem(item);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e: React.DragEvent, targetItem: string) => {
+    e.preventDefault();
+    if (!draggedItem || draggedItem === targetItem) return;
+
+    const newOrder = [...columnOrder];
+    const draggedIndex = newOrder.indexOf(draggedItem);
+    const targetIndex = newOrder.indexOf(targetItem);
+
+    // Remove dragged item and insert at target position
+    newOrder.splice(draggedIndex, 1);
+    newOrder.splice(targetIndex, 0, draggedItem);
+
+    setColumnOrder(newOrder);
+    setDraggedItem(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedItem(null);
+  };
+
+  // Export to CSV
+  const exportToCSV = () => {
+    const headers: string[] = [];
+    const dataMappers: ((client: any) => string)[] = [];
+
+    // Add columns in the order specified by columnOrder
+    columnOrder.forEach((key) => {
+      if (!visibleColumns[key as keyof typeof visibleColumns]) return;
+
+      headers.push(columnDisplayNames[key]);
+
+      switch (key) {
+        case 'clientRef':
+          dataMappers.push((client) => client.clientRef || '');
+          break;
+        case 'clientName':
+          dataMappers.push((client) => client.name || '-');
+          break;
+        case 'clientManager':
+          dataMappers.push((client) => client.clientManager || '-');
+          break;
+        case 'businessType':
+          dataMappers.push((client) => client.businessTypeId?.name || 'N/A');
+          break;
+        case 'taxNumber':
+          dataMappers.push((client) => client.taxNumber || '');
+          break;
+        case 'croNumber':
+          dataMappers.push((client) => client.croNumber || '');
+          break;
+        case 'croLink':
+          dataMappers.push((client) => client.croLink || '');
+          break;
+        case 'address':
+          dataMappers.push((client) => `"${(client.address || '').replace(/"/g, '""')}"`);
+          break;
+        case 'email':
+          dataMappers.push((client) => client.email || '');
+          break;
+        case 'emailNote':
+          dataMappers.push((client) => client.emailNote || '');
+          break;
+        case 'phone':
+          dataMappers.push((client) => client.phone || '');
+          break;
+        case 'phoneNote':
+          dataMappers.push((client) => client.phoneNote || '');
+          break;
+        case 'onboardedDate':
+          dataMappers.push((client) => {
+            const date = new Date(client.onboardedDate);
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            const day = date.getDate().toString().padStart(2, '0');
+            const year = date.getFullYear();
+            return `${month}/${day}/${year}`;
+          });
+          break;
+        case 'yearEnd':
+          dataMappers.push((client) => client.yearEnd || '');
+          break;
+        case 'audit':
+          dataMappers.push((client) => client.audit ? 'Yes' : '');
+          break;
+        case 'amlCompliant':
+          dataMappers.push((client) => client.amlCompliant ? 'Yes' : '');
+          break;
+        case 'arDate':
+          dataMappers.push((client) => {
+            if (!client.arDate) return '';
+            const date = new Date(client.arDate);
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            const day = date.getDate().toString().padStart(2, '0');
+            const year = date.getFullYear();
+            return `${month}/${day}/${year}`;
+          });
+          break;
+      }
+    });
+
+    // Use current page clients (filteredAndSortedClientInfo is already the current page from API)
+    const csvContent = `${headers.join(',')}\n${filteredAndSortedClientInfo.map(client =>
+      dataMappers.map(mapper => mapper(client)).join(',')
+    ).join('\n')}`;
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'clients.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  // Settings popup handlers
+  const handleSettingsClick = (e: React.MouseEvent, clientId: string) => {
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    setSettingsPopup({ clientId, x: rect.left, y: rect.bottom + 5 });
+  };
+
+  const handleEditClient = (client: any) => {
+    setClientToEdit(client);
+    setShowEditClientDialog(true);
+    setSettingsPopup(null);
+  };
+
+  const handleDeleteClient = (client: any) => {
+    deleteClientById(client);
+  };
+
+  const handleCloseSettingsPopup = () => {
+    setSettingsPopup(null);
   };
 
   return (
@@ -270,156 +574,99 @@ console.log('clientInfo===========', clientInfo);
             <Table>
               <TableHeader>
                 <TableRow className='!bg-[#edecf4] text-[#381980]'>
-                  <TableHead className="w-20 border-r text-left">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleClientInfoSort('clientRef')}
-                      className="h-8 px-1 font-medium justify-start text-[12px]"
-                    >
-                      Client Ref
-                      <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </Button>
+                  {columnOrder.map((key) => {
+                    if (!visibleColumns[key as keyof typeof visibleColumns]) return null;
+                    
+                    let sortKey = '';
+                    if (key === 'clientRef') sortKey = 'clientRef';
+                    else if (key === 'clientName') sortKey = 'name';
+                    else if (key === 'clientManager') sortKey = 'clientManager';
+                    else if (key === 'clientStatus') sortKey = 'clientStatus';
+                    else if (key === 'businessType') sortKey = 'clientType';
+                    else if (key === 'taxNumber') sortKey = 'customerNumber';
+                    else if (key === 'yearEnd') sortKey = 'yearEnd';
+                    else if (key === 'audit') sortKey = 'audit';
+                    else if (key === 'croLink') sortKey = 'croLink';
+                    else if (key === 'arDate') sortKey = 'arDate';
+                    else sortKey = key;
+
+                    return (
+                      <TableHead key={key} className="border-r text-left">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleClientInfoSort(sortKey)}
+                          className="h-8 px-1 font-medium justify-start text-[12px]"
+                        >
+                          {columnDisplayNames[key]}
+                          <ArrowUpDown className="ml-1 h-4 w-4" />
+                        </Button>
+                      </TableHead>
+                    );
+                  })}
+                  <TableHead className="p-3 text-center">
+                    <div className="flex gap-[6px] justify-center">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 bg-white rounded-full"
+                        onClick={exportToCSV}
+                        aria-label="Export CSV"
+                        title="Export CSV (current page, visible columns)"
+                      >
+                        <Download className="h-3 w-3" color='#381980' />
+                      </Button>
+                      <Popover>
+                        <PopoverTrigger>
+                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0 bg-white rounded-full" aria-label="Show/Hide Columns" title="Show/Hide Columns">
+                            <Move className="h-3 w-3" color='#381980' />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent
+                          className="w-64 max-h-96 overflow-y-auto z-50"
+                          align="start"
+                          side="bottom"
+                          sideOffset={5}
+                          avoidCollisions={true}
+                          collisionPadding={10}
+                        >
+                          <div className="space-y-3">
+                            <h4 className="font-medium text-sm">Show/Hide Columns</h4>
+                            <div className="space-y-2">
+                              {columnOrder.map((key) => (
+                                <div
+                                  key={key}
+                                  className={`flex items-center space-x-2 p-2 rounded-md cursor-move hover:bg-gray-50 transition-colors ${draggedItem === key ? 'opacity-50' : ''
+                                    }`}
+                                  draggable
+                                  onDragStart={(e) => handleDragStart(e, key)}
+                                  onDragOver={handleDragOver}
+                                  onDrop={(e) => handleDrop(e, key)}
+                                  onDragEnd={handleDragEnd}
+                                >
+                                  <GripVertical className="h-4 w-4 text-gray-400 cursor-move" />
+                                  <Checkbox
+                                    id={key}
+                                    checked={(visibleColumns as any)[key]}
+                                    onCheckedChange={() => toggleColumn(key as keyof typeof visibleColumns)}
+                                  />
+                                  <Label htmlFor={key} className="text-sm cursor-pointer flex-1">
+                                    {columnDisplayNames[key]}
+                                  </Label>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
                   </TableHead>
-                  <TableHead className="w-32 border-r text-left">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleClientInfoSort('name')}
-                      className="h-8 px-1 font-medium justify-start text-[12px]"
-                    >
-                      Client Name
-                      <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </Button>
-                  </TableHead>
-                  <TableHead className="w-24 border-r text-left">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleClientInfoSort('clientType')}
-                      className="h-8 px-1 font-medium justify-start text-[12px]"
-                    >
-                      Business Type
-                      <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </Button>
-                  </TableHead>
-                  <TableHead className="w-24 border-r text-left">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleClientInfoSort('customerNumber')}
-                      className="h-8 px-1 font-medium justify-start text-[12px]"
-                    >
-                      Tax Number
-                      <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </Button>
-                  </TableHead>
-                  <TableHead className="w-24 border-r text-left">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleClientInfoSort('croNumber')}
-                      className="h-8 px-1 font-medium justify-start text-[12px]"
-                    >
-                      CRO Number
-                      <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </Button>
-                  </TableHead>
-                  <TableHead className="w-40 border-r text-left">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleClientInfoSort('address')}
-                      className="h-8 px-1 font-medium justify-start text-[12px]"
-                    >
-                      Address
-                      <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </Button>
-                  </TableHead>
-                  <TableHead className="w-24 border-r text-left">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleClientInfoSort('contact')}
-                      className="h-8 px-1 font-medium justify-start text-[12px]"
-                    >
-                      Contact Name
-                      <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </Button>
-                  </TableHead>
-                  <TableHead className="w-32 border-r text-left">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleClientInfoSort('email')}
-                      className="h-8 px-1 font-medium justify-start text-[12px]"
-                    >
-                      Email
-                      <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </Button>
-                  </TableHead>
-                  <TableHead className="w-24 border-r text-left">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleClientInfoSort('emailNote')}
-                      className="h-8 px-1 font-medium justify-start text-[12px]"
-                    >
-                      Email Note
-                      <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </Button>
-                  </TableHead>
-                  <TableHead className="w-24 border-r text-left">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleClientInfoSort('phone')}
-                      className="h-8 px-1 font-medium justify-start text-[12px]"
-                    >
-                      Phone
-                      <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </Button>
-                  </TableHead>
-                  <TableHead className="w-24 border-r text-left">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleClientInfoSort('phoneNote')}
-                      className="h-8 px-1 font-medium justify-start text-[12px]"
-                    >
-                      Phone Note
-                      <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </Button>
-                  </TableHead>
-                  <TableHead className="w-24 border-r text-left">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleClientInfoSort('onboardedDate')}
-                      className="h-8 px-1 font-medium justify-start text-[12px]"
-                    >
-                      Onboarded Date
-                      <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </Button>
-                  </TableHead>
-                  <TableHead className="w-24 border-r text-left">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleClientInfoSort('amlCompliant')}
-                      className="h-8 px-1 font-medium justify-start text-[12px]"
-                    >
-                      AML Compliant
-                      <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </Button>
-                  </TableHead>
-                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={13} className="text-center py-8">
+                    <TableCell colSpan={columnOrder.filter(k => visibleColumns[k as keyof typeof visibleColumns]).length + 1} className="text-center py-8">
                       <div className="flex items-center justify-center">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                         <span className="ml-2">Loading clients...</span>
@@ -428,57 +675,114 @@ console.log('clientInfo===========', clientInfo);
                   </TableRow>
                 ) : error ? (
                   <TableRow>
-                    <TableCell colSpan={13} className="text-center py-8 text-red-600">
+                    <TableCell colSpan={columnOrder.filter(k => visibleColumns[k as keyof typeof visibleColumns]).length + 1} className="text-center py-8 text-red-600">
                       Error loading clients. Please try again.
                     </TableCell>
                   </TableRow>
                 ) : filteredAndSortedClientInfo.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={13} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={columnOrder.filter(k => visibleColumns[k as keyof typeof visibleColumns]).length + 1} className="text-center py-8 text-gray-500">
                       No clients found.
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredAndSortedClientInfo.map((client: any, index) => (
                     <TableRow key={client._id} className="h-12">
-                      <TableCell className="p-4 text-sm w-20 border-r text-left">{client.clientRef}</TableCell>
-                      <TableCell className="font-medium text-left p-4 text-sm w-32 border-r">
-                        <ClientNameLink name={client.name} ciientId={client._id} />
-                      </TableCell>
-                      <TableCell className="p-4 text-sm w-24 border-r text-left">{client.businessTypeId?.name || 'N/A'}</TableCell>
-                      <TableCell className="p-4 text-sm w-24 border-r text-left">{client.taxNumber}</TableCell>
-                      <TableCell className="p-4 text-sm w-24 border-r text-left">{client.croNumber}</TableCell>
-                      <TableCell className="p-4 text-sm w-40 border-r text-left">{client.address}</TableCell>
-                      <TableCell className="p-4 text-sm w-24 border-r text-left">{client.contactName}</TableCell>
-                      <TableCell className="p-4 text-sm w-32 border-r text-left">{client.email}</TableCell>
-                      <TableCell className="p-4 text-sm w-24 border-r text-left">{client.emailNote}</TableCell>
-                      <TableCell className="p-4 text-sm w-24 border-r text-left">{client.phone}</TableCell>
-                      <TableCell className="p-4 text-sm w-24 border-r text-left">{client.phoneNote}</TableCell>
-                      <TableCell className="p-4 text-sm w-24 border-r text-left">{(() => {
-                        const date = new Date(client.onboardedDate);
-                        const month = (date.getMonth() + 1).toString().padStart(2, '0');
-                        const day = date.getDate().toString().padStart(2, '0');
-                        const year = date.getFullYear();
-                        return `${month}/${day}/${year}`;
-                      })()}</TableCell>
-                      <TableCell className="p-4 text-sm w-24 border-r text-left">{client.amlCompliant ? 'Yes' : ''}</TableCell>
+                      {columnOrder.map((key) => {
+                        if (!visibleColumns[key as keyof typeof visibleColumns]) return null;
+
+                        let cellContent;
+                        switch (key) {
+                          case 'clientRef':
+                            cellContent = client.clientRef;
+                            break;
+                          case 'clientName':
+                            cellContent = (
+                              <ClientNameLink name={client.name} ciientId={client._id} />
+                            );
+                            break;
+                          case 'clientManager':
+                            cellContent = client.clientManager || '-';
+                            break;
+                          case 'businessType':
+                            cellContent = client.businessTypeId?.name || 'N/A';
+                            break;
+                          case 'taxNumber':
+                            cellContent = client.taxNumber;
+                            break;
+                          case 'croNumber':
+                            cellContent = client.croNumber;
+                            break;
+                          case 'croLink':
+                            cellContent = client.croLink ? (
+                              <a href={client.croLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                                {client.croLink}
+                              </a>
+                            ) : '-';
+                            break;
+                          case 'address':
+                            cellContent = client.address;
+                            break;
+                          case 'email':
+                            cellContent = client.email;
+                            break;
+                          case 'emailNote':
+                            cellContent = client.emailNote;
+                            break;
+                          case 'phone':
+                            cellContent = client.phone;
+                            break;
+                          case 'phoneNote':
+                            cellContent = client.phoneNote;
+                            break;
+                          case 'onboardedDate':
+                            cellContent = (() => {
+                              const date = new Date(client.onboardedDate);
+                              const month = (date.getMonth() + 1).toString().padStart(2, '0');
+                              const day = date.getDate().toString().padStart(2, '0');
+                              const year = date.getFullYear();
+                              return `${month}/${day}/${year}`;
+                            })();
+                            break;
+                          case 'amlCompliant':
+                            cellContent = client.amlCompliant ? 'Yes' : '';
+                            break;
+                          case 'audit':
+                            cellContent = client.audit ? 'Yes' : '';
+                            break;
+                          case 'clientStatus':
+                            cellContent = client.clientStatus || '-';
+                            break;
+                          case 'yearEnd':
+                            cellContent = client.yearEnd || '-';
+                            break;
+                          case 'arDate':
+                            cellContent = client.arDate ? (() => {
+                              const date = new Date(client.arDate);
+                              const month = (date.getMonth() + 1).toString().padStart(2, '0');
+                              const day = date.getDate().toString().padStart(2, '0');
+                              const year = date.getFullYear();
+                              return `${month}/${day}/${year}`;
+                            })() : '-';
+                            break;
+                          default:
+                            cellContent = '-';
+                        }
+
+                        return (
+                          <TableCell key={key} className={`p-4 text-sm border-r text-left ${key === 'clientName' ? 'font-medium' : ''}`}>
+                            {cellContent}
+                          </TableCell>
+                        );
+                      })}
                       <TableCell className="text-center">
-                        <div className="flex gap-1 justify-center">
-                          {/* <Button variant="ghost" size="icon" onClick={() => openViewDialog(job)}>
-                            <Eye className="w-4 h-4" />
-                          </Button> */}
-                          <Button variant="ghost" size="icon" onClick={() => {
-                            setClientToEdit(client);
-                            setShowEditClientDialog(true);
-                          }} >
-                            <Edit2 className="w-4 h-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => deleteClientById(client)} className="text-red-500 hover:text-red-700">
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                          {/* <Button variant="ghost" size="icon" onClick={() => deleteJobById(job)} className="text-red-500 hover:text-red-700">
-                            <Trash2 className="w-4 h-4" />
-                          </Button> */}
+                        <div className="flex justify-center">
+                          <button
+                            onClick={(e) => handleSettingsClick(e, client._id)}
+                            className="p-1 hover:bg-gray-100 rounded"
+                          >
+                            <Settings className='text-[#381980]' size={16} />
+                          </button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -582,7 +886,7 @@ console.log('clientInfo===========', clientInfo);
         <EditClientModal
           open={showClientServiceLogDialog}
           onOpenChange={setShowClientServiceLogDialog}
-          clientData={selectedClientForDetails}
+          clientData={convertClientInfoToFullClientData(selectedClientForDetails)}
         />
       )}
       <AddClient dialogOpen={addClient} setDialogOpen={setAddClient} />
@@ -599,6 +903,46 @@ console.log('clientInfo===========', clientInfo);
             setShowEditClientDialog(false);
             setClientToEdit(null);
           }}
+        />
+      )}
+
+      {/* Settings Popup */}
+      {settingsPopup && (
+        <div
+          className="fixed z-50 bg-white border border-gray-200 rounded-md shadow-lg py-1 min-w-[120px]"
+          style={{
+            left: settingsPopup.x,
+            top: settingsPopup.y
+          }}
+        >
+          <button
+            onClick={() => {
+              const client = filteredAndSortedClientInfo.find(c => c._id === settingsPopup.clientId);
+              if (client) handleEditClient(client);
+            }}
+            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
+          >
+            <Edit2 size={14} />
+            Edit
+          </button>
+          <button
+            onClick={() => {
+              const client = filteredAndSortedClientInfo.find(c => c._id === settingsPopup.clientId);
+              if (client) handleDeleteClient(client);
+            }}
+            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 text-red-600 flex items-center gap-2"
+          >
+            <Trash2 size={14} />
+            Delete
+          </button>
+        </div>
+      )}
+
+      {/* Click outside to close popup */}
+      {settingsPopup && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={handleCloseSettingsPopup}
         />
       )}
     </div>

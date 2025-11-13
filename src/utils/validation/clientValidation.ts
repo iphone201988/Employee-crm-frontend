@@ -53,11 +53,6 @@ export const validateAddress = (address: string): string | null => {
     return null;
 };
 
-export const validateContactName = (contactName: string): string | null => {
-    // Contact Name is optional, no validation needed
-    return null;
-};
-
 export const validateEmail = (email: string): string | null => {
     if (!email || !email.trim()) {
         return 'Email is required';
@@ -139,8 +134,6 @@ export const validateSingleField = (field: keyof ClientData, value: any): string
             return validateCroNumber(value);
         case 'address':
             return validateAddress(value);
-        case 'contactName':
-            return validateContactName(value);
         case 'email':
             return validateEmail(value);
         case 'phone':

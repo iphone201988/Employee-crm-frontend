@@ -91,13 +91,18 @@ interface ClientData {
   businessTypeId?: BusinessType | string | null; // Can be object, string, or null
   taxNumber?: string;
   croNumber?: string;
+  croLink?: string;
+  clientManagerId?: string;
+  clientManager?: { _id: string; name: string } | string | null;
   address?: string;
-  contactName?: string;
   email?: string;
   phone?: string;
   onboardedDate?: string;
   amlCompliant?: boolean;
   audit?: boolean;
+  clientStatus?: string;
+  yearEnd?: string;
+  arDate?: string;
   timeLogs?: ClientTimeLog[];
   jobs?: ClientJob[];
   expenses?: ClientExpense[];
@@ -123,8 +128,9 @@ const ClientDetailsDialog = ({
   const [activeTab, setActiveTab] = useState('details');
 
   const [updateClient, { isLoading: isUpdating }] = useUpdateClientMutation();
-  const { data: categoriesData } = useGetDropdownOptionsQuery("bussiness");
+  const { data: categoriesData } = useGetDropdownOptionsQuery("all");
   const businessTypes: BusinessType[] = categoriesData?.data?.bussiness || [];
+  const teamMembers: { _id: string; name: string }[] = categoriesData?.data?.teams || [];
   
   // Notes API hooks
   const { data: notesResponse, refetch: refetchNotes } = useGetNotesQuery(
@@ -159,13 +165,17 @@ const ClientDetailsDialog = ({
         businessTypeId: businessTypeIdString,
         taxNumber: editableData.taxNumber,
         croNumber: editableData.croNumber,
+        croLink: editableData.croLink,
+        clientManagerId: editableData.clientManagerId,
         address: editableData.address,
-        contactName: editableData.contactName,
         email: editableData.email,
         phone: editableData.phone,
         onboardedDate: editableData.onboardedDate,
         amlCompliant: editableData.amlCompliant,
         audit: editableData.audit,
+        clientStatus: editableData.clientStatus,
+        yearEnd: editableData.yearEnd,
+        arDate: editableData.arDate,
       };
 
       await updateClient(payload).unwrap();
@@ -312,19 +322,101 @@ const ClientDetailsDialog = ({
                   )}
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="taxNumber">Tax Number</Label>
+                  <Label htmlFor="clientManagerId">Client Manager</Label>
+                  {isEditing ? (
+                    <Select
+                      value={editableData?.clientManagerId || ''}
+                      onValueChange={value => setEditableData(prev => ({ ...prev, clientManagerId: value }))}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Select client manager" /></SelectTrigger>
+                      <SelectContent>
+                        {teamMembers.map((member) => (
+                          <SelectItem key={member._id} value={member._id}>{member.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <div className="p-2 bg-muted rounded">
+                      {(() => {
+                        if (editableData?.clientManager && typeof editableData.clientManager === 'object') {
+                          return editableData.clientManager.name || 'Not specified';
+                        }
+                        if (typeof editableData?.clientManager === 'string' && editableData.clientManager) {
+                          return editableData.clientManager;
+                        }
+                        if (editableData?.clientManagerId) {
+                          const found = teamMembers.find(member => member._id === editableData.clientManagerId);
+                          if (found) return found.name;
+                        }
+                        return 'Not specified';
+                      })()}
+                    </div>
+                  )}
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="taxNumber">TAX/PPS NO</Label>
                   {isEditing ? <Input id="taxNumber" value={editableData?.taxNumber || ''} onChange={handleInputChange} /> : <div className="p-2 bg-muted rounded">{editableData?.taxNumber || 'Not specified'}</div>}
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="croNumber">CRO Number</Label>
+                  <Label htmlFor="croNumber">CRO NO</Label>
                   {isEditing ? <Input id="croNumber" value={editableData?.croNumber || ''} onChange={handleInputChange} /> : <div className="p-2 bg-muted rounded">{editableData?.croNumber || 'Not specified'}</div>}
                 </div>
                 <div className="grid gap-2">
+                  <Label htmlFor="croLink">CRO Link</Label>
+                  {isEditing ? <Input id="croLink" value={editableData?.croLink || ''} onChange={handleInputChange} placeholder="Enter CRO link URL" /> : <div className="p-2 bg-muted rounded">{editableData?.croLink ? <a href={editableData.croLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{editableData.croLink}</a> : 'Not specified'}</div>}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="clientStatus">Client Status</Label>
+                  {isEditing ? (
+                    <Select
+                      value={editableData?.clientStatus || 'Current'}
+                      onValueChange={value => setEditableData(prev => ({ ...prev, clientStatus: value }))}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Select client status" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Prospect">Prospect</SelectItem>
+                        <SelectItem value="Current">Current</SelectItem>
+                        <SelectItem value="Archived">Archived</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <div className="p-2 bg-muted rounded">{editableData?.clientStatus || 'Not specified'}</div>
+                  )}
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="yearEnd">Year End</Label>
+                  {isEditing ? (
+                    <Select
+                      value={editableData?.yearEnd || ''}
+                      onValueChange={value => setEditableData(prev => ({ ...prev, yearEnd: value }))}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Select year end" /></SelectTrigger>
+                      <SelectContent>
+                        {['31 - Jan', '28 - Feb', '31 - Mar', '30 - Apr', '31 - May', '30 - Jun', '31 - Jul', '31 - Aug', '30 - Sep', '31 - Oct', '30 - Nov', '31 - Dec'].map((option) => (
+                          <SelectItem key={option} value={option}>{option}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <div className="p-2 bg-muted rounded">{editableData?.yearEnd || 'Not specified'}</div>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
                   <Label htmlFor="onboardedDate">Onboarded Date</Label>
                   {isEditing ? <Input id="onboardedDate" type="date" value={editableData?.onboardedDate?.split('T')[0] || ''} onChange={handleInputChange} /> : <div className="p-2 bg-muted rounded">{editableData?.onboardedDate ? new Date(editableData.onboardedDate).toLocaleDateString() : 'Not specified'}</div>}
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="arDate">AR Date</Label>
+                  {isEditing ? <Input id="arDate" type="date" value={editableData?.arDate?.split('T')[0] || ''} onChange={handleInputChange} /> : <div className="p-2 bg-muted rounded">{editableData?.arDate ? new Date(editableData.arDate).toLocaleDateString() : 'Not specified'}</div>}
                 </div>
               </div>
 
@@ -335,16 +427,9 @@ const ClientDetailsDialog = ({
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="contactName">Contact Person</Label>
-                  {isEditing ? <Input id="contactName" value={editableData?.contactName || ''} onChange={handleInputChange} /> : <div className="p-2 bg-muted rounded">{editableData?.contactName || 'Not specified'}</div>}
-                </div>
-                <div className="grid gap-2">
                   <Label htmlFor="email">Email</Label>
                   {isEditing ? <Input id="email" type="email" value={editableData?.email || ''} onChange={handleInputChange} /> : <div className="p-2 bg-muted rounded">{editableData?.email || 'Not specified'}</div>}
                 </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="phone">Phone</Label>
                   {isEditing ? <Input id="phone" value={editableData?.phone || ''} onChange={handleInputChange} /> : <div className="p-2 bg-muted rounded">{editableData?.phone || 'Not specified'}</div>}

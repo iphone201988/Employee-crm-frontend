@@ -4,8 +4,10 @@ interface ClientData {
     businessTypeId: string;
     taxNumber: string;
     croNumber?: string;
+    croLink?: string;
+    clientManagerId?: string;
+    clientManager?: string;
     address: string;
-    contactName: string;
     email: string;
     emailNote?: string;
     phone: string;
@@ -13,6 +15,9 @@ interface ClientData {
     onboardedDate: Date;
     amlCompliant: boolean;
     audit: boolean;
+    clientStatus?: string;
+    yearEnd?: string;
+    arDate?: Date;
 }
 
 interface IAddClient {
@@ -44,8 +49,10 @@ interface Client {
     businessTypeId: BusinessType | null;
     taxNumber: string;
     croNumber: string;
+    croLink?: string;
+    clientManagerId?: string | { _id: string; name: string };
+    clientManager?: string;
     address: string;
-    contactName: string;
     email: string;
     emailNote: string;
     phone: string;
@@ -53,6 +60,9 @@ interface Client {
     onboardedDate: string;
     amlCompliant: boolean;
     audit: boolean;
+    clientStatus?: string;
+    yearEnd?: string;
+    arDate?: string;
     createdAt: string;
     updatedAt: string;
 }
@@ -92,8 +102,10 @@ interface ClientInfo {
   } | null;
   taxNumber: string;
   croNumber: string;
+  croLink?: string;
+  clientManagerId?: string | { _id: string; name: string };
+  clientManager?: string;
   address: string;
-  contactName: string;
   email: string;
   emailNote: string;
   phone: string;
@@ -101,6 +113,9 @@ interface ClientInfo {
   onboardedDate: string;
   amlCompliant: boolean;
   audit: boolean;
+  clientStatus?: string;
+  yearEnd?: string;
+  arDate?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -173,8 +188,10 @@ interface UpdateClientServicesRequest {
     businessTypeId: string;
     taxNumber: string;
     croNumber: string;
+    croLink?: string;
+    clientManagerId?: string;
+    clientManager?: string;
     address: string;
-    contactName: string;
     email: string;
     emailNote: string;
     phone: string;
@@ -182,6 +199,9 @@ interface UpdateClientServicesRequest {
     onboardedDate: string;
     amlCompliant: boolean;
     audit: boolean;
+    clientStatus?: string;
+    yearEnd?: string;
+    arDate?: string;
     status: string;
     services: string[];
     createdAt: string;

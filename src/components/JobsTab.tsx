@@ -694,7 +694,7 @@ const JobsTab = () => {
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogContent className="max-w-2xl">
                     <DialogHeader>
-                        <DialogTitle>{editingJob ? 'Edit Job' : 'Add New Job'}</DialogTitle>
+                        <DialogTitle>{editingJob ? 'Edit Job' : 'Add New Jobas'}</DialogTitle>
                     </DialogHeader>
                     <JobForm
                         job={editingJob}

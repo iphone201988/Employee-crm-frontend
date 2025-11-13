@@ -1,10 +1,11 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import InputComponent from "./component/Input";
 import { validateClientForm, convertEmptyToNA } from "@/utils/validation";
 import { useAddClientMutation, useUpdateClientMutation } from "@/store/clientApi";
 import { useGetAllCategorieasQuery } from "@/store/categoryApi";
+import { useGetDropdownOptionsQuery } from "@/store/teamApi";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, X } from "lucide-react";
@@ -16,13 +17,24 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
     const [addClient, { isLoading: isAdding }] = useAddClientMutation();
     const [updateClient, { isLoading: isUpdating }] = useUpdateClientMutation();
     const { data: categories, isLoading: isLoadingCategories, isError } = useGetAllCategorieasQuery("bussiness");
+    const { data: dropdownOptions, isLoading: isLoadingTeamOptions } = useGetDropdownOptionsQuery("all");
     const [submitError, setSubmitError] = useState<string>("");
     
     const isSubmitting = isAdding || isUpdating;
 
+    // Generate year end options (e.g., "31 - Dec")
+    const yearEndOptions = useMemo(() => {
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const daysInMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+        return months.map((month, index) => `${daysInMonth[index]} - ${month}`);
+    }, []);
+
     console.log("categories", categories?.data?.bussiness);
 
-
+    const teamMembers = useMemo(() => {
+        const data = dropdownOptions?.data || {};
+        return Array.isArray(data.teams) ? data.teams : [];
+    }, [dropdownOptions]);
 
     const [formData, setFormData] = useState<ClientData>(() => {
         if (editMode && clientToEdit) {
@@ -32,8 +44,9 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
                 businessTypeId: clientToEdit.businessTypeId || '',
                 taxNumber: clientToEdit.taxNumber || '',
                 croNumber: clientToEdit.croNumber || 'N/A',
+                croLink: clientToEdit.croLink || '',
+                clientManagerId: (clientToEdit as any).clientManagerId || '',
                 address: clientToEdit.address || 'N/A',
-                contactName: clientToEdit.contactName || 'N/A',
                 email: clientToEdit.email || '',
                 emailNote: clientToEdit.emailNote || 'N/A',
                 phone: clientToEdit.phone || 'N/A',
@@ -41,6 +54,9 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
                 onboardedDate: clientToEdit.onboardedDate ? new Date(clientToEdit.onboardedDate) : new Date(),
                 amlCompliant: clientToEdit.amlCompliant || false,
                 audit: clientToEdit.audit || false,
+                clientStatus: clientToEdit.clientStatus || 'Current',
+                yearEnd: clientToEdit.yearEnd || '',
+                arDate: clientToEdit.arDate ? new Date(clientToEdit.arDate) : undefined,
             };
         }
         return {
@@ -49,8 +65,9 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
             businessTypeId: '',
             taxNumber: '',
             croNumber: 'N/A',
+            croLink: '',
+            clientManagerId: '',
             address: 'N/A',
-            contactName: 'N/A',
             email: '',
             emailNote: 'N/A',
             phone: 'N/A',
@@ -58,6 +75,9 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
             onboardedDate: new Date(),
             amlCompliant: false,
             audit: false,
+            clientStatus: 'Current',
+            yearEnd: '',
+            arDate: undefined,
         };
     });
 
@@ -72,8 +92,9 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
                 businessTypeId: clientToEdit.businessTypeId || '',
                 taxNumber: clientToEdit.taxNumber || '',
                 croNumber: clientToEdit.croNumber || 'N/A',
+                croLink: clientToEdit.croLink || '',
+                clientManagerId: (clientToEdit as any).clientManagerId || '',
                 address: clientToEdit.address || 'N/A',
-                contactName: clientToEdit.contactName || 'N/A',
                 email: clientToEdit.email || '',
                 emailNote: clientToEdit.emailNote || 'N/A',
                 phone: clientToEdit.phone || 'N/A',
@@ -81,6 +102,9 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
                 onboardedDate: clientToEdit.onboardedDate ? new Date(clientToEdit.onboardedDate) : new Date(),
                 amlCompliant: clientToEdit.amlCompliant || false,
                 audit: clientToEdit.audit || false,
+                clientStatus: clientToEdit.clientStatus || 'Current',
+                yearEnd: clientToEdit.yearEnd || '',
+                arDate: clientToEdit.arDate ? new Date(clientToEdit.arDate) : undefined,
             });
         }
     }, [editMode, clientToEdit]);
@@ -111,16 +135,27 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
 
         try {
             // Convert empty values to "N/A" before submission
-            const processedFormData = {
-                ...formData,
+            // Explicitly exclude contactName and only include valid fields
+            const { contactName: _ } = formData as any;
+            const processedFormData: any = {
                 clientRef: convertEmptyToNA(formData.clientRef),
+                name: formData.name,
+                businessTypeId: formData.businessTypeId,
+                taxNumber: formData.taxNumber,
                 croNumber: convertEmptyToNA(formData.croNumber),
+                croLink: formData.croLink || '',
+                clientManagerId: formData.clientManagerId || undefined,
                 address: convertEmptyToNA(formData.address),
-                contactName: convertEmptyToNA(formData.contactName),
                 email: convertEmptyToNA(formData.email),
                 emailNote: convertEmptyToNA(formData.emailNote),
                 phone: convertEmptyToNA(formData.phone),
                 phoneNote: convertEmptyToNA(formData.phoneNote),
+                onboardedDate: formData.onboardedDate,
+                amlCompliant: formData.amlCompliant,
+                audit: formData.audit,
+                clientStatus: formData.clientStatus || 'Current',
+                yearEnd: formData.yearEnd || '',
+                arDate: formData.arDate || undefined,
             };
 
             let res;
@@ -147,8 +182,9 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
                 businessTypeId: '',
                 taxNumber: 'N/A',
                 croNumber: 'N/A',
+                croLink: '',
+                clientManagerId: '',
                 address: 'N/A',
-                contactName: 'N/A',
                 email: '',
                 emailNote: 'N/A',
                 phone: 'N/A',
@@ -156,6 +192,9 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
                 onboardedDate: new Date(),
                 amlCompliant: false,
                 audit: false,
+                clientStatus: 'Current',
+                yearEnd: '',
+                arDate: undefined,
             });
             setErrors({});
             setDialogOpen(false);
@@ -255,29 +294,123 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
                                 )}
                             </div>
 
+                            <div>
+                                <Label htmlFor="clientManagerId">Client Manager</Label>
+                                <Select
+                                    value={formData.clientManagerId || ''}
+                                    onValueChange={handleInputChange('clientManagerId')}
+                                    disabled={isLoadingTeamOptions}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder={
+                                            isLoadingTeamOptions
+                                                ? "Loading team members..."
+                                                : "Select client manager"
+                                        } />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {isLoadingTeamOptions ? (
+                                            <SelectItem value="" disabled>
+                                                <div className="flex items-center gap-2">
+                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                    Loading...
+                                                </div>
+                                            </SelectItem>
+                                        ) : teamMembers.length === 0 ? (
+                                            <SelectItem value="" disabled>
+                                                No team members found
+                                            </SelectItem>
+                                        ) : (
+                                            teamMembers.map((member: any) => (
+                                                <SelectItem key={member._id} value={member._id}>
+                                                    {member.name}
+                                                </SelectItem>
+                                            ))
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                                {errors.clientManagerId && (
+                                    <p className="mt-1 text-sm text-red-600">{errors.clientManagerId}</p>
+                                )}
+                            </div>
+
                             <InputComponent
-                                label="Tax Number *"
+                                label="TAX/PPS NO *"
                                 id="taxNumber"
                                 value={formData.taxNumber}
                                 onChange={handleInputChange('taxNumber')}
-                                placeholder="Enter tax number"
+                                placeholder="Enter tax/PPS number"
                                 error={errors.taxNumber}
                             />
                             <InputComponent
-                                label="CRO Number (Optional)"
+                                label="CRO NO (Optional)"
                                 id="croNumber"
                                 value={formData.croNumber}
                                 onChange={handleInputChange('croNumber')}
                                 placeholder="Enter CRO number or leave as N/A"
                                 error={errors.croNumber}
                             />
-
+                            <InputComponent
+                                label="CRO Link (Optional)"
+                                id="croLink"
+                                value={formData.croLink || ''}
+                                onChange={handleInputChange('croLink')}
+                                placeholder="Enter CRO link URL"
+                                error={errors.croLink}
+                            />
+                            <div>
+                                <Label htmlFor="clientStatus">Client Status *</Label>
+                                <Select
+                                    value={formData.clientStatus || 'Current'}
+                                    onValueChange={handleInputChange('clientStatus')}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select client status" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Prospect">Prospect</SelectItem>
+                                        <SelectItem value="Current">Current</SelectItem>
+                                        <SelectItem value="Archived">Archived</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                {errors.clientStatus && (
+                                    <p className="mt-1 text-sm text-red-600">{errors.clientStatus}</p>
+                                )}
+                            </div>
+                            <div>
+                                <Label htmlFor="yearEnd">Year End (Optional)</Label>
+                                <Select
+                                    value={formData.yearEnd || ''}
+                                    onValueChange={handleInputChange('yearEnd')}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select year end" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {yearEndOptions.map((option) => (
+                                            <SelectItem key={option} value={option}>
+                                                {option}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                {errors.yearEnd && (
+                                    <p className="mt-1 text-sm text-red-600">{errors.yearEnd}</p>
+                                )}
+                            </div>
                             <DateOrNAInput
                                 label="Onboarded Date (Optional)"
                                 id="onboardedDate"
                                 value={formData.onboardedDate}
                                 onChange={(value) => handleInputChange('onboardedDate')(value)}
                                 error={errors.onboardedDate}
+                            />
+                            <DateOrNAInput
+                                label="AR Date (Optional)"
+                                id="arDate"
+                                value={formData.arDate}
+                                onChange={(value) => handleInputChange('arDate')(value)}
+                                error={errors.arDate}
                             />
                         </div>
                     </div>
@@ -300,15 +433,6 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
                     <div className="space-y-4 px-[20px]">
                         <h3 className="text-lg font-semibold text-gray-800">Contact Information</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <InputComponent
-                                label="Contact Name (Optional)"
-                                id="contactName"
-                                value={formData.contactName}
-                                onChange={handleInputChange('contactName')}
-                                placeholder="Enter contact person name or leave as N/A"
-                                error={errors.contactName}
-                                className="md:col-span-2"
-                            />
                             <InputComponent
                                 label="Email"
                                 id="email"

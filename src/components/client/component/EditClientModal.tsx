@@ -24,6 +24,12 @@ interface FullClientData extends ClientData {
   businessTypeId: BusinessType | string | null;
   amlCompliant?: boolean;
   audit?: boolean;
+  clientStatus?: string;
+  yearEnd?: string;
+  arDate?: Date | string;
+  croLink?: string;
+  clientManagerId?: string;
+  clientManager?: { _id: string; name: string } | string | null;
 }
 
 interface EditClientModalProps {
@@ -49,8 +55,9 @@ const EditClientModal = ({ open, onOpenChange, clientData }: EditClientModalProp
   const [submitError, setSubmitError] = useState<string>('');
 
   const [updateClient, { isLoading: isUpdating }] = useUpdateClientMutation();
-  const { data: categoriesData } = useGetDropdownOptionsQuery("bussiness");
+  const { data: categoriesData } = useGetDropdownOptionsQuery("all");
   const businessTypes: BusinessType[] = categoriesData?.data?.bussiness || [];
+  const teamMembers: { _id: string; name: string }[] = categoriesData?.data?.teams || [];
 
   useEffect(() => {
     if (open) {
@@ -84,6 +91,10 @@ const EditClientModal = ({ open, onOpenChange, clientData }: EditClientModalProp
     validationData.services = undefined
     validationData.createdAt = undefined
     validationData.updatedAt = undefined
+    validationData.clientManager = undefined
+    if (!validationData.clientManagerId) {
+        validationData.clientManagerId = undefined;
+    }
 
     const validationResult = validateClientForm(validationData);
     if (!validationResult.isValid) {
@@ -143,11 +154,49 @@ const EditClientModal = ({ open, onOpenChange, clientData }: EditClientModalProp
                     {errors.businessTypeId && <p className="text-sm text-red-600 mt-1">{errors.businessTypeId}</p>}
                 </div>
 
-                <InputComponent label="Tax Number" id="taxNumber" value={editableData.taxNumber} onChange={handleInputChange('taxNumber')} error={errors.taxNumber} />
-                <InputComponent label="CRO Number" id="croNumber" value={editableData.croNumber} onChange={handleInputChange('croNumber')} error={errors.croNumber} />
+                <div>
+                    <Label htmlFor="clientManagerId">Client Manager</Label>
+                    <Select value={editableData.clientManagerId || ''} onValueChange={handleInputChange('clientManagerId')}>
+                        <SelectTrigger><SelectValue placeholder="Select client manager" /></SelectTrigger>
+                        <SelectContent>
+                            {teamMembers.map((member) => (
+                                <SelectItem key={member._id} value={member._id}>{member.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    {errors.clientManagerId && <p className="text-sm text-red-600 mt-1">{errors.clientManagerId}</p>}
+                </div>
+
+                <InputComponent label="TAX/PPS NO" id="taxNumber" value={editableData.taxNumber} onChange={handleInputChange('taxNumber')} error={errors.taxNumber} />
+                <InputComponent label="CRO NO" id="croNumber" value={editableData.croNumber} onChange={handleInputChange('croNumber')} error={errors.croNumber} />
+                <InputComponent label="CRO Link" id="croLink" value={editableData.croLink || ''} onChange={handleInputChange('croLink')} error={errors.croLink} />
+                <div>
+                    <Label htmlFor="clientStatus">Client Status</Label>
+                    <Select value={editableData.clientStatus || 'Current'} onValueChange={handleInputChange('clientStatus')}>
+                        <SelectTrigger><SelectValue placeholder="Select client status" /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="Prospect">Prospect</SelectItem>
+                            <SelectItem value="Current">Current</SelectItem>
+                            <SelectItem value="Archived">Archived</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    {errors.clientStatus && <p className="text-sm text-red-600 mt-1">{errors.clientStatus}</p>}
+                </div>
+                <div>
+                    <Label htmlFor="yearEnd">Year End</Label>
+                    <Select value={editableData.yearEnd || ''} onValueChange={handleInputChange('yearEnd')}>
+                        <SelectTrigger><SelectValue placeholder="Select year end" /></SelectTrigger>
+                        <SelectContent>
+                            {['31 - Jan', '28 - Feb', '31 - Mar', '30 - Apr', '31 - May', '30 - Jun', '31 - Jul', '31 - Aug', '30 - Sep', '31 - Oct', '30 - Nov', '31 - Dec'].map((option) => (
+                                <SelectItem key={option} value={option}>{option}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    {errors.yearEnd && <p className="text-sm text-red-600 mt-1">{errors.yearEnd}</p>}
+                </div>
                 <InputComponent label="Onboarded Date" id="onboardedDate" type="date" value={String(editableData.onboardedDate || '').split('T')[0]} onChange={(val) => handleInputChange('onboardedDate')(new Date(val as string))} error={errors.onboardedDate} />
+                <InputComponent label="AR Date" id="arDate" type="date" value={editableData.arDate ? String(editableData.arDate).split('T')[0] : ''} onChange={(val) => handleInputChange('arDate')(val ? new Date(val as string) : undefined)} error={errors.arDate} />
                 <InputComponent label="Address" id="address" type="textarea" value={editableData.address} onChange={handleInputChange('address')} error={errors.address} className="md:col-span-2" />
-                <InputComponent label="Contact Person" id="contactName" value={editableData.contactName} onChange={handleInputChange('contactName')} error={errors.contactName} />
                 <InputComponent label="Email" id="email" type="email" value={editableData.email} onChange={handleInputChange('email')} error={errors.email} />
                 <InputComponent label="Phone" id="phone" type="tel" value={editableData.phone} onChange={handleInputChange('phone')} error={errors.phone} />
             </div>
