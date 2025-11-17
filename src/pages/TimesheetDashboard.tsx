@@ -160,6 +160,10 @@ export function TimesheetDashboard() {
   const [selectedTimesheetName, setSelectedTimesheetName] = useState<string>('');
   const [newNote, setNewNote] = useState('');
 
+  const teamFilterActive = selectedTeamIds.size > 0;
+  const departmentFilterActive = selectedDepartmentIds.size > 0;
+  const statusFilterActive = selectedStatuses.length > 0;
+
   // Week navigation state
   const [currentWeek, setCurrentWeek] = useState(() => getCurrentWeekRange());
 
@@ -854,7 +858,7 @@ export function TimesheetDashboard() {
           <div className="space-y-2">
             <Popover>
               <PopoverTrigger asChild>
-                <button className="w-32 h-10 bg-white text-[#381980] font-semibold rounded-md border px-3 flex items-center justify-between">
+                <button className={`w-32 h-10 text-[#381980] font-semibold rounded-md px-3 flex items-center justify-between ${teamFilterActive ? 'bg-gray-200 border border-black' : 'bg-white border border-input'}`}>
                   <span className="truncate text-[14px]">Team Name</span>
                   <ChevronDown className="w-4 h-4" />
                 </button>
@@ -893,7 +897,7 @@ export function TimesheetDashboard() {
           <div className="space-y-2">
             <Popover>
               <PopoverTrigger asChild>
-                <button className="w-32 h-10 bg-white text-[#381980] font-semibold rounded-md border px-3 flex items-center justify-between">
+                <button className={`w-32 h-10 text-[#381980] font-semibold rounded-md px-3 flex items-center justify-between ${departmentFilterActive ? 'bg-gray-200 border border-black' : 'bg-white border border-input'}`}>
                   <span className="truncate text-[14px]">Department</span>
                   <ChevronDown className="w-4 h-4" />
                 </button>
@@ -938,7 +942,7 @@ export function TimesheetDashboard() {
           <div className="space-y-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="bg-white text-xs sm:text-sm w-32 h-10 bg-white text-[#381980] font-semibold rounded-md border px-3 flex items-center justify-between">
+                <Button variant="outline" size="sm" className={`text-xs sm:text-sm w-32 h-10 rounded-md px-3 flex items-center justify-between ${statusFilterActive ? 'bg-gray-200 border-black' : 'bg-white border border-input'} text-[#381980] font-semibold`}>
                   Status
                   <ChevronDown className="ml-1 sm:ml-2 w-3 h-3 sm:w-4 sm:h-4" />
                 </Button>

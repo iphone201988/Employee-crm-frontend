@@ -115,7 +115,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
             currentWeek.weekStart === originalTimesheetWeek.weekStart &&
             currentWeek.weekEnd === originalTimesheetWeek.weekEnd;
 
-    return {
+        return {
             weekStart: currentWeek.weekStart,
             weekEnd: currentWeek.weekEnd,
             timesheetId: (timesheetId && isOnOriginalWeek) ? timesheetId : undefined,
@@ -267,7 +267,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
             const nonBill = hoursToSeconds((totals.nonBillable as any)[key] || 0);
             const dateObj = new Date(currentWeek.weekStart);
             dateObj.setDate(new Date(currentWeek.weekStart).getDate() + offset);
-    return {
+            return {
                 date: dateObj.toISOString(),
                 billable: bill,
                 nonBillable: nonBill,
@@ -386,17 +386,17 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
             jobId: '',
             category: '',
             description: "",
-        billable: true,
+            billable: true,
             rate: `€${billableRate.toFixed(2)}`,
-        hours: {
-            mon: 0,
+            hours: {
+                mon: 0,
                 tue: 0,
-            wed: 0,
-            thu: 0,
-            fri: 0,
-            sat: 0,
-            sun: 0
-        }
+                wed: 0,
+                thu: 0,
+                fri: 0,
+                sat: 0,
+                sun: 0
+            }
         };
 
         setTimesheetRows([...timesheetRows, newRow]);
@@ -446,7 +446,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
 
     // Helper functions for flexible time input editing
     const getTimeInputKey = (rowId: string, day: string) => `${rowId}-${day}`;
-    
+
     const getTimeInputValue = (rowId: string, day: string, hoursValue: number): string => {
         const key = getTimeInputKey(rowId, day);
         // If there's raw input, use it; otherwise format the value
@@ -471,14 +471,14 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
         const key = getTimeInputKey(rowId, day);
         // Store the raw input string
         setTimeInputs(prev => ({ ...prev, [key]: value }));
-        
+
         // Parse and update the row value in real-time for summary card updates
         let parsedSeconds = 0;
         if (value.trim() !== "") {
             // Handle various formats: "3", "3:00", "03:00:00", "3:30", etc.
             parsedSeconds = timeToSeconds(value);
         }
-        
+
         // Convert to hours and update the row immediately
         const hoursValue = parsedSeconds / 3600;
         const currentRow = timesheetRows.find(r => r.id === rowId);
@@ -494,7 +494,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
 
     const handleTimeBlur = (rowId: string, day: string) => {
         const key = getTimeInputKey(rowId, day);
-        
+
         // Get current raw value from state and parse it
         const rawValue = timeInputs[key] || "";
         let parsedSeconds = 0;
@@ -502,7 +502,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
             // Handle various formats: "3", "3:00", "03:00:00", "3:30", etc.
             parsedSeconds = timeToSeconds(rawValue);
         }
-        
+
         // Convert to hours and update the row
         const hoursValue = parsedSeconds / 3600;
         const currentRow = timesheetRows.find(r => r.id === rowId);
@@ -514,7 +514,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                 }
             });
         }
-        
+
         // Clear the raw input so it will be formatted on next render
         setTimeInputs(prev => {
             const next = { ...prev };
@@ -543,7 +543,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
     // Get totals from API response (in seconds) or fallback to calculated totals
     const apiTotals = useMemo(() => {
         if (timesheet) {
-        return {
+            return {
                 billable: secondsToHours(timesheet.totalBillable),
                 nonBillable: secondsToHours(timesheet.totalNonBillable),
                 logged: secondsToHours(timesheet.totalLogged),
@@ -586,7 +586,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
             });
             return apiSummary;
         }
-        
+
         // Calculate from current rows
         const summary = dayKeys.reduce((acc, day) => {
             acc[day] = {
@@ -598,12 +598,12 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
             };
             return acc;
         }, {} as Record<typeof dayKeys[number], { billable: number; nonBillable: number; logged: number; capacity: number; variance: number }>);
-        
+
         // Sum up hours from all rows for each day
         timesheetRows.forEach(row => {
             dayKeys.forEach(day => {
                 const hours = row.hours[day] || 0;
-                
+
                 summary[day].logged += hours;
                 if (row.billable) {
                     summary[day].billable += hours;
@@ -617,7 +617,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
         dayKeys.forEach(day => {
             summary[day].variance = summary[day].capacity - summary[day].logged;
         });
-        
+
         return summary;
     }, [timesheetRows, timesheet?.dailySummary, weeklyCapacitySeconds]);
 
@@ -666,7 +666,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
     const realTimeTotals = useMemo(() => {
         // Calculate total capacity from weekly schedule
         const totalCapacitySeconds = Object.values(weeklyCapacitySeconds).reduce((sum, val) => sum + val, 0);
-        
+
         // If there are rows, use calculated totals (convert hours to seconds)
         if (timesheetRows.length > 0) {
             return {
@@ -690,7 +690,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
     // Calculate real-time totals for percentage calculations (in hours)
     const realTimeTotalsHours = useMemo(() => {
         const totalCapacityHours = secondsToHours(Object.values(weeklyCapacitySeconds).reduce((sum, val) => sum + val, 0));
-        
+
         if (timesheetRows.length > 0) {
             return {
                 billable: totals.billable.total,
@@ -852,7 +852,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                 disabled={isSubmittingStatus || hasChanges}
                             >
                                 {isSubmittingStatus ? 'Submitting...' : 'Submit for Approval'}
-                    </Button>
+                            </Button>
                         ) : timesheet?.status === 'rejected' ? (
                             <Button
                                 variant="outline"
@@ -874,8 +874,8 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                 disabled={isSubmittingStatus || isLoading}
                             >
                                 {isSubmittingStatus || isLoading ? 'Resubmitting...' : 'Resubmit for Approval'}
-                    </Button>
-                        ) : (
+                            </Button>
+                        ) : timesheet?.status ? (
                             <div className="flex items-center px-3 py-1 border rounded text-sm w-full sm:w-[180px] sm:min-w-[180px] justify-end sm:justify-center">
                                 {timesheet?.status === 'submitted' && <span className="text-amber-600">Submitted</span>}
                                 {/^auto\s*approved$/i.test(timesheet?.status || '') && <span className="text-green-600">Auto Approved</span>}
@@ -885,7 +885,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                     <span className="text-muted-foreground">{timesheet?.status === "reviewed" && "Submitted For Review"}</span>
                                 )}
                             </div>
-                        )}
+                        ) : null}
                     </div>
                 </div>
             </div>
@@ -1001,7 +1001,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
             {/* Action Buttons */}
             <div className={`flex flex-col sm:flex-row items-stretch sm:items-center gap-3 ${shouldShowApproveRejectButtons ? 'justify-between' : 'justify-end'}`}>
                 {shouldShowApproveRejectButtons && (
-                <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2">
                         <Button
                             variant="outline"
                             className="text-green-600 border-green-600 hover:bg-green-50 h-9 text-sm"
@@ -1017,7 +1017,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                             }}
                         >
                             {isSubmittingStatus ? 'Approving...' : 'Approve'}
-                    </Button>
+                        </Button>
                         <Button
                             variant="outline"
                             className="text-red-600 border-red-600 hover:bg-red-50 h-9 text-sm"
@@ -1033,8 +1033,8 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                             }}
                         >
                             {isSubmittingStatus ? 'Rejecting...' : 'Reject'}
-                    </Button>
-                </div>
+                        </Button>
+                    </div>
                 )}
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                     <div className="flex items-center justify-between sm:justify-start gap-2">
@@ -1064,10 +1064,10 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                         ) : (
                             <>
                                 <RefreshCw className="w-4 h-4" />
-                       Save Changes
+                                Save Changes
                             </>
                         )}
-                      </Button>
+                    </Button>
                 </div>
             </div>
 
@@ -1174,21 +1174,21 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                             }).map((row, rowIndex) => {
                                 const isDuplicate = isDuplicateRow(rowIndex);
                                 return <tr key={row.id} className={`border-t border-border hover:bg-muted/25 ${isDuplicate ? 'bg-red-50 border-red-200' : ''}`}>
-                                <td className="px-3 py-2 text-sm text-left text-muted-foreground">{row.ref}</td>
-                                <td className="px-3 py-2 text-sm">
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="sm" className="text-left p-0 h-8 font-normal w-full justify-start">
+                                    <td className="px-3 py-2 text-sm text-left text-muted-foreground">{row.ref}</td>
+                                    <td className="px-3 py-2 text-sm">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="sm" className="text-left p-0 h-8 font-normal w-full justify-start">
                                                     {row.client || 'Select client'} <ChevronDown className="ml-1 w-3 h-3" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent>
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent>
                                                 {clients.map(client => <DropdownMenuItem key={client._id} onClick={() => {
-                                                const generateClientRef = (clientName: string) => {
-                                                    const firstThreeLetters = clientName.substring(0, 3).toUpperCase();
-                                                    const year = new Date().getFullYear().toString().slice(-2);
-                                                    return `${firstThreeLetters}-${year}`;
-                                                };
+                                                    const generateClientRef = (clientName: string) => {
+                                                        const firstThreeLetters = clientName.substring(0, 3).toUpperCase();
+                                                        const year = new Date().getFullYear().toString().slice(-2);
+                                                        return `${firstThreeLetters}-${year}`;
+                                                    };
                                                     // Get filtered jobs for the selected client
                                                     const filteredJobs = getFilteredJobs(client._id);
                                                     const firstJob = filteredJobs[0];
@@ -1205,18 +1205,18 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                                     });
                                                 }}>
                                                     {client.name}
-                                            </DropdownMenuItem>)}
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </td>
-                                <td className="px-3 py-2 text-sm">
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
+                                                </DropdownMenuItem>)}
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </td>
+                                    <td className="px-3 py-2 text-sm">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
                                                 <Button variant="ghost" size="sm" className="text-left p-0 h-8 font-normal w-full justify-start" disabled={!row.clientId}>
                                                     {row.job || 'Select job'} <ChevronDown className="ml-1 w-3 h-3" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent>
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent>
                                                 {getFilteredJobs(row.clientId).map(job => <DropdownMenuItem key={job._id} onClick={() => {
                                                     updateRow(row.id, {
                                                         job: job.name,
@@ -1224,131 +1224,131 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                                     });
                                                 }}>
                                                     {job.name}
-                                            </DropdownMenuItem>)}
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </td>
-                                <td className="px-3 py-2">
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
+                                                </DropdownMenuItem>)}
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </td>
+                                    <td className="px-3 py-2">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
                                                 <Button variant="ghost" size="sm" className="text-left p-0 h-8 font-normal" disabled={!row.clientId}>
-                                                <span className={`px-2 py-1 text-xs rounded whitespace-nowrap flex items-center ${row.category === 'Client Work' ? 'bg-blue-100 text-blue-800' : row.category === 'Admin' ? 'bg-green-100 text-green-800' : row.category === 'Training' ? 'bg-orange-100 text-orange-800' : row.category === 'Meeting' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}`}>
+                                                    <span className={`px-2 py-1 text-xs rounded whitespace-nowrap flex items-center ${row.category === 'Client Work' ? 'bg-blue-100 text-blue-800' : row.category === 'Admin' ? 'bg-green-100 text-green-800' : row.category === 'Training' ? 'bg-orange-100 text-orange-800' : row.category === 'Meeting' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}`}>
                                                         {row.category || 'Select category'} <ChevronDown className="ml-1 w-3 h-3" />
-                                                </span>
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent>
+                                                    </span>
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent>
                                                 {categories.map(category => <DropdownMenuItem key={category._id} onClick={() => {
                                                     updateRow(row.id, {
                                                         category: category.name
                                                     });
                                                 }}>
                                                     {category.name}
-                                            </DropdownMenuItem>)}
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </td>
-                                <td className="px-3 py-2 text-sm">
-                                    <Input value={row.description} onChange={e => {
+                                                </DropdownMenuItem>)}
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </td>
+                                    <td className="px-3 py-2 text-sm">
+                                        <Input value={row.description} onChange={e => {
                                             updateRow(row.id, {
-                                            description: e.target.value
+                                                description: e.target.value
                                             });
-                                    }} className="border border-input p-1 h-8 bg-background text-sm rounded" placeholder="Add description..." />
-                                </td>
-                                <td className="px-3 py-2 text-center">
-                                    <Switch checked={row.billable} onCheckedChange={checked => {
+                                        }} className="border border-input p-1 h-8 bg-background text-sm rounded" placeholder="Add description..." />
+                                    </td>
+                                    <td className="px-3 py-2 text-center">
+                                        <Switch checked={row.billable} onCheckedChange={checked => {
                                             updateRow(row.id, {
-                                            billable: checked
+                                                billable: checked
                                             });
-                                    }} />
-                                </td>
-                                <td className="px-3 py-2 text-sm">
+                                        }} />
+                                    </td>
+                                    <td className="px-3 py-2 text-sm">
                                         {row.billable && billableRate ? <span className="text-sm">{'€' + billableRate}</span> : null}
-                                </td>
-                                <td className="px-3 py-2 text-center text-sm ">
-                                        <Input 
-                                            type="text" 
-                                            value={getTimeInputValue(row.id, 'mon', row.hours.mon)} 
+                                    </td>
+                                    <td className="px-3 py-2 text-center text-sm ">
+                                        <Input
+                                            type="text"
+                                            value={getTimeInputValue(row.id, 'mon', row.hours.mon)}
                                             onChange={e => handleTimeChange(row.id, 'mon', e.target.value)}
                                             onFocus={() => handleTimeFocus(row.id, 'mon', row.hours.mon)}
                                             onBlur={() => handleTimeBlur(row.id, 'mon')}
-                                            placeholder="hh:mm:ss" 
-                                            className="w-20  text-center border border-input p-1 h-8 bg-background text-sm rounded" 
+                                            placeholder="hh:mm:ss"
+                                            className="w-20  text-center border border-input p-1 h-8 bg-background text-sm rounded"
                                         />
-                                </td>
-                                <td className="px-3 py-2 text-center text-sm">
-                                        <Input 
-                                            type="text" 
-                                            value={getTimeInputValue(row.id, 'tue', row.hours.tue)} 
+                                    </td>
+                                    <td className="px-3 py-2 text-center text-sm">
+                                        <Input
+                                            type="text"
+                                            value={getTimeInputValue(row.id, 'tue', row.hours.tue)}
                                             onChange={e => handleTimeChange(row.id, 'tue', e.target.value)}
                                             onFocus={() => handleTimeFocus(row.id, 'tue', row.hours.tue)}
                                             onBlur={() => handleTimeBlur(row.id, 'tue')}
-                                            placeholder="hh:mm:ss" 
-                                            className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded" 
+                                            placeholder="hh:mm:ss"
+                                            className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded"
                                         />
-                                </td>
-                                <td className="px-3 py-2 text-center text-sm">
-                                        <Input 
-                                            type="text" 
-                                            value={getTimeInputValue(row.id, 'wed', row.hours.wed)} 
+                                    </td>
+                                    <td className="px-3 py-2 text-center text-sm">
+                                        <Input
+                                            type="text"
+                                            value={getTimeInputValue(row.id, 'wed', row.hours.wed)}
                                             onChange={e => handleTimeChange(row.id, 'wed', e.target.value)}
                                             onFocus={() => handleTimeFocus(row.id, 'wed', row.hours.wed)}
                                             onBlur={() => handleTimeBlur(row.id, 'wed')}
-                                            placeholder="hh:mm:ss" 
-                                            className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded" 
+                                            placeholder="hh:mm:ss"
+                                            className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded"
                                         />
-                                </td>
-                                <td className="px-3 py-2 text-center text-sm">
-                                        <Input 
-                                            type="text" 
-                                            value={getTimeInputValue(row.id, 'thu', row.hours.thu)} 
+                                    </td>
+                                    <td className="px-3 py-2 text-center text-sm">
+                                        <Input
+                                            type="text"
+                                            value={getTimeInputValue(row.id, 'thu', row.hours.thu)}
                                             onChange={e => handleTimeChange(row.id, 'thu', e.target.value)}
                                             onFocus={() => handleTimeFocus(row.id, 'thu', row.hours.thu)}
                                             onBlur={() => handleTimeBlur(row.id, 'thu')}
-                                            placeholder="hh:mm:ss" 
-                                            className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded" 
+                                            placeholder="hh:mm:ss"
+                                            className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded"
                                         />
-                                </td>
-                                <td className="px-3 py-2 text-center text-sm">
-                                        <Input 
-                                            type="text" 
-                                            value={getTimeInputValue(row.id, 'fri', row.hours.fri)} 
+                                    </td>
+                                    <td className="px-3 py-2 text-center text-sm">
+                                        <Input
+                                            type="text"
+                                            value={getTimeInputValue(row.id, 'fri', row.hours.fri)}
                                             onChange={e => handleTimeChange(row.id, 'fri', e.target.value)}
                                             onFocus={() => handleTimeFocus(row.id, 'fri', row.hours.fri)}
                                             onBlur={() => handleTimeBlur(row.id, 'fri')}
-                                            placeholder="hh:mm:ss" 
-                                            className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded" 
+                                            placeholder="hh:mm:ss"
+                                            className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded"
                                         />
-                                </td>
-                                {!hideWeekend && <td className="px-3 py-2 text-center text-sm">
-                                        <Input 
-                                            type="text" 
-                                            value={getTimeInputValue(row.id, 'sat', row.hours.sat)} 
+                                    </td>
+                                    {!hideWeekend && <td className="px-3 py-2 text-center text-sm">
+                                        <Input
+                                            type="text"
+                                            value={getTimeInputValue(row.id, 'sat', row.hours.sat)}
                                             onChange={e => handleTimeChange(row.id, 'sat', e.target.value)}
                                             onFocus={() => handleTimeFocus(row.id, 'sat', row.hours.sat)}
                                             onBlur={() => handleTimeBlur(row.id, 'sat')}
-                                            placeholder="hh:mm:ss" 
-                                            className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded" 
+                                            placeholder="hh:mm:ss"
+                                            className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded"
                                         />
-                                </td>}
-                                {!hideWeekend && <td className="px-3 py-2 text-center text-sm">
-                                        <Input 
-                                            type="text" 
-                                            value={getTimeInputValue(row.id, 'sun', row.hours.sun)} 
+                                    </td>}
+                                    {!hideWeekend && <td className="px-3 py-2 text-center text-sm">
+                                        <Input
+                                            type="text"
+                                            value={getTimeInputValue(row.id, 'sun', row.hours.sun)}
                                             onChange={e => handleTimeChange(row.id, 'sun', e.target.value)}
                                             onFocus={() => handleTimeFocus(row.id, 'sun', row.hours.sun)}
                                             onBlur={() => handleTimeBlur(row.id, 'sun')}
-                                            placeholder="hh:mm:ss" 
-                                            className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded" 
+                                            placeholder="hh:mm:ss"
+                                            className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded"
                                         />
-                                </td>}
-                                <td className="px-3 py-2 text-right">
-                                    <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700" onClick={() => {
+                                    </td>}
+                                    <td className="px-3 py-2 text-right">
+                                        <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700" onClick={() => {
                                             handleDeleteRow(row.id);
-                                    }}>
-                                        <Trash2 className="w-4 h-4" />
-                                    </Button>
-                                </td>
+                                        }}>
+                                            <Trash2 className="w-4 h-4" />
+                                        </Button>
+                                    </td>
                                 </tr>;
                             })}
                         </tbody>

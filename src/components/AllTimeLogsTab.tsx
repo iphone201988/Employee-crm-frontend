@@ -78,6 +78,14 @@ const AllTimeLogsTab = () => {
   const [limit, setLimit] = useState(10);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const { data: currentUser }: any = useGetCurrentUserQuery();
+  const clientFilterActive = selectedClientIds.size > 0;
+  const jobNameFilterActive = selectedJobNameIds.size > 0;
+  const jobTypeFilterActive = selectedJobTypeIds.size > 0;
+  const teamFilterActive = selectedTeamIds.size > 0;
+  const purposeFilterActive = selectedPurposeIds.size > 0;
+  const billableFilterActive = filters.billable !== 'all';
+  const statusFilterActive = filters.status !== 'all';
+  const dateRangeFilterActive = Boolean(filters.dateFrom || filters.dateTo);
   
   // Sort state
   type SortField = 'date' | 'clientRef' | 'clientName' | 'jobName' | 'jobType' | 'teamMember' | 'description' | 'timePurpose' | 'billable' | 'hours' | 'rate' | 'amount' | 'status';
@@ -877,7 +885,7 @@ const AllTimeLogsTab = () => {
           <div className="space-y-2">
             <Popover>
               <PopoverTrigger asChild>
-                <button className="w-32 h-10 bg-white text-[#381980] font-semibold rounded-md border px-3 flex items-center justify-between">
+                <button className={`w-32 h-10 ${clientFilterActive ? 'bg-gray-200 border-black' : 'bg-white border-input'} text-[#381980] font-semibold rounded-md border px-3 flex items-center justify-between`}>
                   <span className="truncate text-[14px]">Client Name</span>
                   <ChevronDown className="w-4 h-4" />
                 </button>
@@ -916,7 +924,7 @@ const AllTimeLogsTab = () => {
           <div className="space-y-2">
             <Popover>
               <PopoverTrigger asChild>
-                <button className="w-28 h-10 bg-white text-[#381980] font-semibold rounded-md border px-3 flex items-center justify-between">
+                <button className={`w-28 h-10 ${jobNameFilterActive ? 'bg-gray-200 border-black' : 'bg-white border-input'} text-[#381980] font-semibold rounded-md border px-3 flex items-center justify-between`}>
                   <span className="truncate text-[14px]">Job Name</span>
                   <ChevronDown className="w-4 h-4" />
                 </button>
@@ -955,7 +963,7 @@ const AllTimeLogsTab = () => {
           <div className="space-y-2">
             <Popover>
               <PopoverTrigger asChild>
-                <button className="w-28 h-10 bg-white text-[#381980] font-semibold rounded-md border px-3 flex items-center justify-between">
+                <button className={`w-28 h-10 ${jobTypeFilterActive ? 'bg-gray-200 border-black' : 'bg-white border-input'} text-[#381980] font-semibold rounded-md border px-3 flex items-center justify-between`}>
                   <span className="truncate text-[14px]">Job Type</span>
                   <ChevronDown className="w-4 h-4" />
                 </button>
@@ -994,7 +1002,7 @@ const AllTimeLogsTab = () => {
           <div className="space-y-2">
             <Popover>
               <PopoverTrigger asChild>
-                <button className="w-32 h-10 bg-white text-[#381980] font-semibold rounded-md border px-3 flex items-center justify-between">
+                <button className={`w-32 h-10 ${teamFilterActive ? 'bg-gray-200 border-black' : 'bg-white border-input'} text-[#381980] font-semibold rounded-md border px-3 flex items-center justify-between`}>
                   <span className="truncate text-[14px]">Team Name</span>
                   <ChevronDown className="w-4 h-4" />
                 </button>
@@ -1033,7 +1041,7 @@ const AllTimeLogsTab = () => {
           <div className="space-y-2">
             <Popover>
               <PopoverTrigger asChild>
-                <button className="w-24 h-10 bg-white text-[#381980] font-semibold rounded-md border px-3 flex items-center justify-between">
+                <button className={`w-24 h-10 ${purposeFilterActive ? 'bg-gray-200 border-black' : 'bg-white border-input'} text-[#381980] font-semibold rounded-md border px-3 flex items-center justify-between`}>
                   <span className="truncate text-[14px]">Purpose</span>
                   <ChevronDown className="w-4 h-4" />
                 </button>
@@ -1074,13 +1082,28 @@ const AllTimeLogsTab = () => {
               value={filters.billable}
               onValueChange={(value) => setFilters(prev => ({ ...prev, billable: value }))}
             >
-              <SelectTrigger className="w-24 bg-white text-[#381980] font-semibold">
+              <SelectTrigger className={`w-24 ${billableFilterActive ? 'bg-gray-200 border-black' : 'bg-white'} text-[#381980] font-semibold`}>
                 <SelectValue placeholder="Billable" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem className="data-[state=checked]:bg-[#5f46b9] data-[state=checked]:text-white hover:data-[state=checked]:bg-[#5f46b9] hover:data-[state=checked]:text-white" value="all">Billable</SelectItem>
-                <SelectItem className="data-[state=checked]:bg-[#5f46b9] data-[state=checked]:text-white hover:data-[state=checked]:bg-[#5f46b9] hover:data-[state=checked]:text-white" value="true">Billable</SelectItem>
-                <SelectItem className="data-[state=checked]:bg-[#5f46b9] data-[state=checked]:text-white hover:data-[state=checked]:bg-[#5f46b9] hover:data-[state=checked]:text-white" value="false">Non Billable</SelectItem>
+                <SelectItem value="all" className="group !pl-3 !pr-3 [&>span:first-child]:hidden data-[state=checked]:bg-[#5f46b9] data-[state=checked]:text-white">
+                  <div className="flex w-full items-center justify-between">
+                    <span>Billable</span>
+                    <Check className="hidden w-4 h-4 text-[#381980] group-data-[state=checked]:block" />
+                  </div>
+                </SelectItem>
+                <SelectItem value="true" className="group !pl-3 !pr-3 [&>span:first-child]:hidden data-[state=checked]:bg-[#5f46b9] data-[state=checked]:text-white">
+                  <div className="flex w-full items-center justify-between">
+                    <span>Billable</span>
+                    <Check className="hidden w-4 h-4 text-[#381980] group-data-[state=checked]:block" />
+                  </div>
+                </SelectItem>
+                <SelectItem value="false" className="group !pl-3 !pr-3 [&>span:first-child]:hidden data-[state=checked]:bg-[#5f46b9] data-[state=checked]:text-white">
+                  <div className="flex w-full items-center justify-between">
+                    <span>Non Billable</span>
+                    <Check className="hidden w-4 h-4 text-[#381980] group-data-[state=checked]:block" />
+                  </div>
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -1089,21 +1112,41 @@ const AllTimeLogsTab = () => {
               value={filters.status}
               onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}
             >
-              <SelectTrigger className="w-24 bg-white text-[#381980] font-semibold">
+              <SelectTrigger className={`w-24 ${statusFilterActive ? 'bg-gray-200 border-black' : 'bg-white'} text-[#381980] font-semibold`}>
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent className='[&_div:focus]:bg-[#5f46b9] [&_div:focus]:text-white'>
-                <SelectItem value="all">Status</SelectItem>
-                <SelectItem value="notInvoiced">Not Invoiced</SelectItem>
-                <SelectItem value="invoiced">Invoiced</SelectItem>
-                <SelectItem value="paid">Paid</SelectItem>
+                <SelectItem value="all" className="group !pl-3 !pr-3 [&>span:first-child]:hidden data-[state=checked]:bg-[#5f46b9] data-[state=checked]:text-white">
+                  <div className="flex w-full items-center justify-between">
+                    <span>Status</span>
+                    <Check className="hidden w-4 h-4 text-[#381980] group-data-[state=checked]:block" />
+                  </div>
+                </SelectItem>
+                <SelectItem value="notInvoiced" className="group !pl-3 !pr-3 [&>span:first-child]:hidden data-[state=checked]:bg-[#5f46b9] data-[state=checked]:text-white">
+                  <div className="flex w-full items-center justify-between">
+                    <span>Not Invoiced</span>
+                    <Check className="hidden w-4 h-4 text-[#381980] group-data-[state=checked]:block" />
+                  </div>
+                </SelectItem>
+                <SelectItem value="invoiced" className="group !pl-3 !pr-3 [&>span:first-child]:hidden data-[state=checked]:bg-[#5f46b9] data-[state=checked]:text-white">
+                  <div className="flex w-full items-center justify-between">
+                    <span>Invoiced</span>
+                    <Check className="hidden w-4 h-4 text-[#381980] group-data-[state=checked]:block" />
+                  </div>
+                </SelectItem>
+                <SelectItem value="paid" className="group !pl-3 !pr-3 [&>span:first-child]:hidden data-[state=checked]:bg-[#5f46b9] data-[state=checked]:text-white">
+                  <div className="flex w-full items-center justify-between">
+                    <span>Paid</span>
+                    <Check className="hidden w-4 h-4 text-[#381980] group-data-[state=checked]:block" />
+                  </div>
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
             <Popover>
               <PopoverTrigger asChild>
-                <button className="w-full min-w-[200px] h-[40px] bg-white border border-input rounded-md px-3 py-2 text-left flex items-center justify-between">
+                <button className={`w-full min-w-[200px] h-[40px] ${dateRangeFilterActive ? 'bg-gray-200 border-black' : 'bg-white border-input'} border rounded-md px-3 py-2 text-left flex items-center justify-between`}>
                   <span className="text-[#381980] font-semibold text-sm">
                     {filters.dateFrom && filters.dateTo
                       ? `${new Date(filters.dateFrom).toLocaleDateString()} — ${new Date(filters.dateTo).toLocaleDateString()}`
