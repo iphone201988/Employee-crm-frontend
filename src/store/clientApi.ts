@@ -99,6 +99,14 @@ export const clientApi = createApi({
             }),
             invalidatesTags: ['Client'],
         }),
+        importClients: builder.mutation<any, { clients: any[] }>({
+            query: (body) => ({
+                url: '/import',
+                method: 'POST',
+                body,
+            }),
+            invalidatesTags: ['Client'],
+        }),
     }),
 });
 
@@ -111,6 +119,7 @@ export const {
     useUpdateClientServicesMutation,
     useUpdateClientMutation,
     useGetClientQuery,
-    useDeleteClientMutation
+    useDeleteClientMutation,
+    useImportClientsMutation
 } = clientApi;
 

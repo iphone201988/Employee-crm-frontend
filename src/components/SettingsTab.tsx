@@ -4,6 +4,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Plus, X } from 'lucide-react';
@@ -14,6 +15,8 @@ import { toast } from 'sonner';
 import { useLazyGetTabAccessQuery, useGetCurrentUserQuery } from '@/store/authApi';
 import Avatars from './Avatars';
 import { usePermissionTabs } from '@/hooks/usePermissionTabs';
+import { useImportClientsMutation } from '@/store/clientApi';
+import * as XLSX from 'xlsx';
 
 
 
@@ -72,6 +75,10 @@ const SettingsTab = ({
   const [addCategory, { isLoading: isAdding }] = useAddCategoryMutation();
   const [deleteCategory, { isLoading: isDeleting }] = useDeleteCategoryMutation();
   const [updateSettings, { isLoading: isUpdatingSettings }] = useUpdateSettingsMutation();
+  const [importClients, { isLoading: isImporting }] = useImportClientsMutation();
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importPreview, setImportPreview] = useState<any[]>([]);
+  const [showImportPreview, setShowImportPreview] = useState(false);
 
 
 
@@ -204,6 +211,72 @@ const SettingsTab = ({
       return a.name.localeCompare(b.name);
     });
     return itemsCopy;
+  };
+
+  const handleFileRead = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+        
+        if (jsonData.length === 0) {
+          toast.error('The Excel file appears to be empty');
+          return;
+        }
+
+        setImportPreview(jsonData);
+        setShowImportPreview(true);
+        toast.success(`Found ${jsonData.length} rows in the file`);
+      } catch (error) {
+        console.error('Error reading file:', error);
+        toast.error('Failed to read Excel file. Please ensure it is a valid .xlsx file.');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const handleImportClients = async () => {
+    if (importPreview.length === 0) {
+      toast.error('No data to import');
+      return;
+    }
+
+    try {
+      const result = await importClients({ clients: importPreview }).unwrap();
+      const { imported, failed, errors } = result.data;
+      
+      if (imported > 0) {
+        toast.success(`Successfully imported ${imported} client(s)`);
+      }
+      
+      if (failed > 0) {
+        toast.warning(`${failed} client(s) failed to import`);
+        if (errors && errors.length > 0) {
+          console.error('Import errors:', errors);
+          // Show first few errors
+          const errorMessages = errors.slice(0, 5).map((e: any) => e.error).join('\n');
+          toast.error(`Some errors occurred:\n${errorMessages}${errors.length > 5 ? `\n...and ${errors.length - 5} more` : ''}`);
+        }
+      }
+
+      // Reset state
+      setImportPreview([]);
+      setImportFile(null);
+      setShowImportPreview(false);
+      
+      // Reset file input
+      const fileInput = document.getElementById('file-upload') as HTMLInputElement;
+      if (fileInput) {
+        fileInput.value = '';
+      }
+    } catch (error: any) {
+      console.error('Import error:', error);
+      toast.error(error?.data?.message || 'Failed to import clients. Please try again.');
+    }
   };
 
 
@@ -434,9 +507,96 @@ const SettingsTab = ({
 
       {activeTab === "clientImport" && (
         <Card>
-          <CardContent className="py-8">
-            <div className="text-center text-muted-foreground">
-              Client Import functionality coming soon.
+          <CardHeader>
+            <CardTitle>Import Clients from Excel</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6 py-8">
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="file-upload" className="text-base font-medium mb-2 block">
+                  Select Excel File (.xlsx)
+                </Label>
+                <Input
+                  id="file-upload"
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setImportFile(file);
+                      handleFileRead(file);
+                    }
+                  }}
+                  className="cursor-pointer"
+                />
+                <p className="text-sm text-muted-foreground mt-2">
+                  Upload an Excel file with client data. The file should have headers matching the expected columns.
+                </p>
+              </div>
+
+              {importPreview.length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium">
+                      Preview: {importPreview.length} rows found
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setImportPreview([]);
+                          setImportFile(null);
+                          setShowImportPreview(false);
+                        }}
+                      >
+                        Clear
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={handleImportClients}
+                        disabled={isImporting || importPreview.length === 0}
+                      >
+                        {isImporting ? 'Importing...' : `Import ${importPreview.length} Clients`}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {showImportPreview && (
+                    <div className="border rounded-lg overflow-auto max-h-96">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Row</TableHead>
+                            <TableHead>Client Name</TableHead>
+                            <TableHead>Client Ref</TableHead>
+                            <TableHead>Business Type</TableHead>
+                            <TableHead>Tax Number</TableHead>
+                            <TableHead>Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {importPreview.slice(0, 10).map((row, index) => (
+                            <TableRow key={index}>
+                              <TableCell>{index + 2}</TableCell>
+                              <TableCell>{row['CLIENT NAME'] || '-'}</TableCell>
+                              <TableCell>{row['CLIENT REF.'] || row['CLIENT REF'] || '-'}</TableCell>
+                              <TableCell>{row['BUSINESS TYPE'] || '-'}</TableCell>
+                              <TableCell>{row['TAX/PPS NO.'] || row['TAX/PPS NO'] || '-'}</TableCell>
+                              <TableCell>{row['CLIENT STATUS'] || 'Current'}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                      {importPreview.length > 10 && (
+                        <div className="p-4 text-center text-sm text-muted-foreground">
+                          Showing first 10 of {importPreview.length} rows
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

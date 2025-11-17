@@ -11,10 +11,10 @@ import { useGetAllTeamMembersQuery, useUpdateTeamMembersMutation } from '@/store
 
 const permissions = [
   { key: 'approveTimesheets', label: 'Approve Timesheets' },
-  { key: 'editS ervices', label: 'Unlock Job Types' },
+  // { key: 'editS ervices', label: 'Unlock Job Types' },
   { key: 'editJobBuilder', label: 'Edit Job Builder' },
   { key: 'editJobTemplates', label: 'Edit Job Templates' },
-  { key: 'bulkDelete', label: 'Bulk Delete' },
+  // { key: 'bulkDelete', label: 'Bulk Delete' },
   { key: 'bulkDeleteLogs', label: 'Bulk Delete Logs' }
 ];
 

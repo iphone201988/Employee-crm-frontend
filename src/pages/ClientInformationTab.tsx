@@ -79,7 +79,7 @@ const ClientInformationTab = () => {
   }, [clientInfo]);
 
   console.log('clientInfo===========', processedClientInfo); 
-  const [clientInfoSortConfig, setClientInfoSortConfig] = useState<{ key: string | null; direction: 'asc' | 'desc' }>({ key: null, direction: 'asc' });
+  const [clientInfoSortConfig, setClientInfoSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
   const [clientInfoSearch, setClientInfoSearch] = useState('');
   const [clientTypeFilter, setClientTypeFilter] = useState('all');
   const [showClientDetailsDialog, setShowClientDetailsDialog] = useState(false);
@@ -220,11 +220,21 @@ const ClientInformationTab = () => {
     getTabAccess(activeTab).unwrap();
   }, [visibleTabs, activeTab]);
   const handleClientInfoSort = (key: string) => {
-    let direction: 'asc' | 'desc' = 'asc';
-    if (clientInfoSortConfig.key === key && clientInfoSortConfig.direction === 'asc') {
-      direction = 'desc';
+    setClientInfoSortConfig(current => {
+      if (current?.key === key) {
+        return current.direction === 'desc'
+          ? { key, direction: 'asc' }
+          : null;
+      }
+      return { key, direction: 'desc' };
+    });
+  };
+
+  const getSortIcon = (key: string) => {
+    if (clientInfoSortConfig?.key !== key) {
+      return <ArrowUpDown className="ml-1 !h-3 !w-3 opacity-50" />;
     }
-    setClientInfoSortConfig({ key, direction });
+    return <ArrowUpDown className={`ml-1 !h-3 !w-3 ${clientInfoSortConfig.direction === 'desc' ? 'rotate-180' : ''}`} />;
   };
 
   // Filter and sort client info
@@ -248,15 +258,19 @@ const ClientInformationTab = () => {
     }
 
     // Apply sorting
-    if (!clientInfoSortConfig.key) return filtered;
+    if (!clientInfoSortConfig?.key) return filtered;
 
     return [...filtered].sort((a: any, b: any) => {
       let aValue: any;
       let bValue: any;
+      let isNumeric = false;
 
       if (clientInfoSortConfig.key === 'name') {
-        aValue = a.name;
-        bValue = b.name;
+        aValue = a.name || '';
+        bValue = b.name || '';
+      } else if (clientInfoSortConfig.key === 'clientRef') {
+        aValue = a.clientRef || '';
+        bValue = b.clientRef || '';
       } else if (clientInfoSortConfig.key === 'clientManager') {
         aValue = a.clientManager || '';
         bValue = b.clientManager || '';
@@ -267,8 +281,8 @@ const ClientInformationTab = () => {
         aValue = a.businessTypeId?.name || '';
         bValue = b.businessTypeId?.name || '';
       } else if (clientInfoSortConfig.key === 'customerNumber') {
-        aValue = a.taxNumber;
-        bValue = b.taxNumber;
+        aValue = a.taxNumber || '';
+        bValue = b.taxNumber || '';
       } else if (clientInfoSortConfig.key === 'yearEnd') {
         aValue = a.yearEnd || '';
         bValue = b.yearEnd || '';
@@ -276,26 +290,57 @@ const ClientInformationTab = () => {
         aValue = a.audit ? 'Yes' : 'No';
         bValue = b.audit ? 'Yes' : 'No';
       } else if (clientInfoSortConfig.key === 'arDate') {
-        aValue = a.arDate ? new Date(a.arDate).getTime() : 0;
-        bValue = b.arDate ? new Date(b.arDate).getTime() : 0;
+        isNumeric = true;
+        aValue = a.arDate ? new Date(a.arDate).getTime() : -Infinity;
+        bValue = b.arDate ? new Date(b.arDate).getTime() : -Infinity;
+      } else if (clientInfoSortConfig.key === 'croNumber') {
+        aValue = a.croNumber || '';
+        bValue = b.croNumber || '';
+      } else if (clientInfoSortConfig.key === 'croLink') {
+        aValue = a.croLink || '';
+        bValue = b.croLink || '';
+      } else if (clientInfoSortConfig.key === 'address') {
+        aValue = a.address || '';
+        bValue = b.address || '';
+      } else if (clientInfoSortConfig.key === 'phone') {
+        aValue = a.phone || '';
+        bValue = b.phone || '';
+      } else if (clientInfoSortConfig.key === 'phoneNote') {
+        aValue = a.phoneNote || '';
+        bValue = b.phoneNote || '';
+      } else if (clientInfoSortConfig.key === 'email') {
+        aValue = a.email || '';
+        bValue = b.email || '';
+      } else if (clientInfoSortConfig.key === 'emailNote') {
+        aValue = a.emailNote || '';
+        bValue = b.emailNote || '';
+      } else if (clientInfoSortConfig.key === 'onboardedDate') {
+        isNumeric = true;
+        aValue = a.onboardedDate ? new Date(a.onboardedDate).getTime() : -Infinity;
+        bValue = b.onboardedDate ? new Date(b.onboardedDate).getTime() : -Infinity;
+      } else if (clientInfoSortConfig.key === 'amlCompliant') {
+        aValue = a.amlCompliant ? 'Yes' : 'No';
+        bValue = b.amlCompliant ? 'Yes' : 'No';
       } else {
-        aValue = a[clientInfoSortConfig.key as keyof typeof a];
-        bValue = b[clientInfoSortConfig.key as keyof typeof b];
+        const rawA = a[clientInfoSortConfig.key as keyof typeof a];
+        const rawB = b[clientInfoSortConfig.key as keyof typeof b];
+        aValue = rawA != null ? rawA : '';
+        bValue = rawB != null ? rawB : '';
       }
 
-      if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return clientInfoSortConfig.direction === 'asc'
-          ? aValue.localeCompare(bValue)
-          : bValue.localeCompare(aValue);
+      // Handle numeric comparison
+      if (isNumeric) {
+        const result = aValue - bValue;
+        return clientInfoSortConfig.direction === 'asc' ? result : -result;
       }
 
-      if (typeof aValue === 'number' && typeof bValue === 'number') {
-        return clientInfoSortConfig.direction === 'asc'
-          ? aValue - bValue
-          : bValue - aValue;
-      }
+      // Convert to strings for comparison
+      const strA = String(aValue || '').toLowerCase().trim();
+      const strB = String(bValue || '').toLowerCase().trim();
 
-      return 0;
+      // Compare strings
+      const comparison = strA.localeCompare(strB, undefined, { numeric: true, sensitivity: 'base' });
+      return clientInfoSortConfig.direction === 'asc' ? comparison : -comparison;
     });
   }, [processedClientInfo, clientInfoSearch, clientTypeFilter, clientInfoSortConfig]);
 
@@ -586,8 +631,16 @@ const ClientInformationTab = () => {
                     else if (key === 'taxNumber') sortKey = 'customerNumber';
                     else if (key === 'yearEnd') sortKey = 'yearEnd';
                     else if (key === 'audit') sortKey = 'audit';
+                    else if (key === 'croNumber') sortKey = 'croNumber';
                     else if (key === 'croLink') sortKey = 'croLink';
                     else if (key === 'arDate') sortKey = 'arDate';
+                    else if (key === 'address') sortKey = 'address';
+                    else if (key === 'phone') sortKey = 'phone';
+                    else if (key === 'phoneNote') sortKey = 'phoneNote';
+                    else if (key === 'email') sortKey = 'email';
+                    else if (key === 'emailNote') sortKey = 'emailNote';
+                    else if (key === 'onboardedDate') sortKey = 'onboardedDate';
+                    else if (key === 'amlCompliant') sortKey = 'amlCompliant';
                     else sortKey = key;
 
                     return (
@@ -596,10 +649,10 @@ const ClientInformationTab = () => {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleClientInfoSort(sortKey)}
-                          className="h-8 px-1 font-medium justify-start text-[12px]  hover:bg-transparent hover:text-inherit"
+                          className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit !text-[#381980]"
                         >
                           {columnDisplayNames[key]}
-                          <ArrowUpDown className="ml-1 !h-3 !w-3" />
+                          {getSortIcon(sortKey)}
                         </Button>
                       </TableHead>
                     );

@@ -54,9 +54,6 @@ export const validateAddress = (address: string): string | null => {
 };
 
 export const validateEmail = (email: string): string | null => {
-    if (!email || !email.trim()) {
-        return 'Email is required';
-    }
     // Email is optional, only validate format if provided
     if (email && email.trim() && email.trim() !== 'N/A' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
         return 'Please enter a valid email address';

@@ -35,6 +35,7 @@ const Avatars = ({ activeTab, title }: AvatarsProps) => {
   const [showExpenseTypeDialog, setShowExpenseTypeDialog] = useState(false);
   const [showAddClientExpense, setShowAddClientExpense] = useState(false);
   const [showAddTeamExpense, setShowAddTeamExpense] = useState(false);
+  const [selectedValue, setSelectedValue] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     if (activeTab) {
@@ -97,48 +98,77 @@ const Avatars = ({ activeTab, title }: AvatarsProps) => {
     </div> */}
 
      <div className="custom-dn">
-        <Select onValueChange={(v) => {
-          if (v === '1') setShowTimeLogPopup(true);
-          if (v === '2') setShowAddClient(true);
-          if (v === '3') setShowAddJob(true);
-          if (v === '4') setShowExpenseTypeDialog(true);
-        }}> 
-                    <SelectTrigger className="bg-[#017DB9] w-[120px] text-[16px] text-white py-[8px] px-[12px] rounded-[4px] flex items-center gap-[4px] font-semibold h-auto">
-                      <SelectValue placeholder="Create" />
-                    </SelectTrigger>
-                    <SelectContent className='sel-custom-dp bg-[#381980] text-white [&_div:focus]:bg-[#fff] [&_div:focus]:text-[#381980]'>
-                      {/* <SelectItem value="all-clients">Create</SelectItem> */}
-                      <SelectItem value="1" className="p-2 hover:!bg-[#017DB9] hover:!text-white">Time Log</SelectItem>
-                      <SelectItem value="2" className="p-2 hover:!bg-[#017DB9] hover:!text-white">Client</SelectItem>
-                      <SelectItem value="3" className="p-2 hover:!bg-[#017DB9] hover:!text-white">Job</SelectItem>
-                      <SelectItem value="4" className="p-2 hover:!bg-[#017DB9] hover:!text-white">Expense</SelectItem>
-                    </SelectContent>
-                  </Select>
+        <Select 
+          value={selectedValue}
+          onValueChange={(v) => {
+            setSelectedValue(v);
+            if (v === '1') setShowTimeLogPopup(true);
+            if (v === '2') setShowAddClient(true);
+            if (v === '3') setShowAddJob(true);
+            if (v === '4') setShowExpenseTypeDialog(true);
+          }}
+        > 
+          <SelectTrigger className="bg-[#017DB9] w-[120px] text-[16px] text-white py-[8px] px-[12px] rounded-[4px] flex items-center gap-[4px] font-semibold h-auto">
+            <SelectValue placeholder="Create" />
+          </SelectTrigger>
+          <SelectContent className='sel-custom-dp bg-[#381980] text-white [&_div:focus]:bg-[#fff] [&_div:focus]:text-[#381980] [&_span:first-child]:hidden'>
+            <SelectItem value="1" className="p-2 pl-2 hover:!bg-[#017DB9] hover:!text-white">Time Log</SelectItem>
+            <SelectItem value="2" className="p-2 pl-2 hover:!bg-[#017DB9] hover:!text-white">Client</SelectItem>
+            <SelectItem value="3" className="p-2 pl-2 hover:!bg-[#017DB9] hover:!text-white">Job</SelectItem>
+            <SelectItem value="4" className="p-2 pl-2 hover:!bg-[#017DB9] hover:!text-white">Expense</SelectItem>
+          </SelectContent>
+        </Select>
      </div>
 
      {/* Time Log Popup (render directly like in AllTimeLogsTab) */}
      {showTimeLogPopup && (
-       <TimeLogPopup onClose={() => setShowTimeLogPopup(false)} />
+       <TimeLogPopup onClose={() => {
+         setShowTimeLogPopup(false);
+         setSelectedValue(undefined);
+       }} />
      )}
 
      {/* Add Client Popup (reusing Clients page component) */}
-     <AddClient dialogOpen={showAddClient} setDialogOpen={setShowAddClient} />
+     <AddClient 
+       dialogOpen={showAddClient} 
+       setDialogOpen={(open) => {
+         setShowAddClient(open);
+         if (!open) setSelectedValue(undefined);
+       }} 
+     />
 
      {/* Add Job Popup (reuse JobForm inside a dialog) */}
-     <Dialog open={showAddJob} onOpenChange={setShowAddJob}>
+     <Dialog open={showAddJob} onOpenChange={(open) => {
+       setShowAddJob(open);
+       if (!open) setSelectedValue(undefined);
+     }}>
        <DialogContent className="max-w-xl !rounded-none p-0 border-none for-close">
-        <button className=" bg-[#381980] text-white absolute right-[-35px] top-0 p-[6px] rounded-full max-sm:hidden"><X size={16}/></button>
+        <button 
+          onClick={() => {
+            setShowAddJob(false);
+            setSelectedValue(undefined);
+          }}
+          className=" bg-[#381980] text-white absolute right-[-35px] top-0 p-[6px] rounded-full max-sm:hidden"
+        >
+          <X size={16}/>
+        </button>
          <DialogHeader className="bg-[#381980] sticky z-50 top-0 left-0 w-full text-center ">
            <DialogTitle className="text-center text-white py-4">Add New Job</DialogTitle>
          </DialogHeader>
          <div className="space-y-6 form-change ">
-          <JobForm  job={null} onSubmit={() => {}} onCancel={() => setShowAddJob(false)} />
+          <JobForm  job={null} onSubmit={() => {}} onCancel={() => {
+            setShowAddJob(false);
+            setSelectedValue(undefined);
+          }} />
          </div>
        </DialogContent>
      </Dialog>
 
      {/* Expense Type Selection Dialog */}
-     <Dialog open={showExpenseTypeDialog} onOpenChange={setShowExpenseTypeDialog}>
+     <Dialog open={showExpenseTypeDialog} onOpenChange={(open) => {
+       setShowExpenseTypeDialog(open);
+       if (!open) setSelectedValue(undefined);
+     }}>
        <DialogContent className="max-w-md">
          <DialogHeader>
            <DialogTitle>Select Expense Type</DialogTitle>
@@ -148,6 +178,7 @@ const Avatars = ({ activeTab, title }: AvatarsProps) => {
              onClick={() => {
                setShowExpenseTypeDialog(false);
                setShowAddClientExpense(true);
+               setSelectedValue(undefined);
              }}
              className="w-full p-4 border-2 border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors text-left"
            >
@@ -158,6 +189,7 @@ const Avatars = ({ activeTab, title }: AvatarsProps) => {
              onClick={() => {
                setShowExpenseTypeDialog(false);
                setShowAddTeamExpense(true);
+               setSelectedValue(undefined);
              }}
              className="w-full p-4 border-2 border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors text-left"
            >
@@ -171,14 +203,20 @@ const Avatars = ({ activeTab, title }: AvatarsProps) => {
      {/* Client Expense Form */}
      <ExpenseFormDialog 
        isOpen={showAddClientExpense} 
-       onClose={() => setShowAddClientExpense(false)} 
+       onClose={() => {
+         setShowAddClientExpense(false);
+         setSelectedValue(undefined);
+       }} 
        expenseType="client" 
      />
 
      {/* Team Expense Form */}
      <ExpenseFormDialog 
        isOpen={showAddTeamExpense} 
-       onClose={() => setShowAddTeamExpense(false)} 
+       onClose={() => {
+         setShowAddTeamExpense(false);
+         setSelectedValue(undefined);
+       }} 
        expenseType="team" 
      />
     </div>

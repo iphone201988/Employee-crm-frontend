@@ -50,7 +50,7 @@ const WriteOffMergedTab = () => {
   console.log("WriteOffMergedTab");
   const [activeFilter, setActiveFilter] = useState<'clients' | 'jobs' | 'job-type' | 'team'>('clients');
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortConfig, setSortConfig] = useState<{ key: string | null; direction: 'asc' | 'desc' }>({ key: null, direction: 'desc' });
+  const [sortConfig, setSortConfig] = useState<{ key: string | null; direction: 'asc' | 'desc' } | null>(null);
   const [selectedOccasions, setSelectedOccasions] = useState<{ name: string; occasions: number; details: WriteOffDetail[] } | null>(null);
   const [selectedJobs, setSelectedJobs] = useState<{ name: string; jobs: string[] } | null>(null);
   const [showLogView, setShowLogView] = useState(false);
@@ -186,11 +186,21 @@ const WriteOffMergedTab = () => {
   };
 
   const handleSort = (key: string) => {
-    let direction: 'asc' | 'desc' = 'desc';
-    if (sortConfig.key === key && sortConfig.direction === 'desc') {
-      direction = 'asc';
+    setSortConfig(current => {
+      if (current?.key === key) {
+        return current.direction === 'desc'
+          ? { key, direction: 'asc' }
+          : null;
+      }
+      return { key, direction: 'desc' };
+    });
+  };
+
+  const getSortIcon = (key: string) => {
+    if (sortConfig?.key !== key) {
+      return <ArrowUpDown className="ml-1 !h-3 !w-3 opacity-50" />;
     }
-    setSortConfig({ key, direction });
+    return <ArrowUpDown className={`ml-1 !h-3 !w-3 ${sortConfig.direction === 'desc' ? 'rotate-180' : ''}`} />;
   };
 
   const getFilteredAndSortedData = () => {
@@ -207,7 +217,7 @@ const WriteOffMergedTab = () => {
     }
 
     // Apply sorting
-    if (sortConfig.key) {
+    if (sortConfig?.key) {
       data = [...data].sort((a, b) => {
         const aValue = a[sortConfig.key as keyof WriteOffMergedData];
         const bValue = b[sortConfig.key as keyof WriteOffMergedData];
@@ -896,10 +906,10 @@ const WriteOffMergedTab = () => {
                         variant="ghost"
                         size="sm"
                         onClick={() => handleSort('ref')}
-                        className="h-8 px-1 font-medium justify-start text-[12px]"
+                        className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit"
                       >
                         Client Ref.
-                        <ArrowUpDown className="ml-1 !h-3 !w-3" />
+                        {getSortIcon('ref')}
                       </Button>
                     </TableHead>
                   )}
@@ -908,12 +918,12 @@ const WriteOffMergedTab = () => {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleSort('name')}
-                      className="h-8 px-1 font-medium justify-start text-[12px]"
+                      className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit"
                     >
                       {activeFilter === 'clients' ? 'Client Name' :
                         activeFilter === 'jobs' ? 'Job Name' :
                           activeFilter === 'job-type' ? 'Service Type' : 'Team Member'}
-                      <ArrowUpDown className="ml-1 !h-3 !w-3" />
+                      {getSortIcon('name')}
                     </Button>
                   </TableHead>
                   {activeFilter === 'jobs' && (
@@ -923,10 +933,10 @@ const WriteOffMergedTab = () => {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleSort('clientRef')}
-                          className="h-8 px-1 font-medium justify-start text-[12px]"
+                          className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit"
                         >
                           Client Ref.
-                          <ArrowUpDown className="ml-1 !h-3 !w-3" />
+                          {getSortIcon('clientRef')}
                         </Button>
                       </TableHead>
                       <TableHead className="text-left px-3">
@@ -934,10 +944,10 @@ const WriteOffMergedTab = () => {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleSort('clientName')}
-                          className="h-8 px-1 font-medium justify-start text-[12px]"
+                          className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit"
                         >
                           Client Name
-                          <ArrowUpDown className="ml-1 !h-3 !w-3" />
+                          {getSortIcon('clientName')}
                         </Button>
                       </TableHead>
                     </>
@@ -947,10 +957,10 @@ const WriteOffMergedTab = () => {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleSort('writeOffOccasions')}
-                      className="h-8 px-1 font-medium justify-start text-[12px]"
+                      className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit"
                     >
-                      Write-off Occasions’
-                      <ArrowUpDown className="ml-1 !h-3 !w-3" />
+                      Write-off Occasions'
+                      {getSortIcon('writeOffOccasions')}
                     </Button>
                   </TableHead>
                   <TableHead className="text-left px-3">
@@ -958,10 +968,10 @@ const WriteOffMergedTab = () => {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleSort('totalWriteOffValue')}
-                      className="h-8 px-1 font-medium justify-start text-[12px]"
+                      className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit"
                     >
                       Total Write Off Value
-                      <ArrowUpDown className="ml-1 !h-3 !w-3" />
+                      {getSortIcon('totalWriteOffValue')}
                     </Button>
                   </TableHead>
                   <TableHead className="text-left px-3">
@@ -969,10 +979,10 @@ const WriteOffMergedTab = () => {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleSort('noJobsWithWriteOff')}
-                      className="h-8 px-1 font-medium justify-start text-[12px]"
+                      className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit"
                     >
                       Jobs With Write Off
-                      <ArrowUpDown className="ml-1 !h-3 !w-3" />
+                      {getSortIcon('noJobsWithWriteOff')}
                     </Button>
                   </TableHead>
                   <TableHead className="text-left px-3">
@@ -980,10 +990,10 @@ const WriteOffMergedTab = () => {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleSort('totalFees')}
-                      className="h-8 px-1 font-medium justify-start text-[12px]"
+                      className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit"
                     >
                       Total Job Fees
-                      <ArrowUpDown className="ml-1 !h-3 !w-3" />
+                      {getSortIcon('totalFees')}
                     </Button>
                   </TableHead>
                   <TableHead className="text-left px-3">
@@ -991,10 +1001,10 @@ const WriteOffMergedTab = () => {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleSort('writeOffValue')}
-                      className="h-8 px-1 font-medium justify-start text-[12px]"
+                      className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit"
                     >
                       Write Off Value
-                      <ArrowUpDown className="ml-1 !h-3 !w-3" />
+                      {getSortIcon('writeOffValue')}
                     </Button>
                   </TableHead>
                   <TableHead className="text-left px-3">
@@ -1002,10 +1012,10 @@ const WriteOffMergedTab = () => {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleSort('percentageWriteOff')}
-                      className="h-8 px-1 font-medium justify-start text-[12px]"
+                      className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit"
                     >
                       % Write Off
-                      <ArrowUpDown className="ml-1 !h-3 !w-3" />
+                      {getSortIcon('percentageWriteOff')}
                     </Button>
                   </TableHead>
                 </TableRow>

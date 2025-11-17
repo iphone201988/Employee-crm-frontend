@@ -85,6 +85,15 @@ export interface GetTimesheetResponse {
   name?: string;
   avatarUrl?: string;
   rate?: number;
+  weeklyCapacity?: {
+    mon: number;
+    tue: number;
+    wed: number;
+    thu: number;
+    fri: number;
+    sat: number;
+    sun: number;
+  };
 }
 
 export interface GetTimesheetRequest {
@@ -303,6 +312,18 @@ export const timesheetApi = createApi({
         body,
       }),
       invalidatesTags: ['Timesheet'],
+      async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          // If timesheet is rejected, invalidate Auth to refresh user data (which will show newNotification)
+          if (arg.status === 'rejected') {
+            const { authApi } = await import('./authApi');
+            dispatch(authApi.util.invalidateTags(['Auth']));
+          }
+        } catch (error) {
+          console.error('Failed to change timesheet status', error);
+        }
+      },
     }),
     listTimeLogs: builder.query<ListTimeLogsResponse, ListTimeLogsRequest | void>({
       query: (args) => {

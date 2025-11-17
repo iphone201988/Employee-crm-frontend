@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 import { DashboardCard, DashboardGrid } from "@/components/ui/dashboard-card";
 import { formatCurrency } from '@/lib/currency';
+import { ArrowUpDown } from 'lucide-react';
 import ClientNameLink from './ClientNameLink';
 import ClientDetailsDialog from '@/components/ClientDetailsDialog';
 import { useGetClientQuery } from '@/store/clientApi';
@@ -23,6 +25,7 @@ interface AgedWIPEntry {
 
 const AgedWIPTab = () => {
   const { data, isLoading } = useGetAgedWipQuery();
+  const [sortConfig, setSortConfig] = useState<{ key: keyof AgedWIPEntry; direction: 'asc' | 'desc' } | null>(null);
 
   const agedWIPData: AgedWIPEntry[] = (data?.data?.clients || []).map((c: any) => ({
     clientId: c.clientId,
@@ -40,6 +43,41 @@ const AgedWIPTab = () => {
   const [selectedClientId, setSelectedClientId] = React.useState<string | null>(null);
   const [showClientDetailsDialog, setShowClientDetailsDialog] = React.useState(false);
   const { data: selectedClientData } = useGetClientQuery(selectedClientId as string, { skip: !selectedClientId });
+
+  const handleSort = (key: keyof AgedWIPEntry) => {
+    setSortConfig(current => {
+      if (current?.key === key) {
+        return current.direction === 'desc'
+          ? { key, direction: 'asc' }
+          : null;
+      }
+      return { key, direction: 'desc' };
+    });
+  };
+
+  const getSortIcon = (key: keyof AgedWIPEntry) => {
+    if (sortConfig?.key !== key) {
+      return <ArrowUpDown className="ml-1 !h-3 !w-3 opacity-50" />;
+    }
+    return <ArrowUpDown className={`ml-1 !h-3 !w-3 ${sortConfig.direction === 'desc' ? 'rotate-180' : ''}`} />;
+  };
+
+  const sortedData = useMemo(() => {
+    if (!sortConfig) return agedWIPData;
+    return [...agedWIPData].sort((a, b) => {
+      const aValue = a[sortConfig.key];
+      const bValue = b[sortConfig.key];
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        return sortConfig.direction === 'asc' ? aValue - bValue : bValue - aValue;
+      }
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortConfig.direction === 'asc' 
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue);
+      }
+      return 0;
+    });
+  }, [agedWIPData, sortConfig]);
 
   const totals = data?.data?.summary ? {
     wipBalance: data.data.summary.totalWIPBalance,
@@ -105,19 +143,91 @@ const AgedWIPTab = () => {
             <Table>
               <TableHeader>
                 <TableRow className=' !bg-[#edecf4] text-[#381980]'>
-                  <TableHead className="font-medium">Client Ref</TableHead>
-                  <TableHead className="font-medium">Client Name</TableHead>
-                  <TableHead className="font-medium text-right">WIP Balance</TableHead>
-                  <TableHead className="font-medium text-right">30 Days</TableHead>
-                  <TableHead className="font-medium text-right">60 Days</TableHead>
-                  <TableHead className="font-medium text-right">90 Days</TableHead>
-                  <TableHead className="font-medium text-right">120 Days</TableHead>
-                  <TableHead className="font-medium text-right">150 Days</TableHead>
-                  <TableHead className="font-medium text-right">180 Days +</TableHead>
+                  <TableHead className="font-medium">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort('clientRef')}
+                      className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit !text-[#381980]"
+                    >
+                      Client Ref {getSortIcon('clientRef')}
+                    </Button>
+                  </TableHead>
+                  <TableHead className="font-medium">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort('clientName')}
+                      className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit !text-[#381980]"
+                    >
+                      Client Name {getSortIcon('clientName')}
+                    </Button>
+                  </TableHead>
+                  <TableHead className="font-medium text-right">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort('wipBalance')}
+                      className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit !text-[#381980]"
+                    >
+                      WIP Balance {getSortIcon('wipBalance')}
+                    </Button>
+                  </TableHead>
+                  <TableHead className="font-medium text-right">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort('days30')}
+                      className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit !text-[#381980]"
+                    >
+                      30 Days {getSortIcon('days30')}
+                    </Button>
+                  </TableHead>
+                  <TableHead className="font-medium text-right">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort('days60')}
+                      className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit !text-[#381980]"
+                    >
+                      60 Days {getSortIcon('days60')}
+                    </Button>
+                  </TableHead>
+                  <TableHead className="font-medium text-right">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort('days90')}
+                      className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit !text-[#381980]"
+                    >
+                      90 Days {getSortIcon('days90')}
+                    </Button>
+                  </TableHead>
+                  <TableHead className="font-medium text-right">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort('days120')}
+                      className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit !text-[#381980]"
+                    >
+                      120 Days {getSortIcon('days120')}
+                    </Button>
+                  </TableHead>
+                  <TableHead className="font-medium text-right">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort('days150')}
+                      className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit !text-[#381980]"
+                    >
+                      150 Days {getSortIcon('days150')}
+                    </Button>
+                  </TableHead>
+                  <TableHead className="font-medium text-right">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort('days180Plus')}
+                      className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit !text-[#381980]"
+                    >
+                      180 Days + {getSortIcon('days180Plus')}
+                    </Button>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {agedWIPData.map((entry) => (
+                {sortedData.map((entry) => (
                   <TableRow key={entry.clientRef} className="hover:bg-muted/50">
                     <TableCell className="font-medium px-4">{entry.clientRef}</TableCell>
                     <TableCell className='px-4'>
@@ -198,4 +308,6 @@ const AgedWIPTab = () => {
 };
 
 export default AgedWIPTab;
+
+
 

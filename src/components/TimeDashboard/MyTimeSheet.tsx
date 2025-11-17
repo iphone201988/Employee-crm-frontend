@@ -523,6 +523,12 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
         });
     };
 
+    // Helper to check if timesheet can be edited
+    const canEditTimesheet = useMemo(() => {
+        if (!timesheet?.status) return true; // No timesheet yet, allow editing
+        return timesheet.status === 'draft' || timesheet.status === 'rejected';
+    }, [timesheet?.status]);
+
     // Calculate totals using memoized function
     const totals = useMemo(() => calculateTotals(timesheetRows), [timesheetRows]);
 
@@ -552,56 +558,154 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
         };
     }, [timesheet, totals]);
 
+    const dayKeys = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
+
+    const weeklyCapacitySeconds = useMemo(() => {
+        const schedule = timesheetData?.weeklyCapacity;
+        const defaultWeekday = hoursToSeconds(8);
+        return {
+            mon: schedule?.mon ?? defaultWeekday,
+            tue: schedule?.tue ?? defaultWeekday,
+            wed: schedule?.wed ?? defaultWeekday,
+            thu: schedule?.thu ?? defaultWeekday,
+            fri: schedule?.fri ?? defaultWeekday,
+            sat: schedule?.sat ?? defaultWeekday,
+            sun: schedule?.sun ?? defaultWeekday,
+        };
+    }, [timesheetData?.weeklyCapacity]);
+
+    // Calculate daily summary from timesheetRows
+    const dailySummary = useMemo(() => {
+        // If API has dailySummary and no rows, use it but override capacity from schedule
+        if (timesheet?.dailySummary && timesheetRows.length === 0) {
+            const apiSummary = getDailySummaryData(timesheet.dailySummary);
+            dayKeys.forEach(day => {
+                const capacityHours = secondsToHours(weeklyCapacitySeconds[day]);
+                apiSummary[day].capacity = capacityHours;
+                apiSummary[day].variance = capacityHours - apiSummary[day].logged;
+            });
+            return apiSummary;
+        }
+        
+        // Calculate from current rows
+        const summary = dayKeys.reduce((acc, day) => {
+            acc[day] = {
+                billable: 0,
+                nonBillable: 0,
+                logged: 0,
+                capacity: secondsToHours(weeklyCapacitySeconds[day]),
+                variance: 0,
+            };
+            return acc;
+        }, {} as Record<typeof dayKeys[number], { billable: number; nonBillable: number; logged: number; capacity: number; variance: number }>);
+        
+        // Sum up hours from all rows for each day
+        timesheetRows.forEach(row => {
+            dayKeys.forEach(day => {
+                const hours = row.hours[day] || 0;
+                
+                summary[day].logged += hours;
+                if (row.billable) {
+                    summary[day].billable += hours;
+                } else {
+                    summary[day].nonBillable += hours;
+                }
+            });
+        });
+
+        // Calculate variance for each day
+        dayKeys.forEach(day => {
+            summary[day].variance = summary[day].capacity - summary[day].logged;
+        });
+        
+        return summary;
+    }, [timesheetRows, timesheet?.dailySummary, weeklyCapacitySeconds]);
+
+    // Calculate totals from dailySummary for summary rows
+    const summaryTotals = useMemo(() => {
+        const dayKeys = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
+        let totalBillable = 0;
+        let totalNonBillable = 0;
+        let totalLogged = 0;
+        let totalCapacity = 0;
+        let totalVariance = 0;
+
+        dayKeys.forEach(day => {
+            const dayData = dailySummary[day];
+            totalBillable += dayData.billable;
+            totalNonBillable += dayData.nonBillable;
+            totalLogged += dayData.logged;
+            totalCapacity += dayData.capacity;
+            totalVariance += dayData.variance;
+        });
+
+        return {
+            billable: hoursToSeconds(totalBillable),
+            nonBillable: hoursToSeconds(totalNonBillable),
+            logged: hoursToSeconds(totalLogged),
+            capacity: hoursToSeconds(totalCapacity),
+            variance: hoursToSeconds(totalVariance),
+        };
+    }, [dailySummary]);
+
+    // Determine if variance should be green (logged > capacity, i.e., variance is negative)
+    const isVariancePositive = useMemo(() => {
+        return summaryTotals.logged > summaryTotals.capacity;
+    }, [summaryTotals.logged, summaryTotals.capacity]);
+
+    // Helper function to format variance (handles negative values)
+    const formatVariance = (varianceHours: number): string => {
+        const varianceSeconds = hoursToSeconds(Math.abs(varianceHours));
+        const formatted = formatSeconds(varianceSeconds);
+        // If variance is negative (logged > capacity), show as positive with indication
+        // If variance is positive (logged < capacity), show as is
+        return varianceHours < 0 ? `+${formatted}` : formatted;
+    };
+
     // Calculate real-time totals in seconds from current rows
     const realTimeTotals = useMemo(() => {
+        // Calculate total capacity from weekly schedule
+        const totalCapacitySeconds = Object.values(weeklyCapacitySeconds).reduce((sum, val) => sum + val, 0);
+        
         // If there are rows, use calculated totals (convert hours to seconds)
         if (timesheetRows.length > 0) {
             return {
                 billable: hoursToSeconds(totals.billable.total),
                 nonBillable: hoursToSeconds(totals.nonBillable.total),
                 logged: hoursToSeconds(totals.logged.total),
-                variance: hoursToSeconds(40 - totals.logged.total),
-                capacity: hoursToSeconds(40)
+                variance: totalCapacitySeconds - hoursToSeconds(totals.logged.total),
+                capacity: totalCapacitySeconds
             };
         }
-        // Otherwise use API data
+        // Otherwise use calculated from dailySummary
         return {
-            billable: timesheet?.totalBillable || 0,
-            nonBillable: timesheet?.totalNonBillable || 0,
-            logged: timesheet?.totalLogged || 0,
-            variance: timesheet?.totalVariance || 0,
-            capacity: timesheet?.totalCapacity || hoursToSeconds(40)
+            billable: summaryTotals.billable,
+            nonBillable: summaryTotals.nonBillable,
+            logged: summaryTotals.logged,
+            variance: summaryTotals.variance,
+            capacity: summaryTotals.capacity
         };
-    }, [timesheetRows.length, totals, timesheet]);
+    }, [timesheetRows.length, totals, weeklyCapacitySeconds, summaryTotals]);
 
     // Calculate real-time totals for percentage calculations (in hours)
     const realTimeTotalsHours = useMemo(() => {
+        const totalCapacityHours = secondsToHours(Object.values(weeklyCapacitySeconds).reduce((sum, val) => sum + val, 0));
+        
         if (timesheetRows.length > 0) {
             return {
                 billable: totals.billable.total,
                 nonBillable: totals.nonBillable.total,
                 logged: totals.logged.total,
-                variance: 40 - totals.logged.total
+                variance: totalCapacityHours - totals.logged.total
             };
         }
-        return apiTotals;
-    }, [timesheetRows.length, totals, apiTotals]);
-
-    // Get daily summary data from API
-    const dailySummary = useMemo(() => {
-        // if (timesheet?.dailySummary) {
-        //     return getDailySummaryData(timesheet.dailySummary);
-        // }
         return {
-            mon: { billable: 0, nonBillable: 0, logged: 0, capacity: 0, variance: 0 },
-            tue: { billable: 0, nonBillable: 0, logged: 0, capacity: 0, variance: 0 },
-            wed: { billable: 0, nonBillable: 0, logged: 0, capacity: 0, variance: 0 },
-            thu: { billable: 0, nonBillable: 0, logged: 0, capacity: 0, variance: 0 },
-            fri: { billable: 0, nonBillable: 0, logged: 0, capacity: 0, variance: 0 },
-            sat: { billable: 0, nonBillable: 0, logged: 0, capacity: 0, variance: 0 },
-            sun: { billable: 0, nonBillable: 0, logged: 0, capacity: 0, variance: 0 },
+            billable: secondsToHours(summaryTotals.billable),
+            nonBillable: secondsToHours(summaryTotals.nonBillable),
+            logged: secondsToHours(summaryTotals.logged),
+            variance: secondsToHours(summaryTotals.variance)
         };
-    }, [timesheet?.dailySummary]);
+    }, [timesheetRows.length, totals, weeklyCapacitySeconds, summaryTotals]);
 
     // Helpers for week navigation
     const addDaysUTC = (iso: string, days: number) => {
@@ -745,9 +849,31 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                         console.error('Failed to submit timesheet for approval', e);
                                     }
                                 }}
-                                disabled={isSubmittingStatus}
+                                disabled={isSubmittingStatus || hasChanges}
                             >
                                 {isSubmittingStatus ? 'Submitting...' : 'Submit for Approval'}
+                    </Button>
+                        ) : timesheet?.status === 'rejected' ? (
+                            <Button
+                                variant="outline"
+                                className="text-blue-600 border-blue-600 hover:bg-blue-50 text-sm w-full sm:w-[180px] sm:min-w-[180px] whitespace-nowrap"
+                                onClick={async () => {
+                                    try {
+                                        if (!timesheet?._id) return;
+                                        // First save any changes if there are any
+                                        if (hasChanges) {
+                                            await handleSaveChanges();
+                                        }
+                                        // Then submit for approval
+                                        await changeTimesheetStatus({ status: 'reviewed', timeSheetId: timesheet._id }).unwrap();
+                                        await refetchTimesheet();
+                                    } catch (e) {
+                                        console.error('Failed to resubmit timesheet for approval', e);
+                                    }
+                                }}
+                                disabled={isSubmittingStatus || isLoading}
+                            >
+                                {isSubmittingStatus || isLoading ? 'Resubmitting...' : 'Resubmit for Approval'}
                     </Button>
                         ) : (
                             <div className="flex items-center px-3 py-1 border rounded text-sm w-full sm:w-[180px] sm:min-w-[180px] justify-end sm:justify-center">
@@ -756,7 +882,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                 {/^approved$/i.test(timesheet?.status || '') && <span className="text-green-600">Approved</span>}
                                 {/^rejected$/i.test(timesheet?.status || '') && <span className="text-red-600">Rejected</span>}
                                 {!['submitted', 'approved', 'rejected'].includes((timesheet?.status || '').toLowerCase()) && (
-                                    <span className="text-muted-foreground">{timesheet?.status === "reviewed" && "Submitted For Approval"}</span>
+                                    <span className="text-muted-foreground">{timesheet?.status === "reviewed" && "Submitted For Review"}</span>
                                 )}
                             </div>
                         )}
@@ -919,7 +1045,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                         variant="outline"
                         className="flex items-center justify-center gap-2 text-primary border-primary hover:bg-primary/10 h-9 text-sm"
                         onClick={handleAddRow}
-                        disabled={isLoading || (timesheet?.status && timesheet?.status !== 'draft')}
+                        disabled={isLoading || !canEditTimesheet}
                     >
                         <Plus className="w-4 h-4" />
                         New Row
@@ -928,7 +1054,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                         variant="outline"
                         className="flex items-center justify-center gap-2 text-primary border-primary hover:bg-primary/10 h-9 text-sm"
                         onClick={handleSaveChanges}
-                        disabled={!hasChanges || isLoading || (timesheet?.status && timesheet?.status !== 'draft')}
+                        disabled={!hasChanges || isLoading || !canEditTimesheet}
                     >
                         {isLoading ? (
                             <>
@@ -1137,7 +1263,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                     }} />
                                 </td>
                                 <td className="px-3 py-2 text-sm">
-                                        {billableRate ? <span className="text-sm">{'€' + billableRate}</span> : null}
+                                        {row.billable && billableRate ? <span className="text-sm">{'€' + billableRate}</span> : null}
                                 </td>
                                 <td className="px-3 py-2 text-center text-sm ">
                                         <Input 
@@ -1245,7 +1371,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                         {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].billable))}
                                     </td>
                                 ))}
-                                <td className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap w-20 min-w-[80px]">{formatSeconds(timesheet?.totalBillable || 0)}</td>
+                                <td className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap w-20 min-w-[80px]">{formatSeconds(summaryTotals.billable)}</td>
                             </tr>
                             <tr className="bg-gray-50">
                                 <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right">NON BILLABLE</td>
@@ -1264,7 +1390,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                         {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].nonBillable))}
                                     </td>
                                 ))}
-                                <td className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap w-20 min-w-[80px]">{formatSeconds(timesheet?.totalNonBillable || 0)}</td>
+                                <td className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap w-20 min-w-[80px]">{formatSeconds(summaryTotals.nonBillable)}</td>
                             </tr>
                             <tr className="bg-blue-50">
                                 <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right">LOGGED</td>
@@ -1283,7 +1409,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                         {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].logged))}
                                     </td>
                                 ))}
-                                <td className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap w-20 min-w-[80px]">{formatSeconds(timesheet?.totalLogged || 0)}</td>
+                                <td className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap w-20 min-w-[80px]">{formatSeconds(summaryTotals.logged)}</td>
                             </tr>
                             <tr className="bg-gray-100">
                                 <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right">CAPACITY</td>
@@ -1302,26 +1428,38 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                         {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].capacity))}
                                     </td>
                                 ))}
-                                <td className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap w-20 min-w-[80px]">{formatSeconds(timesheet?.totalCapacity || 0)}</td>
+                                <td className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap w-20 min-w-[80px]">{formatSeconds(summaryTotals.capacity)}</td>
                             </tr>
-                            <tr className="bg-red-50">
+                            <tr className={isVariancePositive ? "bg-green-50" : "bg-red-50"}>
                                 <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right">VARIANCE</td>
-                                {weekDays.slice(1, 6).map((day, index) => (
-                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap">
-                                        {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].variance))}
-                                    </td>
-                                ))}
-                                {!hideWeekend && weekDays.slice(6).map((day, index) => (
-                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap">
-                                        {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].variance))}
-                                    </td>
-                                ))}
-                                {!hideWeekend && weekDays.slice(0, 1).map((day, index) => (
-                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap">
-                                        {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].variance))}
-                                    </td>
-                                ))}
-                                <td className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap w-20 min-w-[80px]">{formatSeconds(timesheet?.totalVariance || 0)}</td>
+                                {weekDays.slice(1, 6).map((day, index) => {
+                                    const dayData = dailySummary[day.key as keyof typeof dailySummary];
+                                    const dayVariancePositive = dayData.logged > dayData.capacity;
+                                    return (
+                                        <td key={day.key} className={`px-3 py-2 text-center text-sm font-normal whitespace-nowrap ${dayVariancePositive ? 'bg-green-100' : ''}`}>
+                                            {formatVariance(dayData.variance)}
+                                        </td>
+                                    );
+                                })}
+                                {!hideWeekend && weekDays.slice(6).map((day, index) => {
+                                    const dayData = dailySummary[day.key as keyof typeof dailySummary];
+                                    const dayVariancePositive = dayData.logged > dayData.capacity;
+                                    return (
+                                        <td key={day.key} className={`px-3 py-2 text-center text-sm font-normal whitespace-nowrap ${dayVariancePositive ? 'bg-green-100' : ''}`}>
+                                            {formatVariance(dayData.variance)}
+                                        </td>
+                                    );
+                                })}
+                                {!hideWeekend && weekDays.slice(0, 1).map((day, index) => {
+                                    const dayData = dailySummary[day.key as keyof typeof dailySummary];
+                                    const dayVariancePositive = dayData.logged > dayData.capacity;
+                                    return (
+                                        <td key={day.key} className={`px-3 py-2 text-center text-sm font-normal whitespace-nowrap ${dayVariancePositive ? 'bg-green-100' : ''}`}>
+                                            {formatVariance(dayData.variance)}
+                                        </td>
+                                    );
+                                })}
+                                <td className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap w-20 min-w-[80px]">{formatVariance(secondsToHours(summaryTotals.variance))}</td>
                             </tr>
                         </tbody>
                     </table>

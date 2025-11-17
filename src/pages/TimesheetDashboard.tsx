@@ -783,7 +783,7 @@ export function TimesheetDashboard() {
           >
             All Timesheets
           </button>
-          <button
+          {/* <button
             onClick={() => setActiveFilter("not-submitted")}
             className={`px-4 py-2 text-sm font-medium transition-colors  ${activeFilter === "not-submitted"
               ? 'bg-[#381980] text-white'
@@ -791,7 +791,7 @@ export function TimesheetDashboard() {
               }`}
           >
             Not Submitted
-          </button>
+          </button> */}
           {autoApproveTimesheets && (
             <button
               onClick={() => setActiveFilter("autoApproved")}

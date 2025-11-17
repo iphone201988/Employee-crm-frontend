@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingDown, AlertTriangle, Calendar, FileDown } from 'lucide-react';
+import { TrendingDown, AlertTriangle, Calendar, FileDown, ArrowUpDown } from 'lucide-react';
 import ClientNameLink from './ClientNameLink';
 import ClientDetailsDialog from './ClientDetailsDialog';
 import InvoiceTimeLogsDialog from './InvoiceTimeLogsDialog';
@@ -206,6 +206,7 @@ const AgedDebtorsTab = () => {
 
   const [sortBy, setSortBy] = useState<string>('balance');
   const [filterPeriod, setFilterPeriod] = useState<string>('all');
+  const [sortConfig, setSortConfig] = useState<{ key: keyof AgedDebtorEntry; direction: 'asc' | 'desc' } | null>(null);
 
   const handleClientClick = (clientName: string) => {
     setSelectedClient(clientName);
@@ -379,18 +380,54 @@ const AgedDebtorsTab = () => {
     return agedDebtors;
   }, [agedResp]);
 
-  const sortedEntries = [...entries].sort((a, b) => {
-    switch (sortBy) {
-      case 'balance':
-        return b.balance - a.balance;
-      case 'client':
-        return a.client.localeCompare(b.client);
-      case 'oldest':
-        return (b.days180 + b.days150 + b.days120) - (a.days180 + a.days150 + a.days120);
-      default:
-        return 0;
+  const handleSort = (key: keyof AgedDebtorEntry) => {
+    setSortConfig(current => {
+      if (current?.key === key) {
+        return current.direction === 'desc'
+          ? { key, direction: 'asc' }
+          : null;
+      }
+      return { key, direction: 'desc' };
+    });
+  };
+
+  const getSortIcon = (key: keyof AgedDebtorEntry) => {
+    if (sortConfig?.key !== key) {
+      return <ArrowUpDown className="ml-1 !h-3 !w-3 opacity-50" />;
     }
-  });
+    return <ArrowUpDown className={`ml-1 !h-3 !w-3 ${sortConfig.direction === 'desc' ? 'rotate-180' : ''}`} />;
+  };
+
+  const sortedEntries = useMemo(() => {
+    if (sortConfig) {
+      return [...entries].sort((a, b) => {
+        const aValue = a[sortConfig.key];
+        const bValue = b[sortConfig.key];
+        if (typeof aValue === 'number' && typeof bValue === 'number') {
+          return sortConfig.direction === 'asc' ? aValue - bValue : bValue - aValue;
+        }
+        if (typeof aValue === 'string' && typeof bValue === 'string') {
+          return sortConfig.direction === 'asc' 
+            ? aValue.localeCompare(bValue)
+            : bValue.localeCompare(aValue);
+        }
+        return 0;
+      });
+    }
+    // Fallback to old sortBy logic if no sortConfig
+    return [...entries].sort((a, b) => {
+      switch (sortBy) {
+        case 'balance':
+          return b.balance - a.balance;
+        case 'client':
+          return a.client.localeCompare(b.client);
+        case 'oldest':
+          return (b.days180 + b.days150 + b.days120) - (a.days180 + a.days150 + a.days120);
+        default:
+          return 0;
+      }
+    });
+  }, [entries, sortConfig, sortBy]);
 
   return (
     <div className="space-y-6">
@@ -438,15 +475,87 @@ const AgedDebtorsTab = () => {
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="border-b !bg-[#edecf4] !text-[#381980] ">
-                  <th className="text-left p-3 font-medium text-foreground h-12 !text-[#381980] text-[12px]">Client Ref.</th>
-                  <th className="text-left p-3 font-medium text-foreground h-12 !text-[#381980] text-[12px]">Client</th>
-                  <th className="text-right p-3 font-medium text-foreground h-12 !text-[#381980] text-[12px]">Balance</th>
-                  <th className="text-right p-3 font-medium text-foreground h-12 !text-[#381980] text-[12px]">30 Days</th>
-                  <th className="text-right p-3 font-medium text-foreground h-12 !text-[#381980] text-[12px]">60 Days</th>
-                  <th className="text-right p-3 font-medium text-foreground h-12 !text-[#381980] text-[12px]">90 Days</th>
-                  <th className="text-right p-3 font-medium text-foreground h-12 !text-[#381980] text-[12px]">120 Days</th>
-                  <th className="text-right p-3 font-medium text-foreground h-12 !text-[#381980] text-[12px]">150 Days</th>
-                  <th className="text-right p-3 font-medium text-foreground h-12 !text-[#381980] text-[12px]">180 Days</th>
+                  <th className="text-left p-3 font-medium text-foreground h-12 !text-[#381980] text-[12px]">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort('clientRef')}
+                      className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit !text-[#381980]"
+                    >
+                      Client Ref. {getSortIcon('clientRef')}
+                    </Button>
+                  </th>
+                  <th className="text-left p-3 font-medium text-foreground h-12 !text-[#381980] text-[12px]">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort('client')}
+                      className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit !text-[#381980]"
+                    >
+                      Client {getSortIcon('client')}
+                    </Button>
+                  </th>
+                  <th className="text-right p-3 font-medium text-foreground h-12 !text-[#381980] text-[12px]">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort('balance')}
+                      className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit !text-[#381980]"
+                    >
+                      Balance {getSortIcon('balance')}
+                    </Button>
+                  </th>
+                  <th className="text-right p-3 font-medium text-foreground h-12 !text-[#381980] text-[12px]">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort('days30')}
+                      className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit !text-[#381980]"
+                    >
+                      30 Days {getSortIcon('days30')}
+                    </Button>
+                  </th>
+                  <th className="text-right p-3 font-medium text-foreground h-12 !text-[#381980] text-[12px]">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort('days60')}
+                      className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit !text-[#381980]"
+                    >
+                      60 Days {getSortIcon('days60')}
+                    </Button>
+                  </th>
+                  <th className="text-right p-3 font-medium text-foreground h-12 !text-[#381980] text-[12px]">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort('days90')}
+                      className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit !text-[#381980]"
+                    >
+                      90 Days {getSortIcon('days90')}
+                    </Button>
+                  </th>
+                  <th className="text-right p-3 font-medium text-foreground h-12 !text-[#381980] text-[12px]">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort('days120')}
+                      className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit !text-[#381980]"
+                    >
+                      120 Days {getSortIcon('days120')}
+                    </Button>
+                  </th>
+                  <th className="text-right p-3 font-medium text-foreground h-12 !text-[#381980] text-[12px]">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort('days150')}
+                      className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit !text-[#381980]"
+                    >
+                      150 Days {getSortIcon('days150')}
+                    </Button>
+                  </th>
+                  <th className="text-right p-3 font-medium text-foreground h-12 !text-[#381980] text-[12px]">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort('days180')}
+                      className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit !text-[#381980]"
+                    >
+                      180 Days {getSortIcon('days180')}
+                    </Button>
+                  </th>
                 </tr>
               </thead>
               <tbody>

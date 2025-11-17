@@ -109,7 +109,12 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({ isOpen, on
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-xl !rounded-none p-0 border-none for-close">
-        <button className=" bg-[#381980] text-white absolute right-[-35px] top-0 p-[6px] rounded-full max-sm:hidden"><X size={16}/></button>
+        <button 
+          onClick={onClose}
+          className=" bg-[#381980] text-white absolute right-[-35px] top-0 p-[6px] rounded-full max-sm:hidden"
+        >
+          <X size={16}/>
+        </button>
         <DialogHeader className="bg-[#381980] sticky z-50 top-0 left-0 w-full text-center ">
           <DialogTitle className="text-center text-white py-4">Add {expenseType === 'client' ? 'Client' : 'Team'} Expense</DialogTitle>
         </DialogHeader>

@@ -11,6 +11,7 @@ import {
   Pencil,
   GroupIcon,
   ArrowLeft,
+  Bell,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -21,7 +22,10 @@ import {
   useGetCurrentUserQuery,
   useUpdateProfileImageMutation,
 } from "../store/authApi";
-import { useRef, ChangeEvent, useMemo } from "react";
+import { useRef, ChangeEvent, useMemo, useState } from "react";
+import { useLazyGetNotificationsQuery, useMarkNotificationAsReadMutation, Notification } from "@/store/notificationApi";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
 import { store } from "@/store/store";
 import { authApi } from "@/store/authApi";
 import { categoryApi } from "@/store/categoryApi";
@@ -55,9 +59,15 @@ export function Sidebar({ onClose }: SidebarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [logout, { isLoading: isLoggingOut }] = useLogoutMutation();
-  const { data: user }: any = useGetCurrentUserQuery();
+  const { data: user, refetch: refetchUser }: any = useGetCurrentUserQuery(undefined, {
+    // Refetch user data every 30 seconds to check for new notifications
+    pollingInterval: 30000,
+  });
   const [updateProfileImage, { isLoading: isUploading }] =
     useUpdateProfileImageMutation();
+  const [getNotifications, { data: notificationsData, isLoading: isLoadingNotifications }] = useLazyGetNotificationsQuery();
+  const [markNotificationAsRead] = useMarkNotificationAsReadMutation();
+  const [showNotifications, setShowNotifications] = useState(false);
 
   const loggedInUser = user?.data;
   const logdInUserRole = loggedInUser?.role;
@@ -178,9 +188,88 @@ export function Sidebar({ onClose }: SidebarProps) {
               accept="image/png, image/jpeg, image/gif"
             />
           </div>
-          <span className="text-sidebar-foreground font-medium">
-            {loggedInUser?.name}
-          </span>
+          <div className="flex items-center gap-2 flex-1">
+            <span className="text-sidebar-foreground font-medium">
+              {loggedInUser?.name}
+            </span>
+            {/* Bell icon - only show for users (not company role) */}
+            {loggedInUser?.role !== 'company' && (
+              <Popover open={showNotifications} onOpenChange={(open) => {
+                setShowNotifications(open);
+                if (open) {
+                  getNotifications();
+                }
+              }}>
+                <PopoverTrigger asChild>
+                  <button
+                    className="relative p-1 bg-white hover:bg-sidebar-accent/50 rounded ml-auto"
+                    onClick={() => {
+                      setShowNotifications(true);
+                      getNotifications();
+                    }}
+                  >
+                    <Bell className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                    {(loggedInUser?.newNotification) && (
+                      <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-600 rounded-full border-2 border-white shadow-sm"></span>
+                    )}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 p-0" align="start">
+                  <div className="p-4 border-b">
+                    <h3 className="font-semibold text-sm">Notifications</h3>
+                  </div>
+                  <div className="max-h-96 overflow-y-auto">
+                    {isLoadingNotifications ? (
+                      <div className="p-4 text-center text-sm text-muted-foreground">
+                        Loading notifications...
+                      </div>
+                    ) : notificationsData?.data?.notifications?.length === 0 ? (
+                      <div className="p-4 text-center text-sm text-muted-foreground">
+                        No notifications
+                      </div>
+                    ) : (
+                      <div className="divide-y">
+                        {notificationsData?.data?.notifications?.map((notification: Notification) => (
+                          <div
+                            key={notification._id}
+                            className={`p-4 cursor-pointer hover:bg-muted/50 transition-colors ${!notification.isRead ? 'bg-blue-50/50' : ''}`}
+                            onClick={async () => {
+                              if (!notification.isRead) {
+                                try {
+                                  await markNotificationAsRead(notification._id).unwrap();
+                                } catch (error) {
+                                  console.error('Failed to mark notification as read', error);
+                                }
+                              }
+                            }}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="flex-1">
+                                <p className="text-sm font-medium">{notification.title}</p>
+                                <p className="text-xs text-muted-foreground mt-1">{notification.message}</p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {new Date(notification.createdAt).toLocaleDateString('en-US', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </p>
+                              </div>
+                              {!notification.isRead && (
+                                <span className="h-2 w-2 bg-blue-500 rounded-full mt-1 flex-shrink-0"></span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
+          </div>
         </div>
 
         <nav className="flex-1 px-4 py-6 space-y-2">

@@ -219,7 +219,12 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
     return (
         <Dialog  open={dialogOpen} onOpenChange={handleDialogClose} >
             <DialogContent className="max-w-xl  h-[80vh] !rounded-none p-0 border-none for-close">
-                <button className=" bg-[#381980] text-white absolute right-[-35px] top-0 p-[6px] rounded-full max-sm:hidden"><X size={16}/></button>
+                <button 
+                    onClick={() => handleDialogClose(false)}
+                    className=" bg-[#381980] text-white absolute right-[-35px] top-0 p-[6px] rounded-full max-sm:hidden"
+                >
+                    <X size={16}/>
+                </button>
                 <DialogHeader className="bg-[#381980] sticky z-50 top-0 left-0 w-full text-center ">
                     <DialogTitle className="text-center text-white py-4">{editMode ? 'Edit Client' : 'Add Client'}</DialogTitle>
                 </DialogHeader>
@@ -434,12 +439,12 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
                         <h3 className="text-lg font-semibold text-gray-800">Contact Information</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <InputComponent
-                                label="Email"
+                                label="Email (Optional)"
                                 id="email"
                                 type="email"
                                 value={formData.email}
                                 onChange={handleInputChange('email')}
-                                placeholder="Enter email address"
+                                placeholder="Enter email address or leave as N/A"
                                 error={errors.email}
                             />
                             <InputComponent

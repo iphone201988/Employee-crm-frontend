@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
-import { ChevronUp, ChevronDown, Clock } from 'lucide-react';
+import { ChevronUp, ChevronDown, Clock, ArrowUpDown } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency';
 import ActiveExpensesDialog from './ActiveExpensesDialog';
 import WIPBalanceDialog from './WIPBalanceDialog';
@@ -77,8 +77,7 @@ interface Client {
 
 const ClientsTab = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [sortField, setSortField] = useState<'clientRef' | 'name' | 'balance' | 'wipAmount' | 'services' | 'timeLogged' | 'writeOff'>('balance');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [sortConfig, setSortConfig] = useState<{ key: 'clientRef' | 'name' | 'balance' | 'wipAmount' | 'services' | 'timeLogged' | 'writeOff'; direction: 'asc' | 'desc' } | null>(null);
   const [hideZeroBalances, setHideZeroBalances] = useState(false);
   const [clients, setClients] = useState<Client[]>([]);
   const [newJob, setNewJob] = useState({ name: '', type: '' });
@@ -184,22 +183,42 @@ const ClientsTab = () => {
   console.log('==================dfgdfgdfgkjdfgjkdgjkdfhgjkdhgjkdfghjkdfgfilteredClientsfilteredClientsfilteredClients', filteredClients)
   // Sort clients
   const sortedClients = useMemo(() => {
+    if (!sortConfig) return filteredClients;
     return [...filteredClients].sort((a, b) => {
-      if (sortField === 'name' || sortField === 'clientRef') {
-        const aValue = a[sortField];
-        const bValue = b[sortField];
-        return sortDirection === 'asc'
-          ? aValue.localeCompare(bValue)
-          : bValue.localeCompare(aValue);
+      let aValue: any;
+      let bValue: any;
+      let isNumeric = false;
+      
+      if (sortConfig.key === 'name' || sortConfig.key === 'clientRef') {
+        aValue = a[sortConfig.key] || '';
+        bValue = b[sortConfig.key] || '';
+      } else if (sortConfig.key === 'timeLogged') {
+        isNumeric = true;
+        aValue = a.jobs.reduce((total, job) => total + (job.logged || 0), 0);
+        bValue = b.jobs.reduce((total, job) => total + (job.logged || 0), 0);
+      } else if (sortConfig.key === 'balance' || sortConfig.key === 'wipAmount' || sortConfig.key === 'writeOff') {
+        isNumeric = true;
+        aValue = Number(a[sortConfig.key] || 0);
+        bValue = Number(b[sortConfig.key] || 0);
       } else {
-        const aValue = a[sortField] as number;
-        const bValue = b[sortField] as number;
-        return sortDirection === 'asc'
-          ? aValue - bValue
-          : bValue - aValue;
+        // Default to string comparison
+        aValue = a[sortConfig.key] || '';
+        bValue = b[sortConfig.key] || '';
       }
+
+      // Handle numeric comparison
+      if (isNumeric) {
+        const result = Number(aValue) - Number(bValue);
+        return sortConfig.direction === 'asc' ? result : -result;
+      }
+
+      // Handle string comparison
+      const strA = String(aValue || '').toLowerCase().trim();
+      const strB = String(bValue || '').toLowerCase().trim();
+      const comparison = strA.localeCompare(strB, undefined, { numeric: true, sensitivity: 'base' });
+      return sortConfig.direction === 'asc' ? comparison : -comparison;
     });
-  }, [filteredClients, sortField, sortDirection]);
+  }, [filteredClients, sortConfig]);
 
   const totalBalance = breakdownResp?.data?.summary?.totalOutstanding ?? effectiveClients.reduce((sum, client) => sum + client.balance, 0);
   const totalWipAmount = breakdownResp?.data?.summary?.totalWipAmount ?? effectiveClients.reduce((sum, client) => sum + client.wipAmount, 0);
@@ -207,17 +226,21 @@ const ClientsTab = () => {
   const totalExpenses = breakdownResp?.data?.summary?.totalExpenses ?? effectiveClients.reduce((sum, client) => sum + (client.totalExpenses || 0), 0);
 
   const handleSort = (field: 'clientRef' | 'name' | 'balance' | 'wipAmount' | 'services' | 'timeLogged' | 'writeOff') => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection(field === 'name' || field === 'clientRef' ? 'asc' : 'desc'); // Default desc for amounts, asc for names/refs
-    }
+    setSortConfig(current => {
+      if (current?.key === field) {
+        return current.direction === 'desc'
+          ? { key: field, direction: 'asc' }
+          : null;
+      }
+      return { key: field, direction: 'desc' };
+    });
   };
 
   const getSortIcon = (field: 'clientRef' | 'name' | 'balance' | 'wipAmount' | 'services' | 'timeLogged' | 'writeOff') => {
-    if (sortField !== field) return null;
-    return sortDirection === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />;
+    if (sortConfig?.key !== field) {
+      return <ArrowUpDown className="ml-1 !h-3 !w-3 opacity-50" />;
+    }
+    return <ArrowUpDown className={`ml-1 !h-3 !w-3 ${sortConfig.direction === 'desc' ? 'rotate-180' : ''}`} />;
   };
 
   const handleViewDebtorsLog = (clientId: string) => {
@@ -322,89 +345,65 @@ const ClientsTab = () => {
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="border-b border-border !bg-[#edecf4] text-[#381980]">
-                  <th
-                    className="text-left p-3 font-medium text-foreground h-12 cursor-pointer hover:bg-muted/70 transition-colors border-r"
-                    onClick={() => handleSort('clientRef')}
-                  >
-                    <div className="flex items-center gap-1 text-[12px] text-[#381980]">
-                      Client Ref.
-                      {getSortIcon('clientRef')}
-                    </div>
+                  <th className="text-left p-3 font-medium text-foreground h-12 border-r">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort('clientRef')}
+                      className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit !text-[#381980]"
+                    >
+                      Client Ref. {getSortIcon('clientRef')}
+                    </Button>
                   </th>
-                  <th
-                    className="text-left p-3 font-medium text-foreground h-12 cursor-pointer hover:bg-muted/70 transition-colors border-r"
-                    onClick={() => handleSort('name')}
-                  >
-                    <div className="flex items-center gap-1 text-[12px] text-[#381980]">
-                      Client Name
-                      {getSortIcon('name')}
-                    </div>
+                  <th className="text-left p-3 font-medium text-foreground h-12 border-r">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort('name')}
+                      className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit !text-[#381980]"
+                    >
+                      Client Name {getSortIcon('name')}
+                    </Button>
                   </th>
                   <th className="text-center p-3 font-medium text-foreground h-12 border-r text-[12px] !text-[#381980]">Jobs</th>
                   
-                  <th
-                    className="text-center p-3 font-medium text-foreground h-12 border-r cursor-pointer hover:bg-muted/70 transition-colors"
-                    onClick={() => handleSort('timeLogged')}
-                  >
-                    <div className="flex items-center justify-center gap-1 text-[12px] text-[#381980]">
-                      Time Logged
-                      {getSortIcon('timeLogged')}
-                    </div>
+                  <th className="text-center p-3 font-medium text-foreground h-12 border-r">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort('timeLogged')}
+                      className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit !text-[#381980]"
+                    >
+                      Time Logged {getSortIcon('timeLogged')}
+                    </Button>
                   </th>
-                  <th
-                    className="text-center p-3 font-medium text-foreground h-12 border-r cursor-pointer hover:bg-muted/70 transition-colors"
-                    onClick={() => handleSort('name')}
-                  >
-                    <div className="flex items-center justify-center gap-1 text-[12px] text-[#381980]">
-                      Notes
-                      {getSortIcon('name')}
-                    </div>
+                  <th className="text-center p-3 font-medium text-foreground h-12 border-r text-[12px] !text-[#381980]">Notes</th>
+                  <th className="text-right p-3 font-medium text-foreground h-12 border-r">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort('wipAmount')}
+                      className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit !text-[#381980]"
+                    >
+                      WIP Balance {getSortIcon('wipAmount')}
+                    </Button>
                   </th>
-                  <th
-                    className="text-right p-3 font-medium text-foreground h-12 border-r cursor-pointer hover:bg-muted/70 transition-colors"
-                    onClick={() => handleSort('wipAmount')}
-                  >
-                    <div className="flex items-center justify-end gap-1 text-[12px] text-[#381980]">
-                      WIP Balance
-                      {getSortIcon('wipAmount')}
-                    </div>
+                  <th className="text-right p-3 font-medium text-foreground h-12 border-r text-[12px] !text-[#381980]">Invoices</th>
+                  <th className="text-right p-3 font-medium text-foreground h-12 border-r">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort('writeOff')}
+                      className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit !text-[#381980]"
+                    >
+                      Write Off € {getSortIcon('writeOff')}
+                    </Button>
                   </th>
-                  <th
-                    className="text-right p-3 font-medium text-foreground h-12 border-r cursor-pointer hover:bg-muted/70 transition-colors"
-                    onClick={() => handleSort('name')}
-                  >
-                    <div className="flex items-center justify-end gap-1 text-[12px] text-[#381980]">
-                      Invoices
-                      {getSortIcon('name')}
-                    </div>
+                  <th className="text-right p-3 font-medium text-foreground h-12 border-r">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort('balance')}
+                      className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit !text-[#381980]"
+                    >
+                      Balance {getSortIcon('balance')}
+                    </Button>
                   </th>
-                  <th
-                    className="text-right p-3 font-medium text-foreground h-12 border-r cursor-pointer hover:bg-muted/70 transition-colors"
-                    onClick={() => handleSort('writeOff')}
-                  >
-                    <div className="flex items-center justify-end gap-1 text-[12px] text-[#381980]">
-                      Write Off €
-                      {getSortIcon('writeOff')}
-                    </div>
-                  </th>
-                  <th
-                    className="text-right p-3 font-medium text-foreground h-12 border-r cursor-pointer hover:bg-muted/70 transition-colors"
-                    onClick={() => handleSort('balance')}
-                  >
-                    <div className="flex items-center justify-end gap-1 text-[12px] text-[#381980]">
-                      Balance
-                      {getSortIcon('balance')}
-                    </div>
-                  </th>
-                  <th
-                    className="text-right p-3 font-medium text-foreground h-12 border-r cursor-pointer hover:bg-muted/70 transition-colors"
-                    onClick={() => handleSort('name')}
-                  >
-                    <div className="flex items-center justify-end gap-1 text-[12px] text-[#381980]">
-                      Expenses
-                      {getSortIcon('name')}
-                    </div>
-                  </th>
+                  <th className="text-right p-3 font-medium text-foreground h-12 border-r text-[12px] !text-[#381980]">Expenses</th>
                   <th className="text-center p-3 font-medium text-foreground h-12 text-[12px] !text-[#381980]">Actions</th>
                 </tr>
               </thead>

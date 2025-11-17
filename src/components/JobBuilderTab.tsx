@@ -181,7 +181,7 @@ const JobBuilderTab = () => {
               <TabsTrigger value="for-review">For Review ({getTabCounts()["for-review"]})</TabsTrigger>
               <TabsTrigger value="built">Built ({getTabCounts().built})</TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value={activeTab} className="space-y-4 pt-3">
               <div className="overflow-x-auto">
                 <Table className="responsive-table">
@@ -195,7 +195,7 @@ const JobBuilderTab = () => {
                       <TableHead className="w-[10%]">Recurring</TableHead>
                       <TableHead className="w-[10%]">Recurring Logic</TableHead>
                       <TableHead className="w-[10%]">Kick-off Date</TableHead>
-                      <TableHead className="w-[10%]">Apply Template</TableHead>
+                      {/* <TableHead className="w-[10%]">Apply Template</TableHead> */}
                       <TableHead className="w-[15%] text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -205,15 +205,15 @@ const JobBuilderTab = () => {
                       return client.jobs.map((job, jobIndex) => {
                         const isEditing = editingJobId === job.id;
                         const isRowDisabled = activeTab === "built" && !isEditing;
-                        
+
                         return (
                           <React.Fragment key={`${originalClientIndex}-${job.id}`}>
                             {jobIndex === 0 && (
-                                <div className="client-header-mobile">
-                                    {client.clientName} ({client.jobCount})
-                                </div>
+                              <div className="client-header-mobile">
+                                {client.clientName} ({client.jobCount})
+                              </div>
                             )}
-                            <TableRow 
+                            <TableRow
                               className={isRowDisabled ? "opacity-50" : ""}
                             >
                               {jobIndex === 0 && (
@@ -226,70 +226,70 @@ const JobBuilderTab = () => {
                                   {client.jobCount}
                                 </TableCell>
                               )}
-                               <TableCell data-label="Job Type">{job.type}</TableCell>
-                               <TableCell data-label="Job Manager">
-                                 {activeTab === "loaded" ? (
-                                   <Select defaultValue={job.manager} disabled={isRowDisabled}>
-                                     <SelectTrigger className="w-full h-9">
-                                       <SelectValue>
-                                         <div className="flex items-center justify-end lg:justify-start gap-2">
-                                           <Avatar className="h-6 w-6">
-                                             <AvatarImage src={getProfileImage(job.manager)} alt={job.manager} />
-                                             <AvatarFallback className="text-xs">{getUserInitials(job.manager)}</AvatarFallback>
-                                           </Avatar>
-                                           <span className="text-sm truncate">{job.manager}</span>
-                                         </div>
-                                       </SelectValue>
-                                     </SelectTrigger>
-                                     <SelectContent>
-                                       {TEAM_MEMBER_NAMES.map((member) => (
-                                         <SelectItem key={member} value={member}>
-                                           <div className="flex items-center gap-2">
-                                             <Avatar className="h-6 w-6">
-                                               <AvatarImage src={getProfileImage(member)} alt={member} />
-                                               <AvatarFallback className="text-xs">{getUserInitials(member)}</AvatarFallback>
-                                             </Avatar>
-                                             <span>{member}</span>
-                                           </div>
-                                         </SelectItem>
-                                       ))}
-                                     </SelectContent>
-                                   </Select>
-                                 ) : (
-                                   <div className="flex items-center justify-end lg:justify-start gap-2">
-                                     <Avatar className="h-6 w-6">
-                                       <AvatarImage src={getProfileImage(job.manager)} alt={job.manager} />
-                                       <AvatarFallback className="text-xs">{getUserInitials(job.manager)}</AvatarFallback>
-                                     </Avatar>
-                                     <span className="text-sm truncate">{job.manager}</span>
-                                   </div>
-                                 )}
-                               </TableCell>
-                                <TableCell data-label="Job Fee">
-                                  <input 
-                                    type="number" 
-                                    placeholder="€0.00"
-                                    className="w-full h-9 px-2 border border-input rounded-md text-sm disabled:opacity-50 text-right lg:text-left"
-                                    disabled={isRowDisabled}
-                                    defaultValue=""
-                                    step="0.01"
-                                    min="0"
-                                    onBlur={(e) => {
-                                      if (e.target.value && !isNaN(Number(e.target.value))) {
-                                        e.target.value = `€${Number(e.target.value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-                                      }
-                                    }}
-                                    onFocus={(e) => {
-                                      if (e.target.value.startsWith('€')) {
-                                        e.target.value = e.target.value.replace(/[€,]/g, '');
-                                      }
-                                    }}
-                                  />
-                                </TableCell>
+                              <TableCell data-label="Job Type">{job.type}</TableCell>
+                              <TableCell data-label="Job Manager">
+                                {activeTab === "loaded" ? (
+                                  <Select defaultValue={job.manager} disabled={isRowDisabled}>
+                                    <SelectTrigger className="w-full h-9">
+                                      <SelectValue>
+                                        <div className="flex items-center justify-end lg:justify-start gap-2">
+                                          <Avatar className="h-6 w-6">
+                                            <AvatarImage src={getProfileImage(job.manager)} alt={job.manager} />
+                                            <AvatarFallback className="text-xs">{getUserInitials(job.manager)}</AvatarFallback>
+                                          </Avatar>
+                                          <span className="text-sm truncate">{job.manager}</span>
+                                        </div>
+                                      </SelectValue>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {TEAM_MEMBER_NAMES.map((member) => (
+                                        <SelectItem key={member} value={member}>
+                                          <div className="flex items-center gap-2">
+                                            <Avatar className="h-6 w-6">
+                                              <AvatarImage src={getProfileImage(member)} alt={member} />
+                                              <AvatarFallback className="text-xs">{getUserInitials(member)}</AvatarFallback>
+                                            </Avatar>
+                                            <span>{member}</span>
+                                          </div>
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                ) : (
+                                  <div className="flex items-center justify-end lg:justify-start gap-2">
+                                    <Avatar className="h-6 w-6">
+                                      <AvatarImage src={getProfileImage(job.manager)} alt={job.manager} />
+                                      <AvatarFallback className="text-xs">{getUserInitials(job.manager)}</AvatarFallback>
+                                    </Avatar>
+                                    <span className="text-sm truncate">{job.manager}</span>
+                                  </div>
+                                )}
+                              </TableCell>
+                              <TableCell data-label="Job Fee">
+                                <input
+                                  type="number"
+                                  placeholder="€0.00"
+                                  className="w-full h-9 px-2 border border-input rounded-md text-sm disabled:opacity-50 text-right lg:text-left"
+                                  disabled={isRowDisabled}
+                                  defaultValue=""
+                                  step="0.01"
+                                  min="0"
+                                  onBlur={(e) => {
+                                    if (e.target.value && !isNaN(Number(e.target.value))) {
+                                      e.target.value = `€${Number(e.target.value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                                    }
+                                  }}
+                                  onFocus={(e) => {
+                                    if (e.target.value.startsWith('€')) {
+                                      e.target.value = e.target.value.replace(/[€,]/g, '');
+                                    }
+                                  }}
+                                />
+                              </TableCell>
                               <TableCell data-label="Recurring">
-                              <Select defaultValue={job.recurring} disabled={isRowDisabled}>
-                                <SelectTrigger className="w-full h-9">
-                                  <SelectValue />
+                                <Select defaultValue={job.recurring} disabled={isRowDisabled}>
+                                  <SelectTrigger className="w-full h-9">
+                                    <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
                                     <SelectItem value="Weekly">Weekly</SelectItem>
@@ -301,9 +301,9 @@ const JobBuilderTab = () => {
                                 </Select>
                               </TableCell>
                               <TableCell data-label="Recurring Logic">
-                              <Select defaultValue={job.recurringLogic} disabled={isRowDisabled}>
-                                <SelectTrigger className="w-full h-9">
-                                  <SelectValue />
+                                <Select defaultValue={job.recurringLogic} disabled={isRowDisabled}>
+                                  <SelectTrigger className="w-full h-9">
+                                    <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
                                     <SelectItem value="1st Jan every Y">1st Jan every Y</SelectItem>
@@ -318,18 +318,18 @@ const JobBuilderTab = () => {
                                   </SelectContent>
                                 </Select>
                               </TableCell>
-                               <TableCell data-label="Kick-off Date">
-                               <input 
-                                 type="date" 
-                                 className="w-full h-9 px-2 border border-input rounded-md text-sm disabled:opacity-50 text-right lg:text-left"
-                                 disabled={isRowDisabled}
-                                 defaultValue="2024-01-01"
-                               />
-                               </TableCell>
-                              <TableCell data-label="Apply Template">
-                              <Select defaultValue={job.template} disabled={isRowDisabled}>
-                                <SelectTrigger className="w-full h-9">
-                                  <SelectValue />
+                              <TableCell data-label="Kick-off Date">
+                                <input
+                                  type="date"
+                                  className="w-full h-9 px-2 border border-input rounded-md text-sm disabled:opacity-50 text-right lg:text-left"
+                                  disabled={isRowDisabled}
+                                  defaultValue="2024-01-01"
+                                />
+                              </TableCell>
+                              {/* <TableCell data-label="Apply Template">
+                                <Select defaultValue={job.template} disabled={isRowDisabled}>
+                                  <SelectTrigger className="w-full h-9">
+                                    <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
                                     <SelectItem value="IT-100">IT-100</SelectItem>
@@ -340,12 +340,12 @@ const JobBuilderTab = () => {
                                     <SelectItem value="CT-100">CT-100</SelectItem>
                                   </SelectContent>
                                 </Select>
-                              </TableCell>
+                              </TableCell> */}
                               <TableCell data-label="Actions" className="text-right">
                                 <div className="flex items-center justify-end gap-1">
                                   {jobIndex === 0 && (
-                                    <Button 
-                                      size="sm" 
+                                    <Button
+                                      size="sm"
                                       variant="outline"
                                       onClick={() => addJob(originalClientIndex)}
                                       className="h-8 w-8 p-0"
@@ -353,8 +353,8 @@ const JobBuilderTab = () => {
                                       <Plus className="h-4 w-4" />
                                     </Button>
                                   )}
-                                  <Button 
-                                    size="sm" 
+                                  <Button
+                                    size="sm"
                                     variant="outline"
                                     onClick={() => removeJob(originalClientIndex, job.id)}
                                     className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
@@ -362,7 +362,7 @@ const JobBuilderTab = () => {
                                     <Minus className="h-4 w-4" />
                                   </Button>
                                   <Button
-                                    size="sm" 
+                                    size="sm"
                                     className={`h-8 px-2 ${activeTab === "built" ? "bg-blue-600 hover:bg-blue-700 text-white" : "bg-green-600 hover:bg-green-700 text-white"}`}
                                     onClick={() => {
                                       if (activeTab === "built") {

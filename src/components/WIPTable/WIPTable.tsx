@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { ChevronDown, ChevronRight, Check, X, AlertTriangle, ArrowRightLeft } from 'lucide-react';
+import { ChevronDown, ChevronRight, Check, X, AlertTriangle, ArrowRightLeft, ArrowUpDown } from 'lucide-react';
 import ActiveExpensesDialog from '@/components/ActiveExpensesDialog';
 import TimeLogsBreakdownDialog from '@/components/TimeLogsBreakdownDialog';
 import { formatCurrency } from '@/lib/currency';
@@ -309,6 +309,26 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
     setSelectedInvoiceData(null);
   };
 
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+
+  const handleSort = (key: string) => {
+    setSortConfig(current => {
+      if (current?.key === key) {
+        return current.direction === 'desc'
+          ? { key, direction: 'asc' }
+          : null;
+      }
+      return { key, direction: 'desc' };
+    });
+  };
+
+  const getSortIcon = (key: string) => {
+    if (sortConfig?.key !== key) {
+      return <ArrowUpDown className="ml-1 !h-3 !w-3 opacity-50" />;
+    }
+    return <ArrowUpDown className={`ml-1 !h-3 !w-3 ${sortConfig.direction === 'desc' ? 'rotate-180' : ''}`} />;
+  };
+
   // Filter data based on filters
   const filteredWipData = wipTableData.filter(client => {
     // Manual review filter
@@ -360,6 +380,50 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
     return passesTargetMetFilter;
   });
 
+  // Sort filtered data
+  const sortedWipData = useMemo(() => {
+    if (!sortConfig) return filteredWipData;
+    return [...filteredWipData].sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+      
+      switch (sortConfig.key) {
+        case 'clientName':
+          aValue = a.clientName;
+          bValue = b.clientName;
+          break;
+        case 'jobs':
+          aValue = a.jobs.length;
+          bValue = b.jobs.length;
+          break;
+        case 'wipBalance':
+          aValue = (a as any).clientWipBalance || 0;
+          bValue = (b as any).clientWipBalance || 0;
+          break;
+        case 'expenses':
+          aValue = a.activeExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+          bValue = b.activeExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+          break;
+        case 'lastInvoiced':
+          aValue = a.lastInvoiced ? new Date(a.lastInvoiced).getTime() : 0;
+          bValue = b.lastInvoiced ? new Date(b.lastInvoiced).getTime() : 0;
+          break;
+        default:
+          return 0;
+      }
+
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        return sortConfig.direction === 'asc' ? aValue - bValue : bValue - aValue;
+      }
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortConfig.direction === 'asc' 
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue);
+      }
+      return 0;
+    });
+  }, [filteredWipData, sortConfig]);
+
   // Get trigger options based on invoice level
   const getClientTriggerOptions = () => wipTargetAmountOptions;
 
@@ -375,11 +439,51 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
             <table className="w-full">
               <thead className="border-b">
                 <tr className='!bg-[#edecf4] text-[#381980]'>
-                  <th className="text-left p-4 font-medium text-[12px] text-[hsl(var(--table-header))]">Client Name / Job Name</th>
-                  <th className="text-center p-4 font-medium text-[12px] text-[hsl(var(--table-header))]">Jobs</th>
-                  <th className="text-left p-4 font-medium text-[12px] text-[hsl(var(--table-header))]">WIP Balance</th>
-                  <th className="text-center p-4 font-medium text-[12px] text-[hsl(var(--table-header))]">Expenses</th>
-                  <th className="text-center p-4 font-medium text-[12px] text-[hsl(var(--table-header))]">Last Invoiced</th>
+                  <th className="text-left p-4 font-medium text-[12px] text-[hsl(var(--table-header))]">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort('clientName')}
+                      className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit !text-[#381980]"
+                    >
+                      Client Name / Job Name {getSortIcon('clientName')}
+                    </Button>
+                  </th>
+                  <th className="text-center p-4 font-medium text-[12px] text-[hsl(var(--table-header))]">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort('jobs')}
+                      className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit !text-[#381980]"
+                    >
+                      Jobs {getSortIcon('jobs')}
+                    </Button>
+                  </th>
+                  <th className="text-left p-4 font-medium text-[12px] text-[hsl(var(--table-header))]">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort('wipBalance')}
+                      className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit !text-[#381980]"
+                    >
+                      WIP Balance {getSortIcon('wipBalance')}
+                    </Button>
+                  </th>
+                  <th className="text-center p-4 font-medium text-[12px] text-[hsl(var(--table-header))]">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort('expenses')}
+                      className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit !text-[#381980]"
+                    >
+                      Expenses {getSortIcon('expenses')}
+                    </Button>
+                  </th>
+                  <th className="text-center p-4 font-medium text-[12px] text-[hsl(var(--table-header))]">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort('lastInvoiced')}
+                      className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit !text-[#381980]"
+                    >
+                      Last Invoiced {getSortIcon('lastInvoiced')}
+                    </Button>
+                  </th>
                   <th className="text-center p-4 font-medium text-[12px] text-[hsl(var(--table-header))]">Invoice Level</th>
                   <th className="text-left p-4 font-medium text-[12px] text-[hsl(var(--table-header))]">WIP Target</th>
                   <th className="text-center p-4 font-medium text-[12px] text-[hsl(var(--table-header))]">WIP Target Met</th>
@@ -387,7 +491,7 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
                 </tr>
               </thead>
               <tbody>
-                {filteredWipData.map((client) => (
+                {sortedWipData.map((client) => (
                   <React.Fragment key={client.id}>
                     {/* Client Row */}
                     <tr className="border-b hover:bg-muted/50 bg-muted/20 h-14">

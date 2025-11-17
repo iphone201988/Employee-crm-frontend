@@ -42,6 +42,7 @@ const TimeLogPopup = ({ onClose, editingLog }: TimeLogPopupProps) => {
   const [selectedTeamId, setSelectedTeamId] = useState("");
   const [selectedPurposeId, setSelectedPurposeId] = useState("");
   const [durationSeconds, setDurationSeconds] = useState(0);
+  const [durationInput, setDurationInput] = useState<string | undefined>(undefined); // Track raw input for flexible editing
   const [billable, setBillable] = useState(false);
   const [rate, setRate] = useState('100');
   const [dateISO, setDateISO] = useState('');
@@ -86,12 +87,17 @@ const TimeLogPopup = ({ onClose, editingLog }: TimeLogPopupProps) => {
       setSelectedJobTypeId(jobType?.id || '');
       setSelectedTeamId(team?.id || '');
       setSelectedPurposeId(purpose?.id || '');
-      setDurationSeconds(Math.round(editingLog.hours * 3600));
+      const durationSec = Math.round(editingLog.hours * 3600);
+      setDurationSeconds(durationSec);
+      setDurationInput(undefined); // Clear raw input when editing - will be formatted on focus
       setBillable(editingLog.billable);
       setRate(editingLog.rate.toString());
       setDateISO(editingLog.date);
       setDescription(editingLog.description);
       setStatus(editingLog.status);
+    } else {
+      // Reset form when not editing
+      setDurationInput(undefined);
     }
   }, [editingLog, clientOptions, allJobOptions, jobTypeOptions, teamOptions, timePurposeOptions]);
 
@@ -133,6 +139,60 @@ const TimeLogPopup = ({ onClose, editingLog }: TimeLogPopupProps) => {
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: undefined }));
     }
+  };
+
+  // Helper functions for flexible duration input editing (matching MyTimeSheet pattern)
+  const getDurationInputValue = (): string => {
+    // If there's raw input, use it; otherwise format the value
+    if (durationInput !== undefined) {
+      return durationInput;
+    }
+    // Format the stored value
+    if (durationSeconds === 0) return "";
+    return secondsToTime(durationSeconds).replace(/-/g, ':'); // Convert dashes to colons for display
+  };
+
+  const handleDurationFocus = () => {
+    // If no raw input exists, initialize it with formatted value
+    if (durationInput === undefined) {
+      const formatted = durationSeconds === 0 ? "" : secondsToTime(durationSeconds).replace(/-/g, ':');
+      setDurationInput(formatted);
+    }
+  };
+
+  const handleDurationChange = (value: string) => {
+    // Store the raw input string
+    setDurationInput(value);
+    
+    // Parse and update the duration value in real-time
+    let parsedSeconds = 0;
+    if (value.trim() !== "") {
+      // Handle various formats: "3", "3:00", "03:00:00", "3:30", etc.
+      // timeToSeconds handles colon-separated formats
+      parsedSeconds = timeToSeconds(value);
+    }
+    
+    // Update the duration seconds immediately
+    setDurationSeconds(parsedSeconds);
+    handleFieldChange('duration', parsedSeconds);
+  };
+
+  const handleDurationBlur = () => {
+    // Get current raw value from state and parse it
+    const rawValue = durationInput || "";
+    let parsedSeconds = 0;
+    if (rawValue.trim() !== "") {
+      // Handle various formats: "3", "3:00", "03:00:00", "3:30", etc.
+      // timeToSeconds handles colon-separated formats
+      parsedSeconds = timeToSeconds(rawValue);
+    }
+    
+    // Update the duration seconds
+    setDurationSeconds(parsedSeconds);
+    handleFieldChange('duration', parsedSeconds);
+    
+    // Clear the raw input so it will be formatted on next render
+    setDurationInput(undefined);
   };
 
   const handleSubmit = async () => {
@@ -347,14 +407,11 @@ const TimeLogPopup = ({ onClose, editingLog }: TimeLogPopupProps) => {
                   id="duration"
                   type="text"
                   className={`bg-white border text-[#666666] px-[12px] py-[8px] rounded-sm ${errors.duration ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-[#eee]'}`}
-                  value={durationSeconds === 0 ? "" : secondsToTime(durationSeconds)}
-                  onChange={(e) => {
-                    const sec = timeToSeconds(e.target.value);
-                    const newDuration = Number.isFinite(sec) ? sec : 0;
-                    setDurationSeconds(newDuration);
-                    handleFieldChange('duration', newDuration);
-                  }}
-                  placeholder="HH:MM:SS"
+                  value={getDurationInputValue()}
+                  onChange={(e) => handleDurationChange(e.target.value)}
+                  onFocus={handleDurationFocus}
+                  onBlur={handleDurationBlur}
+                  placeholder="hh:mm:ss"
                 />
                 {errors.duration && (
                   <p className="mt-1 text-sm text-red-600">{errors.duration}</p>
