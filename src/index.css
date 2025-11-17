@@ -150,3 +150,24 @@ table thead tr th button{
 .arrow-up-fix thead tr th button svg {
     height: 12px;
 }
+
+
+ table tbody tr td button.text-blue-600.hover\:text-blue-800.hover\:underline.cursor-pointer.font-medium.text-left{
+  font-weight: 400 !important;
+  text-decoration: underline !important;
+  color: #71717a;
+  transition:  all .4s ease-in;
+ }
+  table tbody tr td button.text-blue-600.hover\:text-blue-800.hover\:underline.cursor-pointer.font-medium.text-left:hover{
+    text-decoration: none !important;
+  }
+
+  .bg-\[\#F3F4F6\].text-\[\#666666\].rounded-\[3px\].py-\[3px\].px-\[8px\].font-semibold.text-center {
+    width: 80px;
+    margin-inline: auto;
+}
+
+button.inline-flex.items-center.gap-2.whitespace-nowrap.ring-offset-background.transition-colors.focus-visible\:outline-none.focus-visible\:ring-2.focus-visible\:ring-ring.focus-visible\:ring-offset-2.disabled\:pointer-events-none.disabled\:opacity-50.\[\&_svg\]\:pointer-events-none.\[\&_svg\]\:size-4.\[\&_svg\]\:shrink-0.py-2.h-8.px-1.font-medium.justify-start.text-\[12px\].hover\:bg-transparent.hover\:text-inherit.\!text-\[\#381980\] {
+    padding: 0;
+    height: 16px;
+}

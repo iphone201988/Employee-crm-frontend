@@ -1075,7 +1075,7 @@ export function TimesheetDashboard() {
                           <AvatarImage src={import.meta.env.VITE_BACKEND_BASE_URL + item.avatarUrl || ''} />
                           <AvatarFallback className="text-xs">{item.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
                         </Avatar>
-                        <span className="text-sm sm:text-base text-foreground truncate">{item.name}</span>
+                        <span className="!text-[14px] sm:text-base text-foreground truncate">{item.name}</span>
                       </div>
                     </TableCell>
                     <TableCell className="p-4 text-sm text-muted-foreground">{item.department || '-'}</TableCell>
