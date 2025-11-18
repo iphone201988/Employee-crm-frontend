@@ -220,10 +220,13 @@ const ClientsTab = () => {
     });
   }, [filteredClients, sortConfig]);
 
-  const totalBalance = breakdownResp?.data?.summary?.totalOutstanding ?? effectiveClients.reduce((sum, client) => sum + client.balance, 0);
-  const totalWipAmount = breakdownResp?.data?.summary?.totalWipAmount ?? effectiveClients.reduce((sum, client) => sum + client.wipAmount, 0);
-  const totalWriteOffAmount = breakdownResp?.data?.summary?.totalWriteOffAmount ?? effectiveClients.reduce((sum, client) => sum + (client.writeOffAmount || 0), 0);
-  const totalExpenses = breakdownResp?.data?.summary?.totalExpenses ?? effectiveClients.reduce((sum, client) => sum + (client.totalExpenses || 0), 0);
+  const summaryData = breakdownResp?.data?.summary || {};
+  const totalClientsSummary = typeof summaryData.totalClients === 'number' ? summaryData.totalClients : effectiveClients.length;
+  const totalBalance = typeof summaryData.totalOutstanding === 'number' ? summaryData.totalOutstanding : effectiveClients.reduce((sum, client) => sum + client.balance, 0);
+  const totalWipAmount = typeof summaryData.totalWipAmount === 'number' ? summaryData.totalWipAmount : effectiveClients.reduce((sum, client) => sum + client.wipAmount, 0);
+  const totalWriteOffAmount = typeof summaryData.totalWriteOffAmount === 'number' ? summaryData.totalWriteOffAmount : effectiveClients.reduce((sum, client) => sum + (client.writeOffAmount || 0), 0);
+  const totalExpenses = typeof summaryData.totalExpenses === 'number' ? summaryData.totalExpenses : effectiveClients.reduce((sum, client) => sum + (client.totalExpenses || 0), 0);
+  const totalInvoices = typeof summaryData.totalInvoices === 'number' ? summaryData.totalInvoices : 0;
 
   const handleSort = (field: 'clientRef' | 'name' | 'balance' | 'wipAmount' | 'services' | 'timeLogged' | 'writeOff') => {
     setSortConfig(current => {
@@ -306,7 +309,7 @@ const ClientsTab = () => {
         <Card className="h-full">
           <CardContent className="p-4">
             <div className="text-2xl font-bold !text-[#381980]">
-              {allClients.length}
+              {totalClientsSummary}
             </div>
             <p className="text-sm text-muted-foreground">Total Clients</p>
           </CardContent>
@@ -330,9 +333,9 @@ const ClientsTab = () => {
         <Card className="h-full">
           <CardContent className="p-4">
             <div className="text-2xl font-bold !text-[#381980]">
-              {formatCurrency(totalBalance / allClients.length)}
+              {totalInvoices}
             </div>
-            <p className="text-sm text-muted-foreground">Average Balance</p>
+            <p className="text-sm text-muted-foreground">Total Invoices</p>
           </CardContent>
         </Card>
       </div>

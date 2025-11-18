@@ -130,19 +130,26 @@ const WIPTableTab = ({ onInvoiceCreate, onWriteOff }: WIPTableTabProps) => {
       } else {
         newSet.add(clientId);
       }
+      setAllCollapsed(newSet.size === 0);
       return newSet;
     });
   };
 
   const filteredWipData = wipData;
 
-  // Expand all clients by default when data is loaded
   useEffect(() => {
-    if (filteredWipData.length > 0 && expandedClients.size === 0) {
-      setExpandedClients(new Set(filteredWipData.map(client => client.id)));
-      setAllCollapsed(false);
-    }
-  }, [filteredWipData, expandedClients.size]);
+    setExpandedClients(prev => {
+      const availableIds = filteredWipData.map(client => client.id);
+      const next = new Set<string>();
+      prev.forEach(id => {
+        if (availableIds.includes(id)) next.add(id);
+      });
+      if (!allCollapsed && next.size === 0) {
+        availableIds.forEach(id => next.add(id));
+      }
+      return next;
+    });
+  }, [filteredWipData, allCollapsed]);
 
   const toggleAllClients = () => {
     if (allCollapsed) {
