@@ -1078,70 +1078,83 @@ const AllTimeLogsTab = () => {
             </Popover>
           </div>
           <div className="space-y-2">
-            <Select
-              value={filters.billable}
-              onValueChange={(value) => setFilters(prev => ({ ...prev, billable: value }))}
-            >
-              <SelectTrigger className={`w-24 ${billableFilterActive ? 'bg-gray-200 border-black' : 'bg-white'} text-[#381980] font-semibold`}>
-                <SelectValue placeholder="Billable" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all" className="group !pl-3 !pr-3 [&>span:first-child]:hidden data-[state=checked]:bg-[#5f46b9] data-[state=checked]:text-white">
-                  <div className="flex w-full items-center justify-between">
-                    <span>Billable</span>
-                    <Check className="hidden w-4 h-4 text-[#381980] group-data-[state=checked]:block" />
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className={`w-24 h-10 ${billableFilterActive ? 'bg-gray-200 border-black' : 'bg-white border-input'} text-[#381980] font-semibold rounded-md border px-3 flex items-center justify-between`}>
+                  <span className="truncate text-[14px]">
+                    {filters.billable === 'all' ? 'Billable' : filters.billable === 'true' ? 'Billable' : 'Non Billable'}
+                  </span>
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 p-2" align="start">
+                <div className="max-h-64 overflow-auto">
+                  <div
+                    className={`px-2 py-1.5 rounded-[4px] cursor-pointer ${filters.billable === 'all' ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                    onClick={() => setFilters(prev => ({ ...prev, billable: 'all' }))}
+                  >
+                    All
                   </div>
-                </SelectItem>
-                <SelectItem value="true" className="group !pl-3 !pr-3 [&>span:first-child]:hidden data-[state=checked]:bg-[#5f46b9] data-[state=checked]:text-white">
-                  <div className="flex w-full items-center justify-between">
-                    <span>Billable</span>
-                    <Check className="hidden w-4 h-4 text-[#381980] group-data-[state=checked]:block" />
+                  <div
+                    className={`flex items-center justify-between px-2 py-1.5 rounded-[4px] cursor-pointer ${filters.billable === 'true' ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                    onClick={() => setFilters(prev => ({ ...prev, billable: 'true' }))}
+                  >
+                    <span className="truncate">Billable</span>
+                    {filters.billable === 'true' && <Check className="w-4 h-4" />}
                   </div>
-                </SelectItem>
-                <SelectItem value="false" className="group !pl-3 !pr-3 [&>span:first-child]:hidden data-[state=checked]:bg-[#5f46b9] data-[state=checked]:text-white">
-                  <div className="flex w-full items-center justify-between">
-                    <span>Non Billable</span>
-                    <Check className="hidden w-4 h-4 text-[#381980] group-data-[state=checked]:block" />
+                  <div
+                    className={`flex items-center justify-between px-2 py-1.5 rounded-[4px] cursor-pointer ${filters.billable === 'false' ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                    onClick={() => setFilters(prev => ({ ...prev, billable: 'false' }))}
+                  >
+                    <span className="truncate">Non Billable</span>
+                    {filters.billable === 'false' && <Check className="w-4 h-4" />}
                   </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
           <div className="space-y-2">
-            <Select
-              value={filters.status}
-              onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}
-            >
-              <SelectTrigger className={`w-24 ${statusFilterActive ? 'bg-gray-200 border-black' : 'bg-white'} text-[#381980] font-semibold`}>
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent className='[&_div:focus]:bg-[#5f46b9] [&_div:focus]:text-white'>
-                <SelectItem value="all" className="group !pl-3 !pr-3 [&>span:first-child]:hidden data-[state=checked]:bg-[#5f46b9] data-[state=checked]:text-white">
-                  <div className="flex w-full items-center justify-between">
-                    <span>Status</span>
-                    <Check className="hidden w-4 h-4 text-[#381980] group-data-[state=checked]:block" />
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className={`w-24 h-10 ${statusFilterActive ? 'bg-gray-200 border-black' : 'bg-white border-input'} text-[#381980] font-semibold rounded-md border px-3 flex items-center justify-between`}>
+                  <span className="truncate text-[14px]">
+                    {filters.status === 'all' ? 'Status' : filters.status === 'notInvoiced' ? 'Not Invoiced' : filters.status === 'invoiced' ? 'Invoiced' : 'Paid'}
+                  </span>
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 p-2" align="start">
+                <div className="max-h-64 overflow-auto">
+                  <div
+                    className={`px-2 py-1.5 rounded-[4px] cursor-pointer ${filters.status === 'all' ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                    onClick={() => setFilters(prev => ({ ...prev, status: 'all' }))}
+                  >
+                    All
                   </div>
-                </SelectItem>
-                <SelectItem value="notInvoiced" className="group !pl-3 !pr-3 [&>span:first-child]:hidden data-[state=checked]:bg-[#5f46b9] data-[state=checked]:text-white">
-                  <div className="flex w-full items-center justify-between">
-                    <span>Not Invoiced</span>
-                    <Check className="hidden w-4 h-4 text-[#381980] group-data-[state=checked]:block" />
+                  <div
+                    className={`flex items-center justify-between px-2 py-1.5 rounded-[4px] cursor-pointer ${filters.status === 'notInvoiced' ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                    onClick={() => setFilters(prev => ({ ...prev, status: 'notInvoiced' }))}
+                  >
+                    <span className="truncate">Not Invoiced</span>
+                    {filters.status === 'notInvoiced' && <Check className="w-4 h-4" />}
                   </div>
-                </SelectItem>
-                <SelectItem value="invoiced" className="group !pl-3 !pr-3 [&>span:first-child]:hidden data-[state=checked]:bg-[#5f46b9] data-[state=checked]:text-white">
-                  <div className="flex w-full items-center justify-between">
-                    <span>Invoiced</span>
-                    <Check className="hidden w-4 h-4 text-[#381980] group-data-[state=checked]:block" />
+                  <div
+                    className={`flex items-center justify-between px-2 py-1.5 rounded-[4px] cursor-pointer ${filters.status === 'invoiced' ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                    onClick={() => setFilters(prev => ({ ...prev, status: 'invoiced' }))}
+                  >
+                    <span className="truncate">Invoiced</span>
+                    {filters.status === 'invoiced' && <Check className="w-4 h-4" />}
                   </div>
-                </SelectItem>
-                <SelectItem value="paid" className="group !pl-3 !pr-3 [&>span:first-child]:hidden data-[state=checked]:bg-[#5f46b9] data-[state=checked]:text-white">
-                  <div className="flex w-full items-center justify-between">
-                    <span>Paid</span>
-                    <Check className="hidden w-4 h-4 text-[#381980] group-data-[state=checked]:block" />
+                  <div
+                    className={`flex items-center justify-between px-2 py-1.5 rounded-[4px] cursor-pointer ${filters.status === 'paid' ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                    onClick={() => setFilters(prev => ({ ...prev, status: 'paid' }))}
+                  >
+                    <span className="truncate">Paid</span>
+                    {filters.status === 'paid' && <Check className="w-4 h-4" />}
                   </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
           <div className="space-y-2">
             <Popover>

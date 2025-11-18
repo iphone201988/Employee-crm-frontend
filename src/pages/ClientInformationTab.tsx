@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowUpDown, Search, FileText, ChevronLeft, ChevronRight, Eye, Edit2, Trash2, Delete, Settings, Download, Move, GripVertical, Link } from 'lucide-react';
+import { ArrowUpDown, Search, FileText, ChevronLeft, ChevronRight, Eye, Edit2, Trash2, Delete, Settings, Download, Move, GripVertical, Paperclip } from 'lucide-react';
 import { DashboardCard, DashboardGrid } from "@/components/ui/dashboard-card";
 import { Switch } from "@/components/ui/switch";
 import ClientsTab from '@/components/ClientsTab';
@@ -768,12 +768,18 @@ const ClientInformationTab = () => {
                             break;
                           case 'croLink':
                             cellContent = client.croLink ? (
-                              <div className="for-link-icon">
-                                <a href={client.croLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline underline-text">
-                                {client.croLink}
-                                <Link/>
-                              </a>
-                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  window.open(client.croLink, '_blank', 'noopener,noreferrer');
+                                }}
+                                title="Open CRO Link"
+                              >
+                                <Paperclip className="h-4 w-4" />
+                              </Button>
                             ) : '-';
                             break;
                           case 'address':
