@@ -5,7 +5,6 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { MyTimeSheet } from "@/components/TimeDashboard/MyTimeSheet";
 import CustomTabs from "@/components/Tabs";
@@ -163,6 +162,21 @@ export function TimesheetDashboard() {
   const teamFilterActive = selectedTeamIds.size > 0;
   const departmentFilterActive = selectedDepartmentIds.size > 0;
   const statusFilterActive = selectedStatuses.length > 0;
+
+  const getStatusFilterLabel = () => {
+    if (!statusFilterActive) return "Status";
+    if (selectedStatuses.length === 1) {
+      const key = selectedStatuses[0] as typeof statuses[number];
+      return statusLabelMap[key] || "Status";
+    }
+    return "Status";
+  };
+
+  const toggleStatusSelection = (status: typeof statuses[number]) => {
+    setSelectedStatuses(prev =>
+      prev.includes(status) ? prev.filter(s => s !== status) : [...prev, status]
+    );
+  };
 
   // Week navigation state
   const [currentWeek, setCurrentWeek] = useState(() => getCurrentWeekRange());
@@ -605,6 +619,12 @@ export function TimesheetDashboard() {
   // Dynamic filter sources
   const teamOptions = allFilterOptions?.data?.teams || [];
   const statuses = ["approved", "review", "rejected", "not-submitted"] as const;
+  const statusLabelMap: Record<typeof statuses[number], string> = {
+    approved: "Approved",
+    review: "For Review",
+    rejected: "Rejected",
+    "not-submitted": "Not Submitted"
+  };
   const formatTime = (seconds: number) => formatSecondsToHHMM(seconds);
   const calculateTotals = () => {
     const billable = {
@@ -940,25 +960,37 @@ export function TimesheetDashboard() {
             </Popover>
           </div>
           <div className="space-y-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className={`text-xs sm:text-sm w-32 h-10 rounded-md px-3 flex items-center justify-between ${statusFilterActive ? 'bg-gray-200 border-black' : 'bg-white border border-input'} text-[#381980] font-semibold`}>
-                  Status
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className={`text-xs sm:text-sm w-32 h-10 rounded-md px-3 flex items-center justify-between ${statusFilterActive ? 'bg-gray-200 border border-black' : 'bg-white border border-input'} text-[#381980] font-semibold`}>
+                  <span className="truncate">{getStatusFilterLabel()}</span>
                   <ChevronDown className="ml-1 sm:ml-2 w-3 h-3 sm:w-4 sm:h-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                {statuses.map(status => <DropdownMenuCheckboxItem key={status} checked={selectedStatuses.includes(status)} onCheckedChange={checked => {
-                  if (checked) {
-                    setSelectedStatuses([...selectedStatuses, status]);
-                  } else {
-                    setSelectedStatuses(selectedStatuses.filter(s => s !== status));
-                  }
-                }}>
-                  {status.charAt(0).toUpperCase() + status.slice(1).replace('-', ' ')}
-                </DropdownMenuCheckboxItem>)}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 p-2" align="start">
+                <div className="max-h-64 overflow-auto">
+                  <div
+                    className={`px-2 py-1.5 rounded-[4px] cursor-pointer ${!statusFilterActive ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                    onClick={() => setSelectedStatuses([])}
+                  >
+                    All
+                  </div>
+                  {statuses.map(status => {
+                    const active = selectedStatuses.includes(status);
+                    return (
+                      <div
+                        key={status}
+                        className={`flex items-center justify-between px-2 py-1.5 rounded-[4px] cursor-pointer ${active ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                        onClick={() => toggleStatusSelection(status)}
+                      >
+                        <span className="truncate">{statusLabelMap[status]}</span>
+                        {active && <Check className="w-4 h-4" />}
+                      </div>
+                    );
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
           <div className="space-y-2">
             <Button
