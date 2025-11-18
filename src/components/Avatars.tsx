@@ -153,7 +153,7 @@ const Avatars = ({ activeTab, title }: AvatarsProps) => {
           <X size={16}/>
         </button>
          <DialogHeader className="bg-[#381980] sticky z-50 top-0 left-0 w-full text-center ">
-           <DialogTitle className="text-center text-white py-4">Add New Job</DialogTitle>
+           <DialogTitle className="text-center text-white py-4">+ Add New Job</DialogTitle>
          </DialogHeader>
          <div className="space-y-6 form-change ">
           <JobForm  job={null} onSubmit={() => {}} onCancel={() => {

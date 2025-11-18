@@ -692,9 +692,9 @@ const JobsTab = () => {
 
             {/* Dialogs */}
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogContent className="max-w-2xl">
-                    <DialogHeader>
-                        <DialogTitle>{editingJob ? 'Edit Job' : 'Add New Job'}</DialogTitle>
+                <DialogContent className="max-w-2xl !rounded-none p-0 border-none for-close">
+                    <DialogHeader className="bg-[#381980] sticky z-50 top-0 left-0 w-full text-center ">
+                        <DialogTitle className="text-center text-white py-4">{editingJob ? 'Edit Job' : '+ Add New Job'}</DialogTitle>
                     </DialogHeader>
                     <JobForm
                         job={editingJob}
@@ -711,8 +711,8 @@ const JobsTab = () => {
                         <DialogTitle>Job Details</DialogTitle>
                     </DialogHeader>
                     {viewingJob && (
-                        <div className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-4 form-change">
+                            <div className="grid grid-cols-2 gap-4 form-change" >
                                 <div>
                                     <Label>Job Name</Label>
                                     <p className="text-sm text-muted-foreground">{viewingJob?.name}</p>

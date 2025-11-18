@@ -1356,89 +1356,147 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                         {/* Summary rows */}
                         <tbody className="border-t-2 border-border">
                             <tr className="bg-blue-50">
-                                <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right">BILLABLE</td>
+                                <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right text-[#381980]">BILLABLE</td>
                                 {weekDays.slice(1, 6).map((day, index) => (
-                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap">
-                                        {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].billable))}
+                                    <td key={day.key} className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap ">
+                                        <div className=" bg-[#f8f4fb] border border-[#e4e4e7] rounded-sm px-1 py-1">
+                                            {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].billable))}
+                                        </div>
                                     </td>
                                 ))}
                                 {!hideWeekend && weekDays.slice(6).map((day, index) => (
                                     <td key={day.key} className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap">
+                                        <div className=" bg-[#f8f4fb] border border-[#e4e4e7] rounded-sm px-1 py-1">
+
                                         {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].billable))}
+                                        </div>
                                     </td>
                                 ))}
                                 {!hideWeekend && weekDays.slice(0, 1).map((day, index) => (
                                     <td key={day.key} className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap">
+                                        <div className=" bg-[#f8f4fb] border border-[#e4e4e7] rounded-sm px-1 py-1">
+
                                         {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].billable))}
+                                        </div>
                                     </td>
                                 ))}
-                                <td className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap w-20 min-w-[80px]">{formatSeconds(summaryTotals.billable)}</td>
+                                <td className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap w-20 min-w-[80px]">
+                                    <div className=" bg-[#f8f4fb] border border-[#e4e4e7] rounded-sm px-1 py-1">
+
+                                    {formatSeconds(summaryTotals.billable)}
+                                    </div>
+                                    </td>
                             </tr>
                             <tr className="bg-gray-50">
-                                <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right">NON BILLABLE</td>
+                                <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right text-[#381980]">NON BILLABLE</td>
                                 {weekDays.slice(1, 6).map((day, index) => (
                                     <td key={day.key} className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap">
+                                        <div className=" bg-[#f8f4fb] border border-[#e4e4e7] rounded-sm px-1 py-1">
+
                                         {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].nonBillable))}
+                                        </div>
                                     </td>
                                 ))}
                                 {!hideWeekend && weekDays.slice(6).map((day, index) => (
                                     <td key={day.key} className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap">
+                                        <div className=" bg-[#f8f4fb] border border-[#e4e4e7] rounded-sm px-1 py-1">
+
                                         {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].nonBillable))}
+                                        </div>
                                     </td>
                                 ))}
                                 {!hideWeekend && weekDays.slice(0, 1).map((day, index) => (
                                     <td key={day.key} className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap">
+                                        <div className=" bg-[#f8f4fb] border border-[#e4e4e7] rounded-sm px-1 py-1">
+
                                         {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].nonBillable))}
+                                        </div>
                                     </td>
                                 ))}
-                                <td className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap w-20 min-w-[80px]">{formatSeconds(summaryTotals.nonBillable)}</td>
+                                <td className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap w-20 min-w-[80px]">
+                                    <div className=" bg-[#f8f4fb] border border-[#e4e4e7] rounded-sm px-1 py-1">
+
+                                    {formatSeconds(summaryTotals.nonBillable)}
+                                    </div>
+                                    </td>
                             </tr>
                             <tr className="bg-blue-50">
-                                <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right">LOGGED</td>
+                                <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right text-[#381980]">LOGGED</td>
                                 {weekDays.slice(1, 6).map((day, index) => (
                                     <td key={day.key} className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap">
+                                        <div className=" bg-[#f8f4fb] border border-[#e4e4e7] rounded-sm px-1 py-1">
+
                                         {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].logged))}
+                                        </div>
                                     </td>
                                 ))}
                                 {!hideWeekend && weekDays.slice(6).map((day, index) => (
                                     <td key={day.key} className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap">
+                                        <div className=" bg-[#f8f4fb] border border-[#e4e4e7] rounded-sm px-1 py-1">
+
                                         {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].logged))}
+                                        </div>
                                     </td>
                                 ))}
                                 {!hideWeekend && weekDays.slice(0, 1).map((day, index) => (
                                     <td key={day.key} className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap">
+                                        <div className=" bg-[#f8f4fb] border border-[#e4e4e7] rounded-sm px-1 py-1">
+
                                         {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].logged))}
+                                        </div>
                                     </td>
                                 ))}
-                                <td className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap w-20 min-w-[80px]">{formatSeconds(summaryTotals.logged)}</td>
+                                <td className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap w-20 min-w-[80px]">
+                                    <div className=" bg-[#f8f4fb] border border-[#e4e4e7] rounded-sm px-1 py-1">
+
+                                    {formatSeconds(summaryTotals.logged)}
+                                    </div>
+                                    </td>
                             </tr>
                             <tr className="bg-gray-100">
-                                <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right">CAPACITY</td>
+                                <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right text-[#381980]">CAPACITY</td>
                                 {weekDays.slice(1, 6).map((day, index) => (
                                     <td key={day.key} className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap">
+                                        <div className=" bg-[#f8f4fb] border border-[#e4e4e7] rounded-sm px-1 py-1">
+
                                         {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].capacity))}
+                                        </div>
                                     </td>
                                 ))}
                                 {!hideWeekend && weekDays.slice(6).map((day, index) => (
                                     <td key={day.key} className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap">
+                                        <div className=" bg-[#f8f4fb] border border-[#e4e4e7] rounded-sm px-1 py-1">
+
                                         {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].capacity))}
+                                        </div>
                                     </td>
                                 ))}
                                 {!hideWeekend && weekDays.slice(0, 1).map((day, index) => (
                                     <td key={day.key} className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap">
+                                        <div className=" bg-[#f8f4fb] border border-[#e4e4e7] rounded-sm px-1 py-1">
+
                                         {formatSeconds(hoursToSeconds(dailySummary[day.key as keyof typeof dailySummary].capacity))}
+                                        </div>
                                     </td>
                                 ))}
-                                <td className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap w-20 min-w-[80px]">{formatSeconds(summaryTotals.capacity)}</td>
+                                <td className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap w-20 min-w-[80px]">
+                                    <div className=" bg-[#f8f4fb] border border-[#e4e4e7] rounded-sm px-1 py-1">
+
+                                    {formatSeconds(summaryTotals.capacity)}
+                                    </div>
+                                    </td>
                             </tr>
                             <tr className={isVariancePositive ? "bg-green-50" : "bg-red-50"}>
-                                <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right">VARIANCE</td>
+                                <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right text-[#381980]">VARIANCE</td>
                                 {weekDays.slice(1, 6).map((day, index) => {
                                     const dayData = dailySummary[day.key as keyof typeof dailySummary];
                                     const dayVariancePositive = dayData.logged > dayData.capacity;
                                     return (
                                         <td key={day.key} className={`px-3 py-2 text-center text-sm font-normal whitespace-nowrap ${dayVariancePositive ? 'bg-green-100' : ''}`}>
+                                            <div className=" bg-[#f8f4fb] border border-[#e4e4e7] rounded-sm px-1 py-1">
+
                                             {formatVariance(dayData.variance)}
+                                            </div>
                                         </td>
                                     );
                                 })}
@@ -1447,7 +1505,10 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                     const dayVariancePositive = dayData.logged > dayData.capacity;
                                     return (
                                         <td key={day.key} className={`px-3 py-2 text-center text-sm font-normal whitespace-nowrap ${dayVariancePositive ? 'bg-green-100' : ''}`}>
+                                            <div className=" bg-[#f8f4fb] border border-[#e4e4e7] rounded-sm px-1 py-1">
+
                                             {formatVariance(dayData.variance)}
+                                            </div>
                                         </td>
                                     );
                                 })}
@@ -1456,11 +1517,19 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                     const dayVariancePositive = dayData.logged > dayData.capacity;
                                     return (
                                         <td key={day.key} className={`px-3 py-2 text-center text-sm font-normal whitespace-nowrap ${dayVariancePositive ? 'bg-green-100' : ''}`}>
+                                            <div className=" bg-[#f8f4fb] border border-[#e4e4e7] rounded-sm px-1 py-1">
+
                                             {formatVariance(dayData.variance)}
+                                            </div>
                                         </td>
                                     );
                                 })}
-                                <td className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap w-20 min-w-[80px]">{formatVariance(secondsToHours(summaryTotals.variance))}</td>
+                                <td className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap w-20 min-w-[80px]">
+                                    <div className=" bg-[#f8f4fb] border border-[#e4e4e7] rounded-sm px-1 py-1">
+
+                                    {formatVariance(secondsToHours(summaryTotals.variance))}
+                                    </div>
+                                    </td>
                             </tr>
                         </tbody>
                     </table>

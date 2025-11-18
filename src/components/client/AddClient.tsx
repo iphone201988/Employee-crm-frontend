@@ -226,7 +226,7 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
                     <X size={16}/>
                 </button>
                 <DialogHeader className="bg-[#381980] sticky z-50 top-0 left-0 w-full text-center ">
-                    <DialogTitle className="text-center text-white py-4">{editMode ? 'Edit Client' : 'Add Client'}</DialogTitle>
+                    <DialogTitle className="text-center text-white py-4">{editMode ? 'Edit Client' : '+ Add Client'}</DialogTitle>
                 </DialogHeader>
 
               <div className="overflow-auto h-full">

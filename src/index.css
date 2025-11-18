@@ -194,3 +194,8 @@ button.inline-flex.items-center.gap-2.whitespace-nowrap.ring-offset-background.t
        text-decoration: none !important;
         color: #71717a !important;
   }
+
+  .for-link-icon a{
+    opacity: 0;
+  }
+    .for-link-icon a svg{opacity: 1;}

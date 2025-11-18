@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CreditCard, Search, Filter, Eye, Edit, Download, Upload, Paperclip, ExternalLink, Plus, Settings, Trash2 } from "lucide-react";
+import { CreditCard, Search, Filter, Eye, Edit, Download, Upload, Paperclip, ExternalLink, Plus, Settings, Trash2, X } from "lucide-react";
 import sampleReceipt from "@/assets/sample-receipt.png";
 import CustomTabs from '@/components/Tabs';
 import { usePermissionTabs } from '@/hooks/usePermissionTabs';
@@ -939,14 +939,20 @@ const ExpensesLogTab = () => {
           setClientFormErrors({});
         }
       }}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{editingExpense ? 'Edit Client Expense' : 'Add Client Expense'}</DialogTitle>
+        <DialogContent className="max-w-2xl !rounded-none p-0 border-none for-close">
+          <DialogHeader className="bg-[#381980] sticky z-50 top-0 left-0 w-full text-center ">
+            <DialogTitle className="text-center text-white py-4">{editingExpense ? 'Edit Client Expense' : '+ Add Client Expense'}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+           <button 
+                   
+                    className=" bg-[#381980] text-white absolute right-[-35px] top-0 p-[6px] rounded-full max-sm:hidden"
+                  >
+                    <X size={16}/>
+                  </button>
+          <div className="space-y-4 form-change ">
+            <div className="grid grid-cols-2 gap-4 px-[20px]">
               <div>
-                <label className="text-sm font-medium">Date</label>
+                <label className="text-sm font-medium">Date </label>
                 <Input 
                   type="date" 
                   value={clientExpenseForm.date} 
@@ -977,7 +983,7 @@ const ExpensesLogTab = () => {
                 )}
               </div>
             </div>
-            <div>
+            <div className='px-[20px]'>
               <label className="text-sm font-medium">Description</label>
               <Input 
                 placeholder="Enter expense description" 
@@ -989,7 +995,7 @@ const ExpensesLogTab = () => {
                 <p className="text-red-500 text-xs mt-1">{clientFormErrors.description}</p>
               )}
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4 px-[20px]">
               <div>
                 <label className="text-sm font-medium">Category</label>
                 <Select 
@@ -1027,7 +1033,7 @@ const ExpensesLogTab = () => {
                 )}
               </div>
             </div>
-            <div className="grid grid-cols-1 gap-4">
+            <div className="grid grid-cols-1 gap-4 px-[20px]">
               <div>
                 <label className="text-sm font-medium">VAT %</label>
                 <Input 
@@ -1043,7 +1049,7 @@ const ExpensesLogTab = () => {
                 )}
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4 px-[20px]">
               <div>
                 <label className="text-sm font-medium">Status</label>
                 <Select 
@@ -1077,15 +1083,15 @@ const ExpensesLogTab = () => {
                 />
               </div>
             </div>
-            <div className="flex justify-end gap-2 pt-4">
-              <Button variant="outline" onClick={() => {
+            <div className="flex justify-end gap-2 pt-4 p-[20px] bg-[#381980]">
+              <Button variant="outline" className="rounded-[6px] text-[#017DB9]" onClick={() => {
                 setAddClientExpenseOpen(false);
                 setEditingExpense(null);
                 setClientFormErrors({});
               }}>
                 Cancel
               </Button>
-              <Button onClick={submitClientExpense} disabled={isAddingClientExpense || isUpdatingExpense}>
+              <Button onClick={submitClientExpense} disabled={isAddingClientExpense || isUpdatingExpense} className="!bg-[#017DB9] rounded-[6px]">
                 {isAddingClientExpense || isUpdatingExpense ? 'Saving...' : (editingExpense ? 'Update Expense' : 'Save Expense')}
               </Button>
             </div>

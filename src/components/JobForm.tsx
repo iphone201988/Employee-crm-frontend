@@ -147,7 +147,7 @@ export const JobForm = ({ job, onSubmit, onCancel }: JobFormProps) => {
     const isLoading = isLoadingDropdowns || isCreatingJob || isUpdatingJob;
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-4 " noValidate>
+        <form onSubmit={handleSubmit} className="space-y-4 form-change" noValidate>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 px-[20px]">
                 <InputComponent label="Job Name" id="jobName" value={formData.name} onChange={handleInputChange('name')} error={errors.name} />
 

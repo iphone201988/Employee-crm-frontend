@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowUpDown, Search, FileText, ChevronLeft, ChevronRight, Eye, Edit2, Trash2, Delete, Settings, Download, Move, GripVertical } from 'lucide-react';
+import { ArrowUpDown, Search, FileText, ChevronLeft, ChevronRight, Eye, Edit2, Trash2, Delete, Settings, Download, Move, GripVertical, Link } from 'lucide-react';
 import { DashboardCard, DashboardGrid } from "@/components/ui/dashboard-card";
 import { Switch } from "@/components/ui/switch";
 import ClientsTab from '@/components/ClientsTab';
@@ -768,9 +768,12 @@ const ClientInformationTab = () => {
                             break;
                           case 'croLink':
                             cellContent = client.croLink ? (
-                              <a href={client.croLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline underline-text">
+                              <div className="for-link-icon">
+                                <a href={client.croLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline underline-text">
                                 {client.croLink}
+                                <Link/>
                               </a>
+                              </div>
                             ) : '-';
                             break;
                           case 'address':

@@ -12,6 +12,8 @@ import {
   GroupIcon,
   ArrowLeft,
   Bell,
+  X,
+  CircleX,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -215,8 +217,9 @@ export function Sidebar({ onClose }: SidebarProps) {
                   </button>
                 </PopoverTrigger>
                 <PopoverContent className="w-80 p-0" align="start">
-                  <div className="p-4 border-b">
+                  <div className="p-4 border-b flex justify-between">
                     <h3 className="font-semibold text-sm">Notifications</h3>
+                    <button className=" text-red-400"><CircleX size={18} /></button>
                   </div>
                   <div className="max-h-96 overflow-y-auto">
                     {isLoadingNotifications ? (

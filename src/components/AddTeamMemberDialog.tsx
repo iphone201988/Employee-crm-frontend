@@ -228,7 +228,7 @@ const AddTeamMemberDialog = ({ open, onOpenChange, memberToEdit }: AddTeamMember
             <DialogContent className="max-w-2xl !rounded-none p-0 border-none for-close">
                 <button className=" bg-[#381980] text-white absolute right-[-35px] top-0 p-[6px] rounded-full max-sm:hidden"><X size={16}/></button>
                 <DialogHeader className="bg-[#381980] sticky z-50 top-0 left-0 w-full text-center ">
-                    <DialogTitle className="text-center text-white py-4">{isEditMode ? 'Edit' : 'Add'} Team Member</DialogTitle>
+                    <DialogTitle className="text-center text-white py-4">{isEditMode ? 'Edit' : '+ Add'} Team Member</DialogTitle>
                     </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-6 form-change">
                     {/* ... other form fields remain the same ... */}
