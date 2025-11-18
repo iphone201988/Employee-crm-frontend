@@ -776,7 +776,7 @@ export function TimesheetDashboard() {
     {/* Filter Badges - Only show in allTimesheets tab */}
     {activeTab === "allTimesheets" && <div className="flex flex-col sm:flex-row gap-2 mb-3">
       <div className="flex items-center gap-3 mt-4  w-max p-[6px] rounded-sm pl-4 max-md:flex-col">
-        <p className='text-[#381980] font-semibold text-[14px]'>Filter by:</p>
+        <p className='text-[#381980] font-semibold text-[14px]'>Workflows:</p>
         <div className="flex gap-0">
           <button
             onClick={() => setActiveFilter("allTimesheets")}

@@ -937,6 +937,7 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
                       <TableCell className="border-r">{(entry as any).clientRef || '-'}</TableCell>
                       <TableCell className="border-r">
                         <ClientNameLink 
+                        className='text-[#71717a] underline-text'
                           clientName={entry.clientName}
                           ciientId={(entry as any)?._raw?.clientId || (entry as any)?._raw?.client?._id}
                         />

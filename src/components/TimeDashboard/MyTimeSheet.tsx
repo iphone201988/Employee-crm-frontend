@@ -836,10 +836,11 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                 </div>
                 <div className="flex justify-end order-2 sm:order-3 w-full">
                     <div className="w-full sm:w-[180px] sm:min-w-[180px] flex justify-end">
+                       
                         {timesheet?.status === 'draft' ? (
                             <Button
                                 variant="outline"
-                                className="text-green-600 border-green-600 hover:bg-green-50 text-sm w-full sm:w-[180px] sm:min-w-[180px] whitespace-nowrap"
+                                className="text-green-600 border-green-600 hover:bg-green-50 text-sm w-full sm:w-[180px] sm:min-w-[180px] !h-10 whitespace-nowrap"
                                 onClick={async () => {
                                     try {
                                         if (!timesheet?._id) return;
@@ -856,7 +857,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                         ) : timesheet?.status === 'rejected' ? (
                             <Button
                                 variant="outline"
-                                className="text-blue-600 border-blue-600 hover:bg-blue-50 text-sm w-full sm:w-[180px] sm:min-w-[180px] whitespace-nowrap"
+                                className="text-blue-600 border-blue-600 hover:bg-blue-50 text-sm w-full sm:w-[180px] sm:min-w-[180px] !h-10 whitespace-nowrap"
                                 onClick={async () => {
                                     try {
                                         if (!timesheet?._id) return;
@@ -876,7 +877,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                 {isSubmittingStatus || isLoading ? 'Resubmitting...' : 'Resubmit for Approval'}
                             </Button>
                         ) : timesheet?.status ? (
-                            <div className="flex items-center px-3 py-1 border rounded text-sm w-full sm:w-[180px] sm:min-w-[180px] justify-end sm:justify-center">
+                            <div className="flex items-center px-3 py-1 border rounded text-sm w-full sm:w-[180px] sm:min-w-[180px] !h-10 justify-end sm:justify-center">
                                 {timesheet?.status === 'submitted' && <span className="text-amber-600">Submitted</span>}
                                 {/^auto\s*approved$/i.test(timesheet?.status || '') && <span className="text-green-600">Auto Approved</span>}
                                 {/^approved$/i.test(timesheet?.status || '') && <span className="text-green-600">Approved</span>}

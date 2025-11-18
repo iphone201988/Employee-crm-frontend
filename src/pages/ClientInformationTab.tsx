@@ -740,7 +740,7 @@ const ClientInformationTab = () => {
                   </TableRow>
                 ) : (
                   filteredAndSortedClientInfo.map((client: any, index) => (
-                    <TableRow key={client._id} className="h-12">
+                    <TableRow key={client._id} className="h-12 whitespace-nowrap">
                       {columnOrder.map((key) => {
                         if (!visibleColumns[key as keyof typeof visibleColumns]) return null;
 
@@ -768,7 +768,7 @@ const ClientInformationTab = () => {
                             break;
                           case 'croLink':
                             cellContent = client.croLink ? (
-                              <a href={client.croLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                              <a href={client.croLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline underline-text">
                                 {client.croLink}
                               </a>
                             ) : '-';

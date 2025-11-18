@@ -1028,7 +1028,7 @@ const WriteOffMergedTab = () => {
                     )}
                     <TableCell className="p-3 text-sm font-medium text-left">
                     {activeFilter === 'clients' ? (
-                      <ClientNameLink name={item.name} ciientId={item.clientId} />
+                      <ClientNameLink className='underline-text' name={item.name} ciientId={item.clientId} />
                     ) : (
                       item.name
                     )}
@@ -1037,7 +1037,7 @@ const WriteOffMergedTab = () => {
                       <>
                         <TableCell className="p-3 text-sm text-left">{item.clientRef}</TableCell>
                         <TableCell className="p-3 text-sm text-left">
-                          <ClientNameLink name={item.clientName || ''} ciientId={item.clientId} />
+                          <ClientNameLink className='underline-text' name={item.clientName || ''} ciientId={item.clientId} />
                         </TableCell>
                       </>
                     )}
@@ -1138,7 +1138,7 @@ const WriteOffMergedTab = () => {
                             </TableCell>
                             <TableCell className="p-4 font-medium">
                               {detail.clientName && detail.clientId ? (
-                                <ClientNameLink name={detail.clientName} ciientId={detail.clientId} />
+                                <ClientNameLink className='underline-text' name={detail.clientName} ciientId={detail.clientId} />
                               ) : (
                                 detail.clientName || 'N/A'
                               )}

@@ -568,7 +568,7 @@ const AgedDebtorsTab = () => {
                       </td>
                       <td className="p-3">
                         <div className="font-medium">
-                          <ClientNameLink clientName={entry.client} ciientId={entry.id} />
+                          <ClientNameLink className='underline-text' clientName={entry.client} ciientId={entry.id} />
                         </div>
                       </td>
                       <td className="p-3 text-right text-sm">€{entry.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>

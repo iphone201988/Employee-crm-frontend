@@ -377,7 +377,7 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
               </TableHeader>
               <TableBody>
                 {isLoadingData ? (
-                  <TableRow><TableCell colSpan={13} className="text-center h-24">Loading team members...</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={13} className="text-center h-24 ">Loading team members...</TableCell></TableRow>
                 ) : isError ? (
                   <TableRow><TableCell colSpan={13} className="text-center h-24 text-red-500">Failed to load team members.</TableCell></TableRow>
                 ) : sortedTeamMembers.length === 0 ? (
@@ -385,7 +385,7 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
                 ) : (
                   sortedTeamMembers.map(member => (
                     <TableRow key={member._id} className="h-12">
-                      <TableCell>
+                      <TableCell className='py-4'>
                         <div className="flex items-center gap-3">
                           <Avatar className="h-8 w-8">
                             <AvatarImage src={import.meta.env.VITE_BACKEND_BASE_URL + member.avatarUrl} alt={member.name} />
@@ -394,11 +394,11 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
                           {member.name}
                         </div>
                       </TableCell>
-                      <TableCell>{member.department?.name || 'N/A'}</TableCell>
-                      <TableCell>{member.email}</TableCell>
+                      <TableCell className='py-4'>{member.department?.name || 'N/A'}</TableCell>
+                      <TableCell className='py-4'>{member.email}</TableCell>
                       {/* MODIFIED: Input is now a manual text field for "HH:mm:ss" format with flexible editing */}
                       {(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const).map(day => (
-                        <TableCell key={day}>
+                        <TableCell key={day} className='py-4'>
                           <Input
                             type="text"
                             placeholder="HH:mm:ss"

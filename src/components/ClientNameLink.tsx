@@ -241,7 +241,7 @@ const ClientNameLink = ({ name, clientName, className = "", ciientId }: ClientNa
     <>
       <button
         onClick={() => setIsDialogOpen(true)}
-        className={`text-primary hover:text-primary/80 hover:underline cursor-pointer font-medium text-left ${className}`}
+        className={`text-primary hover:text-primary/80 hover:underline cursor-pointer font-medium text-left underline-text ${className}`}
       >
         {displayName}
       </button>

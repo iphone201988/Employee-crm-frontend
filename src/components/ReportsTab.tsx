@@ -363,20 +363,20 @@ const ReportsTab = () => {
                 )}
                 {!isLoading && sortedData.map((member: any) => (
                   <TableRow key={member.name} className="h-8">
-                    <TableCell className="p-1 px-4">
-                      <Avatar className="h-6 w-6">
+                    <TableCell className="p-1 px-2">
+                      <Avatar className="h-8 w-8">
                         <AvatarImage src={member.avatarUrl ? import.meta.env.VITE_BACKEND_BASE_URL + member.avatarUrl : getProfileImage(member.name)} />
-                        <AvatarFallback className="text-xs">{getUserInitials(member.name)}</AvatarFallback>
+                        <AvatarFallback className="text-[14px]">{getUserInitials(member.name)}</AvatarFallback>
                       </Avatar>
                     </TableCell>
-                    <TableCell className="font-medium p-1 text-xs">{member.name}</TableCell>
-                    <TableCell className="text-center border-l p-1"><div className="text-xs font-medium">{formatHoursToHHMMSS(member.capacity)}</div></TableCell>
-                    <TableCell className="text-center border-l p-1"><div className="flex flex-col items-center space-y-1"><div className="text-xs">{formatHoursToHHMMSS(member.logged)} ({getPercentage(member.logged, member.capacity).toFixed(1)}%)</div><Progress value={getPercentage(member.logged, member.capacity)} className="h-1 w-14" /></div></TableCell>
-                    <TableCell className="text-center border-l p-1"><div className="flex flex-col items-center space-y-1"><div className="text-xs">{formatHoursToHHMMSS(member.billable)} ({getPercentage(member.billable, member.logged).toFixed(1)}%) - {formatCurrency(member.billableAmount)}</div><Progress value={getPercentage(member.billable, member.logged)} className="h-1 w-14" /></div></TableCell>
-                    <TableCell className="text-center border-l p-1"><div className="flex flex-col items-center space-y-1"><div className="text-xs">{formatHoursToHHMMSS(member.nonBillable)} ({getPercentage(member.nonBillable, member.logged).toFixed(1)}%)</div><Progress value={getPercentage(member.nonBillable, member.logged)} className="h-1 w-14" /></div></TableCell>
-                    <TableCell className="text-center border-l p-1"><div className="flex flex-col items-center space-y-1"><div className="text-xs">{formatHoursToHHMMSS(member.wroteOff)} ({getPercentage(member.wroteOff, member.logged).toFixed(1)}%)</div><Progress value={getPercentage(member.wroteOff, member.logged)} className="h-1 w-14" /></div></TableCell>
-                    <TableCell className="text-center border-l p-1"><div className="text-xs font-medium text-red-600">{formatCurrency(member.resourceCost)}</div></TableCell>
-                    <TableCell className="text-center border-l p-1"><div className={`text-xs font-medium ${member.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(member.profit)}</div></TableCell>
+                    <TableCell className="font-medium p-4 text-[14px]">{member.name}</TableCell>
+                    <TableCell className="text-center border-l p-4"><div className="text-[14px] font-medium">{formatHoursToHHMMSS(member.capacity)}</div></TableCell>
+                    <TableCell className="text-center border-l p-4"><div className="flex flex-col items-center space-y-1"><div className="text-[14px]">{formatHoursToHHMMSS(member.logged)} ({getPercentage(member.logged, member.capacity).toFixed(1)}%)</div><Progress value={getPercentage(member.logged, member.capacity)} className="h-1 w-14" /></div></TableCell>
+                    <TableCell className="text-center border-l p-4"><div className="flex flex-col items-center space-y-1"><div className="text-[14px]">{formatHoursToHHMMSS(member.billable)} ({getPercentage(member.billable, member.logged).toFixed(1)}%) - {formatCurrency(member.billableAmount)}</div><Progress value={getPercentage(member.billable, member.logged)} className="h-1 w-14" /></div></TableCell>
+                    <TableCell className="text-center border-l p-4"><div className="flex flex-col items-center space-y-1"><div className="text-[14px]">{formatHoursToHHMMSS(member.nonBillable)} ({getPercentage(member.nonBillable, member.logged).toFixed(1)}%)</div><Progress value={getPercentage(member.nonBillable, member.logged)} className="h-1 w-14" /></div></TableCell>
+                    <TableCell className="text-center border-l p-4"><div className="flex flex-col items-center space-y-1"><div className="text-[14px]">{formatHoursToHHMMSS(member.wroteOff)} ({getPercentage(member.wroteOff, member.logged).toFixed(1)}%)</div><Progress value={getPercentage(member.wroteOff, member.logged)} className="h-1 w-14" /></div></TableCell>
+                    <TableCell className="text-center border-l p-4"><div className="text-[14px] font-medium text-red-600">{formatCurrency(member.resourceCost)}</div></TableCell>
+                    <TableCell className="text-center border-l p-4"><div className={`text-[14px] font-medium ${member.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(member.profit)}</div></TableCell>
                   </TableRow>
                 ))}
               </TableBody>

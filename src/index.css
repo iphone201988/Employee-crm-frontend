@@ -171,3 +171,26 @@ button.inline-flex.items-center.gap-2.whitespace-nowrap.ring-offset-background.t
     padding: 0;
     height: 16px;
 }
+
+
+  table tbody tr td span.cursor-pointer.text-blue-600.hover\:text-blue-800.hover\:underline{
+     font-weight: 400 !important;
+  text-decoration: underline !important;
+  color: #71717a;
+  transition:  all .4s ease-in;
+  font-size: 14px;
+  }
+  table tbody tr td span.cursor-pointer.text-blue-600.hover\:text-blue-800.hover\:underline:hover{
+     text-decoration: none !important;
+  }
+  .underline-text{
+       font-weight: 400 !important;
+  text-decoration: underline !important;
+  color: #71717a;
+  transition:  all .4s ease-in;
+  font-size: 14px;
+  }
+  .underline-text:hover{
+       text-decoration: none !important;
+        color: #71717a !important;
+  }

@@ -191,7 +191,7 @@ const ApprovalsContent: React.FC<ApprovalsContentProps> = ({ onUnsavedChangesCha
                     <div className="w-[250px] flex items-center gap-2">Team Member </div>
                   </TableHead>
                   {permissions.map((permission) => (
-                    <TableHead key={permission.key} className="sticky left-0  z-10 border-r w-[250px] cursor-pointer hover:bg-muted/50">
+                    <TableHead key={permission.key} className="sticky left-0  z-10 border-r w-[250px] cursor-pointer text-center hover:bg-muted/50">
                       {permission.label}
                     </TableHead>
                   ))}
@@ -228,7 +228,7 @@ const ApprovalsContent: React.FC<ApprovalsContentProps> = ({ onUnsavedChangesCha
 
                     {permissions.map((permission) => (
                       <TableCell key={permission.key} className="p-4 border-r">
-                        <div className="flex justify-start">
+                        <div className="flex justify-center">
                           <Checkbox
                             id={`${member.id}-${permission.key}`}
                             checked={member.permissions[permission.key as keyof typeof member.permissions]}

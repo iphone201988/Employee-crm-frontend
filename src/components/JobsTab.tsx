@@ -295,7 +295,7 @@ const JobsTab = () => {
         }
         if (dataToRender.length === 0) return <div className="text-center py-8 text-muted-foreground">No data available for this view.</div>;
         const maxCount = Math.max(...dataToRender.map(d => d.count), 0);
-        return (<div className="space-y-2 py-2">
+        return (<div className="space-y-2 py-2 px-3">
             {dataToRender.map((item) => {
                 const percentage = maxCount > 0 ? Math.round((item.count / maxCount) * 100) : 0;
                 const color = generateColorFromString(item.type);

@@ -300,7 +300,7 @@ const AddTeamMemberDialog = ({ open, onOpenChange, memberToEdit }: AddTeamMember
                                         <AvatarFallback>IMG</AvatarFallback>
                                     </Avatar>
                                     <Button
-                                     className=' rounded-[6px]'
+                                     className=' rounded-[6px] text-red-500 hover:text-white'
                                         type="button" variant="destructive" size="sm"
                                         onClick={() => {
                                             setImagePreview(null);

@@ -24,7 +24,7 @@ const JobNameLink: React.FC<JobNameLinkProps> = ({
     <>
       <button
         onClick={() => setIsDialogOpen(true)}
-        className={`text-blue-600 hover:text-blue-800 hover:underline cursor-pointer ${className}`}
+        className={`text-blue-600 hover:text-blue-800 hover:underline cursor-pointer  underline-text ${className}`}
       >
         {jobName}
       </button>

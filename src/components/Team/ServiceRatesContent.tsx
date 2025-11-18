@@ -324,7 +324,7 @@ export const ServiceRatesContent: React.FC<ServiceRatesContentProps> = ({ onUnsa
 
                                         return (
                                             <TableRow key={member.id} className="h-12 hover:bg-gray-50">
-                                                <TableCell className="sticky left-0 bg-white z-10 border-r font-medium">
+                                                <TableCell className="sticky left-0 bg-white z-10 border-r font-medium py-4">
                                                     <div className="flex items-center gap-3">
                                                         <Avatar className="h-8 w-8">
                                                             <AvatarImage src={import.meta.env.VITE_BACKEND_BASE_URL + member.avatarUrl || getProfileImage(member.name)} alt={member.name} />
@@ -333,9 +333,9 @@ export const ServiceRatesContent: React.FC<ServiceRatesContentProps> = ({ onUnsa
                                                         {member.name}
                                                     </div>
                                                 </TableCell>
-                                                <TableCell>{renderCell('hourlyRate', member.hourlyRate)}</TableCell>
-                                                <TableCell>{renderCell('defaultRate', member.defaultRate)}</TableCell>
-                                                <TableCell>
+                                                <TableCell className='py-3'>{renderCell('hourlyRate', member.hourlyRate)}</TableCell>
+                                                <TableCell className='py-3'>{renderCell('defaultRate', member.defaultRate)}</TableCell>
+                                                <TableCell className='py-3'>
                                                     <Switch 
                                                         checked={member.isDefaultRateLocked} 
                                                         onCheckedChange={() => toggleDefaultRateLock(member.id)}
@@ -343,7 +343,7 @@ export const ServiceRatesContent: React.FC<ServiceRatesContentProps> = ({ onUnsa
                                                     />
                                                 </TableCell>
                                                 {mainServiceTypes.map((service) => (
-                                                    <TableCell key={service.key}>
+                                                    <TableCell  className='py-3' key={service.key}>
                                                         {renderCell(service.key, member.rates[service.key])}
                                                     </TableCell>
                                                 ))}
