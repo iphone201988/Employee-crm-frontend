@@ -184,7 +184,7 @@ export const convertTimeEntriesToRows = (
       category: category?.name || 'Unknown Category',
       description: entry.description || '',
       billable: entry.isbillable,
-      rate: `€${entry.rate?.toFixed(2) || '0.00'}`,
+      rate: entry.isbillable ? (entry.rate?.toFixed(2) || '0.00') : '',
       hours,
     };
   });
@@ -270,7 +270,8 @@ export const convertRowsToTimeEntries = (
   clients: Array<{ _id: string; name: string }>,
   jobs: Array<{ _id: string; name: string }>,
   jobCategories: Array<{ _id: string; name: string }>,
-  weekStart: string
+  weekStart: string,
+  defaultRate = 0
 ): Array<{
   _id?: string;
   clientId: string;
@@ -307,6 +308,9 @@ export const convertRowsToTimeEntries = (
       }
     });
     
+    const parsedRate = parseFloat(row.rate ?? '');
+    const normalizedRate = !isNaN(parsedRate) ? parsedRate : defaultRate;
+
     return {
       _id: row.id.startsWith('temp-') ? undefined : row.id,
       clientId: client?._id || '',
@@ -314,7 +318,7 @@ export const convertRowsToTimeEntries = (
       timeCategoryId: category?._id || '',
       description: row.description,
       isbillable: row.billable,
-      rate: row.billable ? parseFloat(row.rate.replace('€', '')) : undefined,
+      rate: row.billable ? normalizedRate : undefined,
       logs,
     };
   });

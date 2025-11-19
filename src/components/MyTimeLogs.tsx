@@ -334,6 +334,8 @@ const MyTimeLogs = () => {
     });
   }, [filteredTimeLogsBase, sortField, sortDirection]);
 
+  const totalRecordCount = apiPagination?.totalRecords ?? filteredTimeLogs.length;
+
   const toggleSelect = (id: string, checked: boolean) => {
     setSelectedIds(prev => {
       const next = new Set(prev);
@@ -749,7 +751,10 @@ const MyTimeLogs = () => {
       dataMappers.push((log) => formatCurrency(log.amount));
           break;
         case 'status':
-      dataMappers.push((log) => log.status);
+          dataMappers.push((log) => {
+            const status = (log.status || '').toLowerCase();
+            return status ? status.charAt(0).toUpperCase() + status.slice(1) : '';
+          });
           break;
       }
     });
@@ -1193,7 +1198,8 @@ const MyTimeLogs = () => {
           </div>
 
         </div>
-        <div className="space-y-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <span className="text-sm text-[#381980] font-semibold">{totalRecordCount} Rows</span>
           <Button
             onClick={handleDeleteSelected}
             disabled={isDeleting || selectedIds.size===0}
@@ -1708,6 +1714,9 @@ const MyTimeLogs = () => {
                 <option value={10}>10 per page</option>
                 <option value={20}>20 per page</option>
                 <option value={50}>50 per page</option>
+                <option value={100}>100 per page</option>
+                <option value={250}>250 per page</option>
+                <option value={500}>500 per page</option>
               </select>
             </div>
             <div className="text-sm text-gray-500">

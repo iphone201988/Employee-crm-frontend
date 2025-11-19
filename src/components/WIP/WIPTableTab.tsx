@@ -42,18 +42,32 @@ const WIPTableTab = ({ onInvoiceCreate, onWriteOff }: WIPTableTabProps) => {
 
   const wipData: WIPClient[] = useMemo(() => {
     const raw = wipResp?.data || [];
+    const mapOpenBalances = (balances: any[]): { id: string; amount: number; type?: string; status?: string; createdAt?: string; jobId?: string }[] => {
+      if (!Array.isArray(balances)) return [];
+      return balances.map((ob: any) => ({
+        id: String(ob._id || ob.id || Math.random()),
+        amount: Number(ob.amount || 0),
+        type: ob.type || undefined,
+        status: ob.status || undefined,
+        createdAt: ob.createdAt || undefined,
+        jobId: ob.jobId ? String(ob.jobId) : undefined,
+      }));
+    };
     return raw.map((client: any) => {
       const triggerAmount = client?.clientWipTraget?.amount;
       
-      // Calculate total WIP for client: sum of all jobs' wipAmount + wipTotalOpenBalance + clientWipTotalOpenBalance
+      // Calculate total WIP for client: sum of all jobs' wipAmount + wipTotalOpenBalance + clientWipTotalOpenBalance + importedWipBalance
       const clientWIPBalance = Number(client.clientWipTotalOpenBalance || 0);
+      const importedWipBalance = Number(client.importedWipBalance || 0);
       const jobsTotalWIP = (client.jobs || []).reduce((sum: number, job: any) => {
         const jobWipAmount = Number(job.wipAmount || 0);
         const jobWipOpenBalance = Number(job.wipTotalOpenBalance || 0);
         return sum + jobWipAmount + jobWipOpenBalance;
       }, 0);
-      const totalClientWIP = clientWIPBalance + jobsTotalWIP;
+      const totalClientWIP = clientWIPBalance + jobsTotalWIP + importedWipBalance;
       
+      const clientOpenBalances = mapOpenBalances(client.clientWipOpenBalance);
+
       return {
         id: client._id,
         clientName: client.name,
@@ -63,6 +77,7 @@ const WIPTableTab = ({ onInvoiceCreate, onWriteOff }: WIPTableTabProps) => {
         clientWipOpenBalanceIds: Array.isArray(client.clientWipOpenBalance)
           ? client.clientWipOpenBalance.map((ob: any) => ob._id)
           : [],
+        clientOpenBalances,
         trigger: triggerAmount ? `threshold-${triggerAmount}` : null,
         lastInvoiced: null,
         daysSinceLastInvoice: null,
@@ -89,6 +104,7 @@ const WIPTableTab = ({ onInvoiceCreate, onWriteOff }: WIPTableTabProps) => {
           const jobWipOpenBalance = Number(job.wipTotalOpenBalance || 0);
           const totalJobWIP = jobWipAmount + jobWipOpenBalance;
           const jobTriggerAmount = job?.jobWipTraget?.amount;
+          const jobOpenBalances = mapOpenBalances(job.wipopenbalances);
           return {
             id: job._id,
             jobName: job.name,
@@ -107,12 +123,14 @@ const WIPTableTab = ({ onInvoiceCreate, onWriteOff }: WIPTableTabProps) => {
             wipOpenBalanceIds: Array.isArray(job.wipopenbalances)
               ? job.wipopenbalances.map((ob: any) => ob._id)
               : [],
+            openBalances: jobOpenBalances,
             startDate: job.startDate || null,
             endDate: job.endDate || null,
           };
         }),
         clientWipBalance: totalClientWIP,
-        wipBreakdown: client.wipBreakdown || []
+        wipBreakdown: client.wipBreakdown || [],
+        importedWipBalance: importedWipBalance
       } as WIPClient;
     });
   }, [wipResp]);
@@ -275,6 +293,9 @@ const WIPTableTab = ({ onInvoiceCreate, onWriteOff }: WIPTableTabProps) => {
                 <option value={10}>10 per page</option>
                 <option value={20}>20 per page</option>
                 <option value={50}>50 per page</option>
+                <option value={100}>100 per page</option>
+                <option value={250}>250 per page</option>
+                <option value={500}>500 per page</option>
               </select>
             </div>
             <div className="text-sm text-gray-500">

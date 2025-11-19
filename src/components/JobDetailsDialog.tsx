@@ -5,11 +5,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency } from '@/lib/currency';
-import { Edit } from 'lucide-react';
-import { useGetJobQuery, useUpdateJobMutation } from '@/store/jobApi';
+import { Edit, Plus, Trash2, Clock, Save, X } from 'lucide-react';
+import { useGetJobQuery } from '@/store/jobApi';
+import { useGetNotesQuery, useAddNoteMutation, useUpdateNoteMutation, useDeleteNoteMutation } from '@/store/notesApi';
+import { toast } from 'sonner';
 
 interface TimeEntry {
   id: string;
@@ -44,7 +47,18 @@ export const JobDetailsDialog: React.FC<JobDetailsDialogProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState("job-details");
   const { data: jobResp, isLoading } = useGetJobQuery(jobId, { skip: !jobId });
-  const [updateJob] = useUpdateJobMutation();
+  const {
+    data: jobNotesResp,
+    isFetching: isJobNotesLoading,
+    refetch: refetchJobNotes,
+  } = useGetNotesQuery({ jobId }, { skip: !jobId || !isOpen });
+  const [addNote] = useAddNoteMutation();
+  const [updateNoteMutation] = useUpdateNoteMutation();
+  const [deleteNoteMutation] = useDeleteNoteMutation();
+  const jobNotes = jobNotesResp?.data ?? [];
+  const [newNote, setNewNote] = useState('');
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editingValue, setEditingValue] = useState('');
   
   const apiJob = jobResp?.data;
   const apiLogs = jobResp?.timeLogs || [];
@@ -101,6 +115,58 @@ export const JobDetailsDialog: React.FC<JobDetailsDialogProps> = ({
     ];
   }, [apiLogs, timeEntries]);
 
+  const handleAddNote = async () => {
+    if (!newNote.trim() || !jobId) return;
+    try {
+      await addNote({ note: newNote.trim(), jobId }).unwrap();
+      setNewNote('');
+      toast.success('Note added successfully');
+      refetchJobNotes();
+    } catch (error: any) {
+      toast.error(error?.data?.message || 'Failed to add note');
+    }
+  };
+
+  const handleStartEdit = (noteId: string, currentValue: string) => {
+    setEditingNoteId(noteId);
+    setEditingValue(currentValue);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingNoteId(null);
+    setEditingValue('');
+  };
+
+  const handleUpdateNote = async () => {
+    if (!editingNoteId || !editingValue.trim()) return;
+    try {
+      await updateNoteMutation({ noteId: editingNoteId, note: editingValue.trim() }).unwrap();
+      toast.success('Note updated successfully');
+      handleCancelEdit();
+      refetchJobNotes();
+    } catch (error: any) {
+      toast.error(error?.data?.message || 'Failed to update note');
+    }
+  };
+
+  const handleDeleteNote = async (noteId: string) => {
+    try {
+      await deleteNoteMutation(noteId).unwrap();
+      toast.success('Note deleted successfully');
+      if (editingNoteId === noteId) {
+        handleCancelEdit();
+      }
+      refetchJobNotes();
+    } catch (error: any) {
+      toast.error(error?.data?.message || 'Failed to delete note');
+    }
+  };
+
+  const formatTimestamp = (timestamp: string) => {
+    const date = new Date(timestamp);
+    return date.toLocaleDateString('en-GB') + ' at ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
   const totalAmount = sampleTimeEntries.reduce((sum, entry) => sum + entry.amount, 0);
 
   return (
@@ -120,7 +186,7 @@ export const JobDetailsDialog: React.FC<JobDetailsDialogProps> = ({
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="job-details">Job Details</TabsTrigger>
             <TabsTrigger value="time-logs">Time Logs ({sampleTimeEntries.length})</TabsTrigger>
-            <TabsTrigger value="notes">Notes (0)</TabsTrigger>
+            <TabsTrigger value="notes">Notes ({jobNotes.length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="job-details" className="mt-6">
@@ -227,9 +293,77 @@ export const JobDetailsDialog: React.FC<JobDetailsDialogProps> = ({
           </TabsContent>
 
           <TabsContent value="notes" className="mt-6">
-            <div className="text-center py-8 text-muted-foreground">
-              <p>No notes available for this job.</p>
-            </div>
+            <Card>
+              <CardContent className="space-y-4 pt-6">
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Textarea
+                    placeholder="Enter your note here..."
+                    value={newNote}
+                    onChange={(e) => setNewNote(e.target.value)}
+                    className="min-h-[80px]"
+                  />
+                  <Button
+                    onClick={handleAddNote}
+                    disabled={!newNote.trim()}
+                    className="sm:w-32"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Note
+                  </Button>
+                </div>
+                <div className="border-t pt-4">
+                  {isJobNotesLoading ? (
+                    <div className="text-center py-8 text-muted-foreground">Loading notes...</div>
+                  ) : jobNotes.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">No notes available for this job.</div>
+                  ) : (
+                    <div className="space-y-4">
+                      {jobNotes.map((note) => (
+                        <div key={note._id} className="relative pl-6 pb-4 border-l border-border">
+                          <div className="absolute left-0 top-1 w-3 h-3 rounded-full bg-primary"></div>
+                          <div className="flex justify-between items-start gap-2">
+                            {editingNoteId === note._id ? (
+                              <Textarea
+                                value={editingValue}
+                                onChange={(e) => setEditingValue(e.target.value)}
+                                className="min-h-[80px]"
+                              />
+                            ) : (
+                              <p className="text-sm text-foreground">{note.note}</p>
+                            )}
+                            <div className="flex gap-2">
+                              {editingNoteId === note._id ? (
+                                <>
+                                  <Button size="icon" variant="ghost" onClick={handleUpdateNote}>
+                                    <Save className="h-4 w-4" />
+                                  </Button>
+                                  <Button size="icon" variant="ghost" onClick={handleCancelEdit}>
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <>
+                                  <Button size="icon" variant="ghost" onClick={() => handleStartEdit(note._id, note.note)}>
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button size="icon" variant="ghost" className="text-red-500 hover:text-red-700" onClick={() => handleDeleteNote(note._id)}>
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          <div className="mt-2 text-xs text-muted-foreground flex items-center gap-2">
+                            <Clock className="h-3 w-3" />
+                            <span>{formatTimestamp(note.createdAt)} by {note.createdBy?.name || 'Unknown'}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </DialogContent>

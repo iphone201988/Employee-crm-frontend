@@ -222,7 +222,7 @@ const SettingsTab = ({
         const firstSheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetName];
         const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
-        
+
         if (jsonData.length === 0) {
           toast.error('The Excel file appears to be empty');
           return;
@@ -248,11 +248,11 @@ const SettingsTab = ({
     try {
       const result = await importClients({ clients: importPreview }).unwrap();
       const { imported, failed, errors } = result.data;
-      
+
       if (imported > 0) {
         toast.success(`Successfully imported ${imported} client(s)`);
       }
-      
+
       if (failed > 0) {
         toast.warning(`${failed} client(s) failed to import`);
         if (errors && errors.length > 0) {
@@ -267,7 +267,7 @@ const SettingsTab = ({
       setImportPreview([]);
       setImportFile(null);
       setShowImportPreview(false);
-      
+
       // Reset file input
       const fileInput = document.getElementById('file-upload') as HTMLInputElement;
       if (fileInput) {
@@ -371,11 +371,11 @@ const SettingsTab = ({
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center gap-2">
-                <Input 
-                  type="number" 
-                  value={wipWarningPercentage} 
+                <Input
+                  type="number"
+                  value={wipWarningPercentage}
                   onChange={(e) => onWipWarningPercentageChange(Number(e.target.value))}
-                  className="w-20" 
+                  className="w-20"
                   min="0"
                   max="100"
                 />
@@ -398,15 +398,15 @@ const SettingsTab = ({
                     <DialogHeader>
                       <DialogTitle>Add WIP Amount</DialogTitle>
                     </DialogHeader>
-                    <Input 
+                    <Input
                       type="number"
-                      placeholder="Enter amount" 
-                      value={newWipAmount} 
-                      onChange={(e) => setNewWipAmount(e.target.value)} 
+                      placeholder="Enter amount"
+                      value={newWipAmount}
+                      onChange={(e) => setNewWipAmount(e.target.value)}
                     />
-                    <Button 
-                      onClick={() => handleAddNewCategory('wipTargetAmount')} 
-                      disabled={isAdding} 
+                    <Button
+                      onClick={() => handleAddNewCategory('wipTargetAmount')}
+                      disabled={isAdding}
                       className="w-full"
                     >
                       {isAdding ? 'Adding...' : 'Add WIP Amount'}
@@ -423,7 +423,7 @@ const SettingsTab = ({
                   className={`border ${item.count === 0
                     ? "bg-gray-200 text-gray-700 border-gray-400"
                     : "bg-blue-100 text-blue-800 border-blue-200"
-                  }`}
+                    }`}
                 >
                   €{item.amount?.toLocaleString()}
                   <span className="mr-2 font-semibold">
@@ -442,8 +442,8 @@ const SettingsTab = ({
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <Button 
-                onClick={handleUpdateSettings} 
+              <Button
+                onClick={handleUpdateSettings}
                 disabled={isUpdatingSettings}
                 className="w-full sm:w-auto"
               >
@@ -629,7 +629,14 @@ const SettingsTab = ({
       {activeTab === "integrations" && (
         <Card>
           <CardContent className="space-y-6 p-6">
-            <Card className="pt-6">
+            <Card>
+              <CardContent className="py-8">
+                <div className="text-center text-muted-foreground">
+                QuickBooks feature is coming soon.
+                </div>
+              </CardContent>  
+            </Card>
+            {/* <Card className="pt-6">
               <CardHeader>
                 <CardTitle>QuickBooks Integration</CardTitle>
               </CardHeader>
@@ -656,7 +663,7 @@ const SettingsTab = ({
                   <Switch className="self-start sm:self-center" />
                 </div>
               </CardContent>
-            </Card>
+            </Card> */}
           </CardContent>
         </Card>
       )}

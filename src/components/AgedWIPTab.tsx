@@ -1,14 +1,15 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { DashboardCard, DashboardGrid } from "@/components/ui/dashboard-card";
 import { formatCurrency } from '@/lib/currency';
-import { ArrowUpDown } from 'lucide-react';
+import { ArrowUpDown, Search } from 'lucide-react';
 import ClientNameLink from './ClientNameLink';
 import ClientDetailsDialog from '@/components/ClientDetailsDialog';
 import { useGetClientQuery } from '@/store/clientApi';
 import { useGetAgedWipQuery } from '@/store/wipApi';
+import { Input } from '@/components/ui/input';
 
 interface AgedWIPEntry {
   clientId: string;
@@ -24,7 +25,24 @@ interface AgedWIPEntry {
 }
 
 const AgedWIPTab = () => {
-  const { data, isLoading } = useGetAgedWipQuery();
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [searchValue, setSearchValue] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchValue.trim());
+    }, 400);
+
+    return () => clearTimeout(handler);
+  }, [searchValue]);
+
+  const { data, isLoading } = useGetAgedWipQuery({
+    page,
+    limit,
+    search: debouncedSearch || undefined,
+  });
   const [sortConfig, setSortConfig] = useState<{ key: keyof AgedWIPEntry; direction: 'asc' | 'desc' } | null>(null);
 
   const agedWIPData: AgedWIPEntry[] = (data?.data?.clients || []).map((c: any) => ({
@@ -97,8 +115,35 @@ const AgedWIPTab = () => {
     days180Plus: 0,
   };
 
+  const pagination = data?.data?.pagination;
+  useEffect(() => {
+    if (pagination?.totalPages && pagination.totalPages > 0 && page > pagination.totalPages) {
+      setPage(pagination.totalPages);
+    }
+  }, [pagination?.totalPages, page]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch]);
+
+  const totalRecordCount = pagination?.totalClients ?? sortedData.length;
+  const pageStart = totalRecordCount > 0 ? ((page - 1) * limit) + 1 : 0;
+  const pageEnd = totalRecordCount > 0 ? Math.min(page * limit, totalRecordCount) : 0;
+
   return (
     <div className="space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative w-full max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={searchValue}
+            onChange={(e) => setSearchValue(e.target.value)}
+            placeholder="Search clients..."
+            className="pl-10 bg-white"
+          />
+        </div>
+        <span className="text-sm text-[#381980] font-semibold whitespace-nowrap">{totalRecordCount} Rows</span>
+      </div>
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="h-full">
@@ -301,6 +346,55 @@ const AgedWIPTab = () => {
           onOpenChange={setShowClientDetailsDialog}
           clientData={selectedClientData?.data}
         />
+      )}
+
+      {pagination && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">Show:</span>
+              <select
+                value={limit}
+                onChange={(e) => { setPage(1); setLimit(Number(e.target.value)); }}
+                className="border border-gray-300 rounded px-2 py-1 text-sm"
+                disabled={isLoading}
+              >
+                <option value={5}>5 per page</option>
+                <option value={10}>10 per page</option>
+                <option value={20}>20 per page</option>
+                <option value={50}>50 per page</option>
+                <option value={100}>100 per page</option>
+                <option value={250}>250 per page</option>
+                <option value={500}>500 per page</option>
+              </select>
+            </div>
+            <div className="text-sm text-gray-500">
+              {totalRecordCount > 0
+                ? `Showing ${pageStart} to ${pageEnd} of ${totalRecordCount} clients`
+                : 'Showing 0 clients'}
+            </div>
+          </div>
+          {pagination.totalPages > 1 && (
+            <div className="flex justify-center items-center gap-2">
+              <Button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1 || isLoading}
+                variant="outline"
+                size="sm"
+              >
+                Previous
+              </Button>
+              <Button
+                onClick={() => setPage(p => Math.min(pagination.totalPages, p + 1))}
+                disabled={page >= pagination.totalPages || isLoading}
+                variant="outline"
+                size="sm"
+              >
+                Next
+              </Button>
+            </div>
+          )}
+        </div>
       )}
 
     </div>

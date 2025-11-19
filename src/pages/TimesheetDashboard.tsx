@@ -43,6 +43,8 @@ type ApiTimesheet = {
   entriesCount?: number;
   notes?: Note[];
   notesCount?: number;
+  submittedAt?: string;
+  updatedAt?: string;
 };
 
 type ApiResponse = {
@@ -63,6 +65,8 @@ type TableItem = {
   status: 'approved' | 'review' | 'rejected' | 'not-submitted';
   notes: number;
   submitted: string;
+  submittedAt?: string;
+  updatedAt?: string;
   avatar?: string;
   displayStatus: string;
 };
@@ -433,6 +437,18 @@ export function TimesheetDashboard() {
   }, [departmentOptions]);
 
   // Transform API -> table rows
+  const formatUTCDate = (value?: string | number | Date | null) => {
+    if (!value) return '-';
+    const date = new Date(value);
+    if (isNaN(date.getTime())) return '-';
+    return date.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      timeZone: 'UTC'
+    });
+  };
+
   const tableData = useMemo(() => {
     return (apiTimesheets || []).map((t) => {
       const name = t?.user?.name || '—';
@@ -451,6 +467,13 @@ export function TimesheetDashboard() {
             : /reject/i.test(raw)
               ? 'Rejected'
               : 'Not Submitted';
+      const submittedAtRaw = t?.submittedAt || null;
+      const submittedDisplay = status === 'not-submitted'
+        ? '-'
+        : submittedAtRaw
+          ? formatUTCDate(submittedAtRaw)
+          : formatUTCDate(t?.weekEnd || Date.now());
+
       return {
         id: t?._id,
         userId: t?.userId || '',
@@ -464,7 +487,9 @@ export function TimesheetDashboard() {
         displayStatus,
         notes: Number(t?.notesCount || (Array.isArray(t?.notes) ? t.notes.length : 0)),
         notesData: Array.isArray(t?.notes) ? t.notes : [],
-        submitted: status === 'not-submitted' ? '-' : new Date(t?.weekEnd || Date.now()).toLocaleDateString(),
+        submitted: submittedDisplay,
+        submittedAt: submittedAtRaw || undefined,
+        updatedAt: t?.updatedAt,
         avatar: ''
       } as const;
     });
@@ -600,6 +625,14 @@ export function TimesheetDashboard() {
       aValue = (a as any).varianceSec;
       bValue = (b as any).varianceSec;
     }
+    if (sortField === 'submitted') {
+      const aDateSource = a.submittedAt || a.updatedAt;
+      const bDateSource = b.submittedAt || b.updatedAt;
+      const aDate = aDateSource ? new Date(aDateSource).getTime() : 0;
+      const bDate = bDateSource ? new Date(bDateSource).getTime() : 0;
+      aValue = aDate;
+      bValue = bDate;
+    }
 
     // Handle string comparison
     if (typeof aValue === 'string' && typeof bValue === 'string') {
@@ -616,6 +649,7 @@ export function TimesheetDashboard() {
   // Pagination (from API)
   const totalPages = apiPagination?.totalPages || 1;
   const totalItems = apiPagination?.totalItems || apiPagination?.totalRecords || filteredData.length;
+  const totalRowCount = totalItems;
   // Dynamic filter sources
   const teamOptions = allFilterOptions?.data?.teams || [];
   const statuses = ["approved", "review", "rejected", "not-submitted"] as const;
@@ -992,18 +1026,17 @@ export function TimesheetDashboard() {
               </PopoverContent>
             </Popover>
           </div>
-          <div className="space-y-2">
-            <Button
-              variant="outline"
-              className="bg-[#381980] w-[42px] rounded-sm text-primary-foreground p-2 hover:bg-primary/90 !text-[#fff]"
-              onClick={handleRefresh}
-            >
-              <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4" />
-            </Button>
-          </div>
         </div>
-        {canBulkDelete && (
-          <div className="space-y-2">
+        <div className="flex flex-wrap items-center justify-end gap-2 mt-3">
+          <span className="text-sm text-[#381980] font-semibold">{totalRowCount} Rows</span>
+          <Button
+            variant="outline"
+            className="bg-[#381980] w-[42px] rounded-sm text-primary-foreground p-2 hover:bg-primary/90 !text-[#fff]"
+            onClick={handleRefresh}
+          >
+            <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4" />
+          </Button>
+          {canBulkDelete && (
             <Button
               onClick={handleDeleteSelected}
               disabled={isDeleting || selectedIds.size === 0}
@@ -1011,8 +1044,8 @@ export function TimesheetDashboard() {
             >
               <Trash2 size={16} />
             </Button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     )}
 
@@ -1177,6 +1210,9 @@ export function TimesheetDashboard() {
                 <option value={10}>10 per page</option>
                 <option value={20}>20 per page</option>
                 <option value={50}>50 per page</option>
+                <option value={100}>100 per page</option>
+                <option value={250}>250 per page</option>
+                <option value={500}>500 per page</option>
               </select>
             </div>
             <div className="text-sm text-gray-500">

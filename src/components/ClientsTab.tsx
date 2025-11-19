@@ -77,6 +77,8 @@ interface Client {
 
 const ClientsTab = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   const [sortConfig, setSortConfig] = useState<{ key: 'clientRef' | 'name' | 'balance' | 'wipAmount' | 'services' | 'timeLogged' | 'writeOff'; direction: 'asc' | 'desc' } | null>(null);
   const [hideZeroBalances, setHideZeroBalances] = useState(false);
   const [clients, setClients] = useState<Client[]>([]);
@@ -119,7 +121,7 @@ const ClientsTab = () => {
     'Other'
   ];
 
-  const { data: breakdownResp } = useGetClientBreakdownQuery({ page: 1, limit: 10 });
+  const { data: breakdownResp, isFetching: isClientsLoading } = useGetClientBreakdownQuery({ page, limit });
   const allClientsApi: Client[] = useMemo(() => {
     const list = breakdownResp?.data?.clients || [];
     return list.map((c: any) => ({
@@ -221,6 +223,7 @@ const ClientsTab = () => {
   }, [filteredClients, sortConfig]);
 
   const summaryData = breakdownResp?.data?.summary || {};
+  const pagination = breakdownResp?.data?.pagination;
   const totalClientsSummary = typeof summaryData.totalClients === 'number' ? summaryData.totalClients : effectiveClients.length;
   const totalBalance = typeof summaryData.totalOutstanding === 'number' ? summaryData.totalOutstanding : effectiveClients.reduce((sum, client) => sum + client.balance, 0);
   const totalWipAmount = typeof summaryData.totalWipAmount === 'number' ? summaryData.totalWipAmount : effectiveClients.reduce((sum, client) => sum + client.wipAmount, 0);
@@ -411,7 +414,17 @@ const ClientsTab = () => {
                 </tr>
               </thead>
               <tbody>
-                {sortedClients.map((client: Client) => (
+                {isClientsLoading && (
+                  <tr>
+                    <td colSpan={11} className="text-center py-6">Loading clients...</td>
+                  </tr>
+                )}
+                {!isClientsLoading && sortedClients.length === 0 && (
+                  <tr>
+                    <td colSpan={11} className="text-center py-6">No clients found.</td>
+                  </tr>
+                )}
+                {!isClientsLoading && sortedClients.map((client: Client) => (
                   <tr key={client.id} className="border-b border-border hover:bg-muted/30 transition-colors">
                     <td className="p-4 font-medium text-foreground border-r">{client.clientRef}</td>
                     <td className="p-4 font-medium text-foreground border-r">
@@ -518,6 +531,89 @@ const ClientsTab = () => {
           </div>
         </CardContent>
       </Card>
+
+      {pagination && (
+        <div className="space-y-4 mt-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">Show:</span>
+              <select
+                value={limit}
+                onChange={(e) => {
+                  setLimit(Number(e.target.value));
+                  setPage(1);
+                }}
+                className="border border-gray-300 rounded px-2 py-1 text-sm"
+                disabled={isClientsLoading}
+              >
+                <option value={5}>5 per page</option>
+                <option value={10}>10 per page</option>
+                <option value={20}>20 per page</option>
+                <option value={50}>50 per page</option>
+                <option value={100}>100 per page</option>
+                <option value={250}>250 per page</option>
+                <option value={500}>500 per page</option>
+              </select>
+            </div>
+            <div className="text-sm text-gray-500">
+              {pagination.totalClients > 0 ? (
+                <>
+                  Showing {((page - 1) * (pagination.limit || limit)) + 1} to {Math.min(page * (pagination.limit || limit), pagination.totalClients)} of {pagination.totalClients} clients
+                </>
+              ) : (
+                'Showing 0 clients'
+              )}
+            </div>
+          </div>
+
+          {pagination.totalPages > 1 && (
+            <div className="flex justify-center items-center gap-2">
+              <Button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1 || isClientsLoading}
+                variant="outline"
+                size="sm"
+              >
+                Previous
+              </Button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (pagination.totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (page <= 3) {
+                    pageNum = i + 1;
+                  } else if (page >= pagination.totalPages - 2) {
+                    pageNum = pagination.totalPages - 4 + i;
+                  } else {
+                    pageNum = page - 2 + i;
+                  }
+                  return (
+                    <Button
+                      key={pageNum}
+                      onClick={() => setPage(pageNum)}
+                      disabled={isClientsLoading}
+                      variant={page === pageNum ? "default" : "outline"}
+                      size="sm"
+                      className="w-8 h-8 p-0"
+                    >
+                      {pageNum}
+                    </Button>
+                  );
+                })}
+              </div>
+              <Button
+                onClick={() => setPage(p => p + 1)}
+                disabled={page >= pagination.totalPages || isClientsLoading}
+                variant="outline"
+                size="sm"
+              >
+                Next
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Expenses Dialog */}
       {selectedExpensesClient && (

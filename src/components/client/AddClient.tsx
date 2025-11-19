@@ -340,7 +340,7 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
                             </div>
 
                             <InputComponent
-                                label="TAX/PPS NO *"
+                                label="TAX/PPS NO (Optional)"
                                 id="taxNumber"
                                 value={formData.taxNumber}
                                 onChange={handleInputChange('taxNumber')}

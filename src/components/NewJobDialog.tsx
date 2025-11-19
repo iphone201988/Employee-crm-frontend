@@ -187,7 +187,7 @@ const NewJobDialog = ({ open, onOpenChange, onSave }: NewJobDialogProps) => {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="estimatedCost">Estimated Cost</Label>
+              <Label htmlFor="estimatedCost">Job Cost</Label>
               <Input
                 id="estimatedCost"
                 type="number"
@@ -195,7 +195,7 @@ const NewJobDialog = ({ open, onOpenChange, onSave }: NewJobDialogProps) => {
                 min="0"
                 value={estimatedCost}
                 onChange={(e) => setEstimatedCost(e.target.value)}
-                placeholder="Enter estimated cost"
+                placeholder="Job cost"
               />
             </div>
             

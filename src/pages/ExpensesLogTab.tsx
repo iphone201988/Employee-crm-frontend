@@ -58,6 +58,30 @@ const calculateVATDetails = (netAmount: number, category: string) => {
 };
 
 
+const formatCategoryLabel = (categoryValue: string) => {
+  if (!categoryValue) return '';
+  return categoryValue
+    .split('-')
+    .map(word => {
+      const lower = word.toLowerCase();
+      if (lower === 'cro') return 'CRO';
+      return lower.charAt(0).toUpperCase() + lower.slice(1);
+    })
+    .join(' ');
+};
+
+const normalizeCategoryToSlug = (categoryLabel: string) => {
+  if (!categoryLabel) return 'subsistence';
+  const normalized = categoryLabel.toLowerCase();
+  if (normalized.includes('cro') && normalized.includes('filing')) return 'cro-filing-fee';
+  if (normalized === 'subsistence') return 'subsistence';
+  if (normalized === 'accommodation') return 'accommodation';
+  if (normalized === 'mileage') return 'mileage';
+  if (normalized === 'software') return 'software';
+  if (normalized === 'stationary') return 'stationary';
+  return 'subsistence';
+};
+
 const tabs = [
   {
     label: 'Client',
@@ -89,7 +113,7 @@ const ExpensesLogTab = () => {
   const [addTeamExpense, { isLoading: isAddingTeamExpense }] = useAddClientExpenseMutation();
   const [updateExpense, { isLoading: isUpdatingExpense }] = useUpdateExpenseMutation();
   const [deleteExpense, { isLoading: isDeletingExpense }] = useDeleteExpenseMutation();
-  
+
   // API query for expenses
   const { data: expensesResp, isLoading: isExpensesLoading } = useListExpensesQuery({
     status: statusFilter === 'all' ? 'all' : (statusFilter === 'invoiced' || statusFilter === 'paid' ? 'yes' : 'no'),
@@ -141,12 +165,12 @@ const ExpensesLogTab = () => {
   // Real-time validation for individual fields
   const handleClientFieldChange = (field: keyof ExpenseFormData, value: any) => {
     setClientExpenseForm(prev => ({ ...prev, [field]: value }));
-    
+
     // Clear error for this field
     if (clientFormErrors[field]) {
       setClientFormErrors(prev => ({ ...prev, [field]: undefined }));
     }
-    
+
     // Validate field in real-time
     const error = validateSingleField(field, value, 'client');
     if (error) {
@@ -156,12 +180,12 @@ const ExpensesLogTab = () => {
 
   const handleTeamFieldChange = (field: keyof ExpenseFormData, value: any) => {
     setTeamExpenseForm(prev => ({ ...prev, [field]: value }));
-    
+
     // Clear error for this field
     if (teamFormErrors[field]) {
       setTeamFormErrors(prev => ({ ...prev, [field]: undefined }));
     }
-    
+
     // Validate field in real-time
     const error = validateSingleField(field, value, 'team');
     if (error) {
@@ -179,7 +203,7 @@ const ExpensesLogTab = () => {
         description: clientExpenseForm.description,
         clientId: clientExpenseForm.clientId,
         date: clientExpenseForm.date,
-        expreseCategory: clientExpenseForm.expreseCategory.charAt(0).toUpperCase() + clientExpenseForm.expreseCategory.slice(1).toLowerCase(),
+        expreseCategory: formatCategoryLabel(clientExpenseForm.expreseCategory),
         netAmount: Number(clientExpenseForm.netAmount || 0),
         vatPercentage: Number(clientExpenseForm.vatPercentage || 0),
         vatAmount: undefined,
@@ -227,7 +251,7 @@ const ExpensesLogTab = () => {
         clientId: undefined, // No client for team expenses
         userId: teamExpenseForm.teamId, // Pass selected team's ID
         date: teamExpenseForm.date,
-        expreseCategory: teamExpenseForm.expreseCategory.charAt(0).toUpperCase() + teamExpenseForm.expreseCategory.slice(1).toLowerCase(),
+        expreseCategory: formatCategoryLabel(teamExpenseForm.expreseCategory),
         netAmount: Number(teamExpenseForm.netAmount || 0),
         vatPercentage: Number(teamExpenseForm.vatPercentage || 0),
         vatAmount: undefined,
@@ -418,40 +442,32 @@ const ExpensesLogTab = () => {
     const expense = expenses.find(e => e.id === expenseId);
     if (expense) {
       setEditingExpense(expense);
-      
+
       // Convert date to YYYY-MM-DD format for date input
       const formatDateForInput = (dateString: string) => {
         const date = new Date(dateString);
         return date.toISOString().split('T')[0];
       };
-      
+
       // Find client ID from client name
       const findClientId = (clientName?: string) => {
         if (!clientName) return '';
         const client = clientOptions.find(c => c.label === clientName);
         return client?.value || '';
       };
-      
+
       // Find team ID from team member name
       const findTeamId = (teamMemberName?: string) => {
         if (!teamMemberName) return '';
         const team = teamOptions.find(t => t.label === teamMemberName);
         return team?.value || '';
       };
-      
+
       // Convert category to form format
       const convertCategoryToForm = (category: string) => {
-        const categoryMap: Record<string, string> = {
-          'CRO filing fee': 'cro-filing-fee',
-          'Subsistence': 'subsistence',
-          'Accommodation': 'accommodation',
-          'Mileage': 'mileage',
-          'Software': 'software',
-          'Stationary': 'stationary'
-        };
-        return categoryMap[category] || 'subsistence';
+        return normalizeCategoryToSlug(category);
       };
-      
+
       // Open the appropriate form based on expense type
       if (activeTab === 'clientExpenses') {
         setClientExpenseForm({
@@ -543,7 +559,7 @@ const ExpensesLogTab = () => {
     <div className="space-y-6 p-6">
       <div className="mb-6">
 
-      <Avatars activeTab={activeTab} title={"Expenses"} />
+        <Avatars activeTab={activeTab} title={"Expenses"} />
 
         {/* Tabs */}
         <CustomTabs tabs={visibleTabs} activeTab={activeTab} setActiveTab={setActiveTab} />
@@ -800,7 +816,7 @@ const ExpensesLogTab = () => {
                       </TableCell>
                       <TableCell className="text-left px-4">
                         <div className="text-right">
-                          <button 
+                          <button
                             onClick={(e) => handleSettingsClick(e, expense.id)}
                             className="p-1 hover:bg-gray-100 rounded"
                           >
@@ -833,16 +849,19 @@ const ExpensesLogTab = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-sm text-gray-600">Show:</span>
-              <select 
-                value={limit} 
-                onChange={(e) => { setPage(1); setLimit(Number(e.target.value)); }} 
-                className="border border-gray-300 rounded px-2 py-1 text-sm" 
+              <select
+                value={limit}
+                onChange={(e) => { setPage(1); setLimit(Number(e.target.value)); }}
+                className="border border-gray-300 rounded px-2 py-1 text-sm"
                 disabled={isExpensesLoading}
               >
                 <option value={5}>5 per page</option>
                 <option value={10}>10 per page</option>
                 <option value={20}>20 per page</option>
                 <option value={50}>50 per page</option>
+                <option value={100}>100 per page</option>
+                <option value={250}>250 per page</option>
+                <option value={500}>500 per page</option>
               </select>
             </div>
             <div className="text-sm text-gray-500">
@@ -851,18 +870,18 @@ const ExpensesLogTab = () => {
           </div>
           {Math.ceil(apiPagination.total / limit) > 1 && (
             <div className="flex justify-center items-center gap-2">
-              <Button 
-                onClick={() => setPage(p => Math.max(1, p - 1))} 
-                disabled={page === 1 || isExpensesLoading} 
-                variant="outline" 
+              <Button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1 || isExpensesLoading}
+                variant="outline"
                 size="sm"
               >
                 Previous
               </Button>
-              <Button 
-                onClick={() => setPage(p => p + 1)} 
-                disabled={page >= Math.ceil(apiPagination.total / limit) || isExpensesLoading} 
-                variant="outline" 
+              <Button
+                onClick={() => setPage(p => p + 1)}
+                disabled={page >= Math.ceil(apiPagination.total / limit) || isExpensesLoading}
+                variant="outline"
                 size="sm"
               >
                 Next
@@ -941,21 +960,25 @@ const ExpensesLogTab = () => {
       }}>
         <DialogContent className="max-w-2xl !rounded-none p-0 border-none for-close">
           <DialogHeader className="bg-[#381980] sticky z-50 top-0 left-0 w-full text-center ">
-            <DialogTitle className="text-center text-white py-4">{editingExpense ? 'Edit Client Expense' : '+ Add Client Expense'}</DialogTitle>
+            <DialogTitle className="text-center text-white py-4">{editingExpense ? 'Edit Client Expense' : '+ Client Expense'}</DialogTitle>
           </DialogHeader>
-           <button 
-                   
-                    className=" bg-[#381980] text-white absolute right-[-35px] top-0 p-[6px] rounded-full max-sm:hidden"
-                  >
-                    <X size={16}/>
-                  </button>
+          <button
+            onClick={() => {
+              setAddClientExpenseOpen(false);
+              setEditingExpense(null);
+              setClientFormErrors({});
+            }}
+            className=" bg-[#381980] text-white absolute right-[-35px] top-0 p-[6px] rounded-full max-sm:hidden"
+          >
+            <X size={16} />
+          </button>
           <div className="space-y-4 form-change ">
             <div className="grid grid-cols-2 gap-4 px-[20px]">
               <div>
                 <label className="text-sm font-medium">Date </label>
-                <Input 
-                  type="date" 
-                  value={clientExpenseForm.date} 
+                <Input
+                  type="date"
+                  value={clientExpenseForm.date}
                   onChange={(e) => handleClientFieldChange('date', e.target.value)}
                   className={clientFormErrors.date ? 'border-red-500' : ''}
                 />
@@ -965,8 +988,8 @@ const ExpensesLogTab = () => {
               </div>
               <div>
                 <label className="text-sm font-medium">Client</label>
-                <Select 
-                  value={clientExpenseForm.clientId} 
+                <Select
+                  value={clientExpenseForm.clientId}
                   onValueChange={(v) => handleClientFieldChange('clientId', v)}
                 >
                   <SelectTrigger className={clientFormErrors.clientId ? 'border-red-500' : ''}>
@@ -985,9 +1008,9 @@ const ExpensesLogTab = () => {
             </div>
             <div className='px-[20px]'>
               <label className="text-sm font-medium">Description</label>
-              <Input 
-                placeholder="Enter expense description" 
-                value={clientExpenseForm.description} 
+              <Input
+                placeholder="Enter expense description"
+                value={clientExpenseForm.description}
                 onChange={(e) => handleClientFieldChange('description', e.target.value)}
                 className={clientFormErrors.description ? 'border-red-500' : ''}
               />
@@ -998,8 +1021,8 @@ const ExpensesLogTab = () => {
             <div className="grid grid-cols-2 gap-4 px-[20px]">
               <div>
                 <label className="text-sm font-medium">Category</label>
-                <Select 
-                  value={clientExpenseForm.expreseCategory} 
+                <Select
+                  value={clientExpenseForm.expreseCategory}
                   onValueChange={(v) => handleClientFieldChange('expreseCategory', v)}
                 >
                   <SelectTrigger className={clientFormErrors.expreseCategory ? 'border-red-500' : ''}>
@@ -1020,11 +1043,11 @@ const ExpensesLogTab = () => {
               </div>
               <div>
                 <label className="text-sm font-medium">Amount</label>
-                <Input 
-                  type="number" 
-                  placeholder="Net" 
-                  step="0.01" 
-                  value={clientExpenseForm.netAmount} 
+                <Input
+                  type="number"
+                  placeholder="Net"
+                  step="0.01"
+                  value={clientExpenseForm.netAmount}
                   onChange={(e) => handleClientFieldChange('netAmount', e.target.value)}
                   className={clientFormErrors.netAmount ? 'border-red-500' : ''}
                 />
@@ -1036,11 +1059,11 @@ const ExpensesLogTab = () => {
             <div className="grid grid-cols-1 gap-4 px-[20px]">
               <div>
                 <label className="text-sm font-medium">VAT %</label>
-                <Input 
-                  type="number" 
-                  placeholder="0" 
-                  step="0.01" 
-                  value={clientExpenseForm.vatPercentage} 
+                <Input
+                  type="number"
+                  placeholder="0"
+                  step="0.01"
+                  value={clientExpenseForm.vatPercentage}
                   onChange={(e) => handleClientFieldChange('vatPercentage', e.target.value)}
                   className={clientFormErrors.vatPercentage ? 'border-red-500' : ''}
                 />
@@ -1052,8 +1075,8 @@ const ExpensesLogTab = () => {
             <div className="grid grid-cols-2 gap-4 px-[20px]">
               <div>
                 <label className="text-sm font-medium">Status</label>
-                <Select 
-                  value={clientExpenseForm.status} 
+                <Select
+                  value={clientExpenseForm.status}
                   onValueChange={(v) => handleClientFieldChange('status', v)}
                 >
                   <SelectTrigger className={clientFormErrors.status ? 'border-red-500' : ''}>
@@ -1077,9 +1100,9 @@ const ExpensesLogTab = () => {
                     <span className="text-xs text-blue-600">Upload a new file to replace the current attachment</span>
                   </div>
                 )}
-                <Input 
-                  type="file" 
-                  onChange={(e) => handleClientFieldChange('file', e.target.files && e.target.files[0] ? e.target.files[0] : null)} 
+                <Input
+                  type="file"
+                  onChange={(e) => handleClientFieldChange('file', e.target.files && e.target.files[0] ? e.target.files[0] : null)}
                 />
               </div>
             </div>
@@ -1107,17 +1130,27 @@ const ExpensesLogTab = () => {
           setTeamFormErrors({});
         }
       }}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{editingExpense ? 'Edit Team Expense' : 'Add Team Expense'}</DialogTitle>
+        <DialogContent className="max-w-2xl !rounded-none p-0 border-none for-close">
+          <DialogHeader className="bg-[#381980] sticky z-50 top-0 left-0 w-full text-center ">
+            <DialogTitle className="text-center text-white py-4">{editingExpense ? 'Edit Team Expense' : '+ Team Expense'}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+          <button
+            onClick={() => {
+              setAddTeamExpenseOpen(false);
+              setEditingExpense(null);
+              setTeamFormErrors({});
+            }}
+            className=" bg-[#381980] text-white absolute right-[-35px] top-0 p-[6px] rounded-full max-sm:hidden"
+          >
+            <X size={16} />
+          </button>
+          <div className="space-y-4 form-change">
+            <div className="grid grid-cols-2 gap-4 px-[20px]">
               <div>
-                <label className="text-sm font-medium">Date</label>
-                <Input 
-                  type="date" 
-                  value={teamExpenseForm.date} 
+                <label className="text-sm font-medium">Date </label>
+                <Input
+                  type="date"
+                  value={teamExpenseForm.date}
                   onChange={(e) => handleTeamFieldChange('date', e.target.value)}
                   className={teamFormErrors.date ? 'border-red-500' : ''}
                 />
@@ -1127,8 +1160,8 @@ const ExpensesLogTab = () => {
               </div>
               <div>
                 <label className="text-sm font-medium">Team</label>
-                <Select 
-                  value={teamExpenseForm.teamId} 
+                <Select
+                  value={teamExpenseForm.teamId}
                   onValueChange={(v) => handleTeamFieldChange('teamId', v)}
                 >
                   <SelectTrigger className={teamFormErrors.teamId ? 'border-red-500' : ''}>
@@ -1145,11 +1178,11 @@ const ExpensesLogTab = () => {
                 )}
               </div>
             </div>
-            <div>
+            <div className='px-[20px]'>
               <label className="text-sm font-medium">Description</label>
-              <Input 
-                placeholder="Enter expense description" 
-                value={teamExpenseForm.description} 
+              <Input
+                placeholder="Enter expense description"
+                value={teamExpenseForm.description}
                 onChange={(e) => handleTeamFieldChange('description', e.target.value)}
                 className={teamFormErrors.description ? 'border-red-500' : ''}
               />
@@ -1157,11 +1190,11 @@ const ExpensesLogTab = () => {
                 <p className="text-red-500 text-xs mt-1">{teamFormErrors.description}</p>
               )}
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4 px-[20px]">
               <div>
                 <label className="text-sm font-medium">Category</label>
-                <Select 
-                  value={teamExpenseForm.expreseCategory} 
+                <Select
+                  value={teamExpenseForm.expreseCategory}
                   onValueChange={(v) => handleTeamFieldChange('expreseCategory', v)}
                 >
                   <SelectTrigger className={teamFormErrors.expreseCategory ? 'border-red-500' : ''}>
@@ -1182,11 +1215,11 @@ const ExpensesLogTab = () => {
               </div>
               <div>
                 <label className="text-sm font-medium">Amount</label>
-                <Input 
-                  type="number" 
-                  placeholder="0.00" 
-                  step="0.01" 
-                  value={teamExpenseForm.netAmount} 
+                <Input
+                  type="number"
+                  placeholder="Net"
+                  step="0.01"
+                  value={teamExpenseForm.netAmount}
                   onChange={(e) => handleTeamFieldChange('netAmount', e.target.value)}
                   className={teamFormErrors.netAmount ? 'border-red-500' : ''}
                 />
@@ -1195,14 +1228,14 @@ const ExpensesLogTab = () => {
                 )}
               </div>
             </div>
-            <div className="grid grid-cols-1 gap-4">
+            <div className="grid grid-cols-1 gap-4 px-[20px]">
               <div>
                 <label className="text-sm font-medium">VAT %</label>
-                <Input 
-                  type="number" 
-                  placeholder="0" 
-                  step="0.01" 
-                  value={teamExpenseForm.vatPercentage} 
+                <Input
+                  type="number"
+                  placeholder="0"
+                  step="0.01"
+                  value={teamExpenseForm.vatPercentage}
                   onChange={(e) => handleTeamFieldChange('vatPercentage', e.target.value)}
                   className={teamFormErrors.vatPercentage ? 'border-red-500' : ''}
                 />
@@ -1211,47 +1244,49 @@ const ExpensesLogTab = () => {
                 )}
               </div>
             </div>
-            <div>
-              <label className="text-sm font-medium">Status</label>
-              <Select 
-                value={teamExpenseForm.status} 
-                onValueChange={(v) => handleTeamFieldChange('status', v)}
-              >
-                <SelectTrigger className={teamFormErrors.status ? 'border-red-500' : ''}>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="yes">Paid</SelectItem>
-                  <SelectItem value="no">Not Paid</SelectItem>
-                </SelectContent>
-              </Select>
-              {teamFormErrors.status && (
-                <p className="text-red-500 text-xs mt-1">{teamFormErrors.status}</p>
-              )}
+            <div className="grid grid-cols-2 gap-4 px-[20px]">
+              <div>
+                <label className="text-sm font-medium">Status</label>
+                <Select
+                  value={teamExpenseForm.status}
+                  onValueChange={(v) => handleTeamFieldChange('status', v)}
+                >
+                  <SelectTrigger className={teamFormErrors.status ? 'border-red-500' : ''}>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="yes">Paid</SelectItem>
+                    <SelectItem value="no">Not Paid</SelectItem>
+                  </SelectContent>
+                </Select>
+                {teamFormErrors.status && (
+                  <p className="text-red-500 text-xs mt-1">{teamFormErrors.status}</p>
+                )}
+              </div>
+              <div>
+                <label className="text-sm font-medium">Attachment</label>
+                {editingExpense && editingExpense.attachments && editingExpense.attachments.length > 0 && (
+                  <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm text-blue-700">
+                    <strong>Current attachment:</strong> {editingExpense.attachments[0].split('/').pop()}
+                    <br />
+                    <span className="text-xs text-blue-600">Upload a new file to replace the current attachment</span>
+                  </div>
+                )}
+                <Input
+                  type="file"
+                  onChange={(e) => handleTeamFieldChange('file', e.target.files && e.target.files[0] ? e.target.files[0] : null)}
+                />
+              </div>
             </div>
-            <div>
-              <label className="text-sm font-medium">Attachment</label>
-              {editingExpense && editingExpense.attachments && editingExpense.attachments.length > 0 && (
-                <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm text-blue-700">
-                  <strong>Current attachment:</strong> {editingExpense.attachments[0].split('/').pop()}
-                  <br />
-                  <span className="text-xs text-blue-600">Upload a new file to replace the current attachment</span>
-                </div>
-              )}
-              <Input 
-                type="file" 
-                onChange={(e) => handleTeamFieldChange('file', e.target.files && e.target.files[0] ? e.target.files[0] : null)} 
-              />
-            </div>
-            <div className="flex justify-end gap-2 pt-4">
-              <Button variant="outline" onClick={() => {
+            <div className="flex justify-end gap-2 pt-4 p-[20px] bg-[#381980]">
+              <Button variant="outline" className="rounded-[6px] text-[#017DB9]" onClick={() => {
                 setAddTeamExpenseOpen(false);
                 setEditingExpense(null);
                 setTeamFormErrors({});
               }}>
                 Cancel
               </Button>
-              <Button onClick={submitTeamExpense} disabled={isAddingTeamExpense || isUpdatingExpense}>
+              <Button onClick={submitTeamExpense} disabled={isAddingTeamExpense || isUpdatingExpense} className="!bg-[#017DB9] rounded-[6px]">
                 {isAddingTeamExpense || isUpdatingExpense ? 'Saving...' : (editingExpense ? 'Update Expense' : 'Save Expense')}
               </Button>
             </div>
@@ -1280,11 +1315,11 @@ const ExpensesLogTab = () => {
 
       {/* Settings Popup */}
       {settingsPopup && (
-        <div 
+        <div
           className="fixed z-50 bg-white border border-gray-200 rounded-md shadow-lg py-1 min-w-[120px]"
-          style={{ 
-            left: settingsPopup.x, 
-            top: settingsPopup.y 
+          style={{
+            left: settingsPopup.x,
+            top: settingsPopup.y
           }}
         >
           <button
@@ -1306,8 +1341,8 @@ const ExpensesLogTab = () => {
 
       {/* Click outside to close popup */}
       {settingsPopup && (
-        <div 
-          className="fixed inset-0 z-40" 
+        <div
+          className="fixed inset-0 z-40"
           onClick={handleCloseSettingsPopup}
         />
       )}

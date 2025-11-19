@@ -115,7 +115,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
             currentWeek.weekStart === originalTimesheetWeek.weekStart &&
             currentWeek.weekEnd === originalTimesheetWeek.weekEnd;
 
-        return {
+    return {
             weekStart: currentWeek.weekStart,
             weekEnd: currentWeek.weekEnd,
             timesheetId: (timesheetId && isOnOriginalWeek) ? timesheetId : undefined,
@@ -174,7 +174,6 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
     const clients = dropdownOptions?.clients || [];
     const jobs = dropdownOptions?.jobs || [];
     const categories = dropdownOptions?.timeCategories || [];
-    const rates = [`€${billableRate.toFixed(2)}`];
 
     // Function to get filtered jobs based on selected client
     const getFilteredJobs = (clientId: string) => {
@@ -254,7 +253,8 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
 
             jobs,
             categories,
-            currentWeek.weekStart
+            currentWeek.weekStart,
+            billableRate
         );
 
         // Precompute totals and build dailySummary aligned by offset from weekStart
@@ -267,7 +267,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
             const nonBill = hoursToSeconds((totals.nonBillable as any)[key] || 0);
             const dateObj = new Date(currentWeek.weekStart);
             dateObj.setDate(new Date(currentWeek.weekStart).getDate() + offset);
-            return {
+    return {
                 date: dateObj.toISOString(),
                 billable: bill,
                 nonBillable: nonBill,
@@ -371,11 +371,6 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
         }
 
         const newId = `temp-${Date.now()}`;
-        const generateClientRef = (clientName: string) => {
-            const firstThreeLetters = clientName.substring(0, 3).toUpperCase();
-            const year = new Date().getFullYear().toString().slice(-2);
-            return `${firstThreeLetters}-${year}`;
-        };
 
         const newRow: TimesheetRow = {
             id: newId,
@@ -386,17 +381,17 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
             jobId: '',
             category: '',
             description: "",
-            billable: true,
-            rate: `€${billableRate.toFixed(2)}`,
-            hours: {
-                mon: 0,
+        billable: true,
+            rate: billableRate.toFixed(2),
+        hours: {
+            mon: 0,
                 tue: 0,
-                wed: 0,
-                thu: 0,
-                fri: 0,
-                sat: 0,
-                sun: 0
-            }
+            wed: 0,
+            thu: 0,
+            fri: 0,
+            sat: 0,
+            sun: 0
+        }
         };
 
         setTimesheetRows([...timesheetRows, newRow]);
@@ -421,6 +416,38 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
         setTimesheetRows(rows => rows.map(r => r.id === rowId ? { ...r, ...updates } : r));
         setHasChanges(true);
     };
+
+    const sanitizeRateInput = (value: string) => {
+        if (!value) return '';
+        const cleaned = value.replace(/[^0-9.]/g, '');
+        if (!cleaned) return '';
+        const [integerPart, ...decimalParts] = cleaned.split('.');
+        const decimals = decimalParts.join('');
+        let normalized = decimalParts.length > 0 ? `${integerPart}.${decimals}` : integerPart;
+        if (normalized.startsWith('.')) {
+            normalized = `0${normalized}`;
+        }
+        return normalized;
+    };
+
+    const formatRateToTwoDecimals = (value: string) => {
+        const numericValue = parseFloat(value);
+        if (isNaN(numericValue)) {
+            return billableRate.toFixed(2);
+        }
+        return numericValue.toFixed(2);
+    };
+
+    const handleRateInputChange = (rowId: string, value: string) => {
+        const sanitized = sanitizeRateInput(value);
+        updateRow(rowId, { rate: sanitized });
+    };
+
+    const handleRateInputBlur = (rowId: string, value: string) => {
+        const formatted = formatRateToTwoDecimals(value);
+        updateRow(rowId, { rate: formatted });
+    };
+
     const handleTimesheetSort = (field: 'ref' | 'client' | 'job' | 'category' | 'description' | 'rate') => {
         if (timesheetSortField === field) {
             if (timesheetSortDirection === 'asc') {
@@ -852,8 +879,8 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                 }}
                                 disabled={isSubmittingStatus || hasChanges}
                             >
-                                {isSubmittingStatus ? 'Submitting...' : 'Submit for Approval'}
-                            </Button>
+                                {isSubmittingStatus ? 'Submitting...' : 'Submit for Review'}
+                    </Button>
                         ) : timesheet?.status === 'rejected' ? (
                             <Button
                                 variant="outline"
@@ -1002,7 +1029,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
             {/* Action Buttons */}
             <div className={`flex flex-col sm:flex-row items-stretch sm:items-center gap-3 ${shouldShowApproveRejectButtons ? 'justify-between' : 'justify-end'}`}>
                 {shouldShowApproveRejectButtons && (
-                    <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
                         <Button
                             variant="outline"
                             className="text-green-600 border-green-600 hover:bg-green-50 h-9 text-sm"
@@ -1018,7 +1045,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                             }}
                         >
                             {isSubmittingStatus ? 'Approving...' : 'Approve'}
-                        </Button>
+                    </Button>
                         <Button
                             variant="outline"
                             className="text-red-600 border-red-600 hover:bg-red-50 h-9 text-sm"
@@ -1034,8 +1061,8 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                             }}
                         >
                             {isSubmittingStatus ? 'Rejecting...' : 'Reject'}
-                        </Button>
-                    </div>
+                    </Button>
+                </div>
                 )}
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                     <div className="flex items-center justify-between sm:justify-start gap-2">
@@ -1065,10 +1092,10 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                         ) : (
                             <>
                                 <RefreshCw className="w-4 h-4" />
-                                Save Changes
+                       Save Changes
                             </>
                         )}
-                    </Button>
+                      </Button>
                 </div>
             </div>
 
@@ -1159,6 +1186,16 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                         <tbody>
                             {timesheetRows.sort((a, b) => {
                                 if (!timesheetSortField || !timesheetSortDirection) return 0;
+
+                                if (timesheetSortField === 'rate') {
+                                    const aRate = parseFloat(a.rate || '0');
+                                    const bRate = parseFloat(b.rate || '0');
+                                    if (timesheetSortDirection === 'asc') {
+                                        return aRate - bRate;
+                                    }
+                                    return bRate - aRate;
+                                }
+
                                 let aValue = a[timesheetSortField];
                                 let bValue = b[timesheetSortField];
 
@@ -1175,21 +1212,16 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                             }).map((row, rowIndex) => {
                                 const isDuplicate = isDuplicateRow(rowIndex);
                                 return <tr key={row.id} className={`border-t border-border hover:bg-muted/25 ${isDuplicate ? 'bg-red-50 border-red-200' : ''}`}>
-                                    <td className="px-3 py-2 text-sm text-left text-muted-foreground">{row.ref}</td>
-                                    <td className="px-3 py-2 text-sm">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="sm" className="text-left p-0 h-8 font-normal w-full justify-start">
+                                <td className="px-3 py-2 text-sm text-left text-muted-foreground">{row.ref}</td>
+                                <td className="px-3 py-2 text-sm">
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="sm" className="text-left p-0 h-8 font-normal w-full justify-start">
                                                     {row.client || 'Select client'} <ChevronDown className="ml-1 w-3 h-3" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent>
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent>
                                                 {clients.map(client => <DropdownMenuItem key={client._id} onClick={() => {
-                                                    const generateClientRef = (clientName: string) => {
-                                                        const firstThreeLetters = clientName.substring(0, 3).toUpperCase();
-                                                        const year = new Date().getFullYear().toString().slice(-2);
-                                                        return `${firstThreeLetters}-${year}`;
-                                                    };
                                                     // Get filtered jobs for the selected client
                                                     const filteredJobs = getFilteredJobs(client._id);
                                                     const firstJob = filteredJobs[0];
@@ -1197,7 +1229,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                                     updateRow(row.id, {
                                                         client: client.name,
                                                         clientId: client._id,
-                                                        ref: generateClientRef(client.name),
+                                                        ref: client.clientRef || 'N/A',
                                                         // Reset job to first available job for this client
                                                         job: firstJob ? firstJob.name : '',
                                                         jobId: firstJob ? firstJob._id : '',
@@ -1206,18 +1238,18 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                                     });
                                                 }}>
                                                     {client.name}
-                                                </DropdownMenuItem>)}
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </td>
-                                    <td className="px-3 py-2 text-sm">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
+                                            </DropdownMenuItem>)}
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </td>
+                                <td className="px-3 py-2 text-sm">
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
                                                 <Button variant="ghost" size="sm" className="text-left p-0 h-8 font-normal w-full justify-start" disabled={!row.clientId}>
                                                     {row.job || 'Select job'} <ChevronDown className="ml-1 w-3 h-3" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent>
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent>
                                                 {getFilteredJobs(row.clientId).map(job => <DropdownMenuItem key={job._id} onClick={() => {
                                                     updateRow(row.id, {
                                                         job: job.name,
@@ -1225,47 +1257,64 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                                     });
                                                 }}>
                                                     {job.name}
-                                                </DropdownMenuItem>)}
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </td>
-                                    <td className="px-3 py-2">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
+                                            </DropdownMenuItem>)}
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </td>
+                                <td className="px-3 py-2">
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
                                                 <Button variant="ghost" size="sm" className="text-left p-0 h-8 font-normal" disabled={!row.clientId}>
-                                                    <span className={`px-2 py-1 text-xs rounded whitespace-nowrap flex items-center ${row.category === 'Client Work' ? 'bg-blue-100 text-blue-800' : row.category === 'Admin' ? 'bg-green-100 text-green-800' : row.category === 'Training' ? 'bg-orange-100 text-orange-800' : row.category === 'Meeting' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}`}>
+                                                <span className={`px-2 py-1 text-xs rounded whitespace-nowrap flex items-center ${row.category === 'Client Work' ? 'bg-blue-100 text-blue-800' : row.category === 'Admin' ? 'bg-green-100 text-green-800' : row.category === 'Training' ? 'bg-orange-100 text-orange-800' : row.category === 'Meeting' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}`}>
                                                         {row.category || 'Select category'} <ChevronDown className="ml-1 w-3 h-3" />
-                                                    </span>
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent>
+                                                </span>
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent>
                                                 {categories.map(category => <DropdownMenuItem key={category._id} onClick={() => {
                                                     updateRow(row.id, {
                                                         category: category.name
                                                     });
                                                 }}>
                                                     {category.name}
-                                                </DropdownMenuItem>)}
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </td>
-                                    <td className="px-3 py-2 text-sm">
-                                        <Input value={row.description} onChange={e => {
+                                            </DropdownMenuItem>)}
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </td>
+                                <td className="px-3 py-2 text-sm">
+                                    <Input value={row.description} onChange={e => {
                                             updateRow(row.id, {
-                                                description: e.target.value
+                                            description: e.target.value
                                             });
-                                        }} className="border border-input p-1 h-8 bg-background text-sm rounded" placeholder="Add description..." />
-                                    </td>
-                                    <td className="px-3 py-2 text-center">
-                                        <Switch checked={row.billable} onCheckedChange={checked => {
-                                            updateRow(row.id, {
-                                                billable: checked
-                                            });
-                                        }} />
-                                    </td>
-                                    <td className="px-3 py-2 text-sm">
-                                        {row.billable && billableRate ? <span className="text-sm">{'€' + billableRate}</span> : null}
-                                    </td>
+                                    }} className="border border-input p-1 h-8 bg-background text-sm rounded" placeholder="Add description..." />
+                                </td>
+                                <td className="px-3 py-2 text-center">
+                                    <Switch checked={row.billable} onCheckedChange={checked => {
+                                            const updates: Partial<TimesheetRow> = { billable: checked };
+                                            if (checked) {
+                                                updates.rate = formatRateToTwoDecimals(row.rate || '');
+                                            }
+                                            updateRow(row.id, updates);
+                                    }} />
+                                </td>
+                                <td className="px-3 py-2 text-sm">
+                                        {row.billable ? (
+                                            <div className="flex items-center gap-0.5 text-sm">
+                                                <span className="text-muted-foreground">€</span>
+                                                <Input
+                                                    type="text"
+                                                    inputMode="decimal"
+                                                    value={row.rate ?? ''}
+                                                    onChange={(e) => handleRateInputChange(row.id, e.target.value)}
+                                                    onBlur={(e) => handleRateInputBlur(row.id, e.target.value)}
+                                                    placeholder="0.00"
+                                                    className="w-16 bg-transparent border-none p-0 text-center focus-visible:ring-0 focus-visible:outline-none"
+                                                />
+                                            </div>
+                                        ) : (
+                                            <span className="text-xs text-muted-foreground">—</span>
+                                        )}
+                                </td>
                                     <td className="px-3 py-2 text-center text-sm ">
                                         <Input
                                             type="text"
@@ -1276,8 +1325,8 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                             placeholder="hh:mm:ss"
                                             className="w-20  text-center border border-input p-1 h-8 bg-background text-sm rounded"
                                         />
-                                    </td>
-                                    <td className="px-3 py-2 text-center text-sm">
+                                </td>
+                                <td className="px-3 py-2 text-center text-sm">
                                         <Input
                                             type="text"
                                             value={getTimeInputValue(row.id, 'tue', row.hours.tue)}
@@ -1287,8 +1336,8 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                             placeholder="hh:mm:ss"
                                             className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded"
                                         />
-                                    </td>
-                                    <td className="px-3 py-2 text-center text-sm">
+                                </td>
+                                <td className="px-3 py-2 text-center text-sm">
                                         <Input
                                             type="text"
                                             value={getTimeInputValue(row.id, 'wed', row.hours.wed)}
@@ -1298,8 +1347,8 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                             placeholder="hh:mm:ss"
                                             className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded"
                                         />
-                                    </td>
-                                    <td className="px-3 py-2 text-center text-sm">
+                                </td>
+                                <td className="px-3 py-2 text-center text-sm">
                                         <Input
                                             type="text"
                                             value={getTimeInputValue(row.id, 'thu', row.hours.thu)}
@@ -1309,8 +1358,8 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                             placeholder="hh:mm:ss"
                                             className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded"
                                         />
-                                    </td>
-                                    <td className="px-3 py-2 text-center text-sm">
+                                </td>
+                                <td className="px-3 py-2 text-center text-sm">
                                         <Input
                                             type="text"
                                             value={getTimeInputValue(row.id, 'fri', row.hours.fri)}
@@ -1320,8 +1369,8 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                             placeholder="hh:mm:ss"
                                             className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded"
                                         />
-                                    </td>
-                                    {!hideWeekend && <td className="px-3 py-2 text-center text-sm">
+                                </td>
+                                {!hideWeekend && <td className="px-3 py-2 text-center text-sm">
                                         <Input
                                             type="text"
                                             value={getTimeInputValue(row.id, 'sat', row.hours.sat)}
@@ -1331,8 +1380,8 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                             placeholder="hh:mm:ss"
                                             className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded"
                                         />
-                                    </td>}
-                                    {!hideWeekend && <td className="px-3 py-2 text-center text-sm">
+                                </td>}
+                                {!hideWeekend && <td className="px-3 py-2 text-center text-sm">
                                         <Input
                                             type="text"
                                             value={getTimeInputValue(row.id, 'sun', row.hours.sun)}
@@ -1342,14 +1391,14 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                             placeholder="hh:mm:ss"
                                             className="w-20 text-center border border-input p-1 h-8 bg-background text-sm rounded"
                                         />
-                                    </td>}
-                                    <td className="px-3 py-2 text-right">
-                                        <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700" onClick={() => {
+                                </td>}
+                                <td className="px-3 py-2 text-right">
+                                    <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700" onClick={() => {
                                             handleDeleteRow(row.id);
-                                        }}>
-                                            <Trash2 className="w-4 h-4" />
-                                        </Button>
-                                    </td>
+                                    }}>
+                                        <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                </td>
                                 </tr>;
                             })}
                         </tbody>

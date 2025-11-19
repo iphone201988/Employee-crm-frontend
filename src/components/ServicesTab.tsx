@@ -11,6 +11,7 @@ import ClientNameLink from './ClientNameLink';
 import ServiceChangesLogDialog from './ServiceChangesLogDialog';
 // --- Using the existing RTK Query hook names as requested ---
 import { useGetClientServicesQuery, useUpdateClientServicesMutation } from '@/store/clientApi';
+import { useGetAllCategorieasQuery } from '@/store/categoryApi';
 import { toast } from 'sonner';
 import { useDebounce } from 'use-debounce';
 
@@ -31,11 +32,14 @@ const ServicesTab = () => {
         page,
         limit,
         search: debouncedSearchTerm,
-        businessType: businessTypeFilter === 'all' ? undefined : businessTypeFilter,
+        businessTypeId: businessTypeFilter === 'all' ? undefined : businessTypeFilter,
     });
 
     // --- Using useUpdateClientServicesMutation as requested ---
     const [updateClientServices, { isLoading: isUpdating }] = useUpdateClientServicesMutation();
+
+    const { data: businessTypesData, isLoading: isBusinessTypesLoading } = useGetAllCategorieasQuery("bussiness");
+    const businessTypeOptions = useMemo(() => businessTypesData?.data?.bussiness ?? [], [businessTypesData]);
 
     // The internal logic is updated to handle the new API response structure (clients, jobCategories, etc.)
     const { clients, jobCategories, pagination, breakdown, filteredCounts } = useMemo(() => {
@@ -142,12 +146,24 @@ const ServicesTab = () => {
                         className="pl-10 bg-white"
                     />
                 </div>
-                <Select value={businessTypeFilter} onValueChange={setBusinessTypeFilter}>
+                <Select
+                    value={businessTypeFilter}
+                    onValueChange={(value) => {
+                        setBusinessTypeFilter(value);
+                        setPage(1);
+                    }}
+                    disabled={isBusinessTypesLoading}
+                >
                     <SelectTrigger className="w-56 bg-white">
                         <SelectValue placeholder="Filter by business type" />
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">All Business Types</SelectItem>
+                        {businessTypeOptions.map((type: any) => (
+                            <SelectItem key={type._id} value={type._id}>
+                                {type.name}
+                            </SelectItem>
+                        ))}
                     </SelectContent>
                 </Select>
             </div>
@@ -176,7 +192,7 @@ const ServicesTab = () => {
                                 <TableRow className='!bg-[#edecf4] text-[#381980]'>
                                     <TableHead className="w-20 border-r font-medium sticky left-0  z-10">CLIENT REF</TableHead>
                                     <TableHead className="w-40 border-r font-medium sticky left-[81px]  z-10">CLIENT NAME</TableHead>
-                                    <TableHead className="w-32 border-r font-medium">TYPE</TableHead>
+                                    <TableHead className="w-32 border-r font-medium">BUSINESS TYPE</TableHead>
                                     {jobCategories.map(jobCategory => (
                                         <TableHead key={jobCategory.jobCategoryId} className="w-24 border-r text-center font-medium">
                                             {jobCategory.jobCategoryName.toUpperCase()} ({getFilteredJobCategoryCount(jobCategory.jobCategoryId)})
@@ -232,6 +248,9 @@ const ServicesTab = () => {
                                 <option value={10}>10 per page</option>
                                 <option value={20}>20 per page</option>
                                 <option value={50}>50 per page</option>
+                                <option value={100}>100 per page</option>
+                                <option value={250}>250 per page</option>
+                                <option value={500}>500 per page</option>
                             </select>
                         </div>
                         <div className="text-sm text-gray-500">

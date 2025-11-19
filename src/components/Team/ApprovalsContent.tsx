@@ -13,7 +13,7 @@ const permissions = [
   { key: 'approveTimesheets', label: 'Approve Timesheets' },
   // { key: 'editS ervices', label: 'Unlock Job Types' },
   { key: 'editJobBuilder', label: 'Edit Job Builder' },
-  { key: 'editJobTemplates', label: 'Edit Job Templates' },
+  // { key: 'editJobTemplates', label: 'Edit Job Templates' },
   // { key: 'bulkDelete', label: 'Bulk Delete' },
   { key: 'bulkDeleteLogs', label: 'Bulk Delete Logs' }
 ];
@@ -264,6 +264,9 @@ const ApprovalsContent: React.FC<ApprovalsContentProps> = ({ onUnsavedChangesCha
                 <option value={10}>10 per page</option>
                 <option value={20}>20 per page</option>
                 <option value={50}>50 per page</option>
+                <option value={100}>100 per page</option>
+                <option value={250}>250 per page</option>
+                <option value={500}>500 per page</option>
               </select>
             </div>
 

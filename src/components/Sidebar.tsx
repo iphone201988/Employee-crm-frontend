@@ -14,6 +14,7 @@ import {
   Bell,
   X,
   CircleX,
+  Loader2,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -25,7 +26,7 @@ import {
   useUpdateProfileImageMutation,
 } from "../store/authApi";
 import { useRef, ChangeEvent, useMemo, useState } from "react";
-import { useLazyGetNotificationsQuery, useMarkNotificationAsReadMutation, Notification } from "@/store/notificationApi";
+import { useLazyGetNotificationsQuery, useMarkNotificationAsReadMutation, useDeleteNotificationMutation, Notification } from "@/store/notificationApi";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { store } from "@/store/store";
@@ -69,6 +70,8 @@ export function Sidebar({ onClose }: SidebarProps) {
     useUpdateProfileImageMutation();
   const [getNotifications, { data: notificationsData, isLoading: isLoadingNotifications }] = useLazyGetNotificationsQuery();
   const [markNotificationAsRead] = useMarkNotificationAsReadMutation();
+  const [deleteNotification] = useDeleteNotificationMutation();
+  const [deletingNotificationId, setDeletingNotificationId] = useState<string | null>(null);
   const [showNotifications, setShowNotifications] = useState(false);
 
   const loggedInUser = user?.data;
@@ -219,7 +222,7 @@ export function Sidebar({ onClose }: SidebarProps) {
                 <PopoverContent className="w-80 p-0" align="start">
                   <div className="p-4 border-b flex justify-between">
                     <h3 className="font-semibold text-sm">Notifications</h3>
-                    <button className=" text-red-400"><CircleX size={18} /></button>
+                    <button className=" text-red-400" onClick={() => setShowNotifications(false)} aria-label="Close notifications"><CircleX size={18} /></button>
                   </div>
                   <div className="max-h-96 overflow-y-auto">
                     {isLoadingNotifications ? (
@@ -260,9 +263,33 @@ export function Sidebar({ onClose }: SidebarProps) {
                                   })}
                                 </p>
                               </div>
-                              {!notification.isRead && (
-                                <span className="h-2 w-2 bg-blue-500 rounded-full mt-1 flex-shrink-0"></span>
-                              )}
+                              <div className="flex flex-col items-end gap-2">
+                                <button
+                                  className="text-muted-foreground hover:text-red-500 transition-colors disabled:opacity-50"
+                                  aria-label="Delete notification"
+                                  disabled={deletingNotificationId === notification._id}
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    setDeletingNotificationId(notification._id);
+                                    try {
+                                      await deleteNotification(notification._id).unwrap();
+                                    } catch (error) {
+                                      console.error('Failed to delete notification', error);
+                                    } finally {
+                                      setDeletingNotificationId(null);
+                                    }
+                                  }}
+                                >
+                                  {deletingNotificationId === notification._id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <X className="h-4 w-4" />
+                                  )}
+                                </button>
+                                {!notification.isRead && (
+                                  <span className="h-2 w-2 bg-blue-500 rounded-full mt-1 flex-shrink-0"></span>
+                                )}
+                              </div>
                             </div>
                           </div>
                         ))}

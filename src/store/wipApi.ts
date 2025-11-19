@@ -51,8 +51,18 @@ export const wipApi = createApi({
       },
       providesTags: ['Wip'],
     }),
-    getAgedWip: builder.query<any, void>({
-      query: () => ({ url: '/wip/age-wip' }),
+    getAgedWip: builder.query<any, { page?: number; limit?: number; search?: string } | void>({
+      query: (args) => {
+        const params = new URLSearchParams();
+        if (args && typeof args === 'object') {
+          const { page, limit, search } = args;
+          if (page) params.append('page', String(page));
+          if (limit) params.append('limit', String(limit));
+          if (search) params.append('search', search);
+        }
+        const qs = params.toString();
+        return { url: `/wip/age-wip${qs ? `?${qs}` : ''}` };
+      },
     }),
     getAgedDebtors: builder.query<any, { page?: number; limit?: number; startDate?: string; endDate?: string; clientId?: string } | void>({
       query: (args) => {

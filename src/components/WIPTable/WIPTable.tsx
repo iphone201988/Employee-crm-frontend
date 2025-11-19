@@ -540,10 +540,34 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
                                   description: t.jobName || '',
                                 }));
                               });
+                              const importedWipBalance = (client as any).importedWipBalance || 0;
+                              const timeLogsTotal = client.jobs.reduce((sum, job) => sum + job.wipAmount, 0);
+                              const clientOpenBalances = Array.isArray((client as any).clientOpenBalances) ? (client as any).clientOpenBalances : [];
+                              const clientOpenBalanceTotal = clientOpenBalances.reduce((sum: number, ob: any) => sum + Number(ob.amount || 0), 0);
+                              const openBalanceSections: Array<{ title: string; items: any[] }> = [];
+                              if (clientOpenBalances.length) {
+                                openBalanceSections.push({
+                                  title: 'Client Open Balances',
+                                  items: clientOpenBalances,
+                                });
+                              }
+                              (client.jobs || []).forEach((job: any) => {
+                                if (Array.isArray(job.openBalances) && job.openBalances.length) {
+                                  openBalanceSections.push({
+                                    title: `${job.jobName} Open Balances`,
+                                    items: job.openBalances,
+                                  });
+                                }
+                              });
+                              const totalAmount = typeof (client as any).clientWipBalance === 'number'
+                                ? (client as any).clientWipBalance
+                                : timeLogsTotal + importedWipBalance + clientOpenBalanceTotal;
                               setSelectedTimeLogsData({
                                 clientName: client.clientName,
                                 timeLogs,
-                                totalAmount: client.jobs.reduce((sum, job) => sum + job.wipAmount, 0)
+                                totalAmount,
+                                importedWipBalance,
+                                openBalanceSections,
                               });
                               setShowTimeLogsDialog(true);
                             }}
@@ -775,7 +799,7 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
                         <td className="p-4 text-center text-sm">
                           <div className="flex items-center justify-center gap-2">
                             <button
-                              onClick={() => {
+                            onClick={() => {
                                 const j: any = job as any;
                                 const breakdown = j.wipBreakdown || [];
                                 const timeLogs = breakdown.flatMap((member: any) => {
@@ -790,11 +814,18 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
                                     description: t.jobName || '',
                                   }));
                                 });
+                                const openBalanceSections = Array.isArray(j.openBalances) && j.openBalances.length
+                                  ? [{
+                                    title: `${job.jobName} Open Balances`,
+                                    items: j.openBalances
+                                  }]
+                                  : [];
                                 setSelectedTimeLogsData({
                                   clientName: client.clientName,
                                   jobName: job.jobName,
                                   timeLogs,
-                                  totalAmount: job.wipAmount
+                                  totalAmount: job.wipAmount,
+                                  openBalanceSections
                                 });
                                 setShowTimeLogsDialog(true);
                               }}
@@ -990,6 +1021,8 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
           jobName={selectedTimeLogsData.jobName}
           timeLogs={selectedTimeLogsData.timeLogs}
           totalAmount={selectedTimeLogsData.totalAmount}
+          importedWipBalance={selectedTimeLogsData.importedWipBalance || 0}
+          openBalanceSections={selectedTimeLogsData.openBalanceSections || []}
         />
       )}
 

@@ -70,6 +70,7 @@ export interface GetJobsRequest {
     limit: number;
     status?: string;
     priority?: string;
+    jobTypeId?: string;
     search?: string;
     view?: string;
 }
@@ -110,6 +111,7 @@ export interface GetJobsResponse {
         statusDistribution: Distribution[];
         jobManagerDistribution: Distribution[];
         wipFeeDistribution: Distribution[];
+        jobTypeCounts: Array<{ _id: string; name: string; count: number }>;
         filters: {
             currentView: string;
             currentStatus: string;
@@ -152,7 +154,7 @@ export const jobApi = createApi({
 
     // Endpoint to get all jobs with filters
     getJobs: builder.query<GetJobsResponse, GetJobsRequest>({
-        query: ({ page, limit, status, priority, search, view }) => {
+        query: ({ page, limit, status, priority, jobTypeId, search, view }) => {
             const params = new URLSearchParams({
                 page: String(page),
                 limit: String(limit),
@@ -160,6 +162,7 @@ export const jobApi = createApi({
             });
             if (status) params.append('status', status);
             if (priority) params.append('priority', priority);
+            if (jobTypeId) params.append('jobTypeId', jobTypeId);
             if (search) params.append('search', search);
             return { url: `/all?${params.toString()}` };
         },

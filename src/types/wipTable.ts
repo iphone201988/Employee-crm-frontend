@@ -1,3 +1,12 @@
+export interface WipOpenBalance {
+  id: string;
+  amount: number;
+  type?: string;
+  status?: string;
+  createdAt?: string;
+  jobId?: string;
+}
+
 export interface WIPJob {
   id: string;
   jobName: string;
@@ -14,6 +23,7 @@ export interface WIPJob {
   jobFee: number;
   wipBreakdown?: any[];
   wipOpenBalanceIds?: string[];
+  openBalances?: WipOpenBalance[];
 }
 
 export interface Expense {
@@ -39,6 +49,8 @@ export interface WIPClient {
   jobs: WIPJob[];
   activeExpenses: Expense[];
   clientWipOpenBalanceIds?: string[];
+  clientOpenBalances?: WipOpenBalance[];
   clientWipBalance?: number;
   wipBreakdown?: any[];
+  importedWipBalance?: number;
 }

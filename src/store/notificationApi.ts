@@ -66,6 +66,13 @@ export const notificationApi = createApi({
       }),
       invalidatesTags: ['Notification'],
     }),
+    deleteNotification: builder.mutation<void, string>({
+      query: (notificationId) => ({
+        url: `/notification/${notificationId}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Notification'],
+    }),
   }),
 });
 
@@ -74,5 +81,6 @@ export const {
   useLazyGetNotificationsQuery,
   useMarkNotificationAsReadMutation,
   useMarkAllNotificationsAsReadMutation,
+  useDeleteNotificationMutation,
 } = notificationApi;
 

@@ -193,7 +193,7 @@ const TimeTab = () => {
                 onClick={submitForApproval}
                 disabled={isSubmitted}
               >
-                {isSubmitted ? 'Submitted' : 'Submit for Approval'}
+                {isSubmitted ? 'Submitted' : 'Submit for Review'}
               </Button>
             </div>
           </div>

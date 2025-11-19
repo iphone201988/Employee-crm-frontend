@@ -4,12 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowUpDown, Search, FileText, ChevronLeft, ChevronRight, Eye, Edit2, Trash2, Delete, Settings, Download, Move, GripVertical, Paperclip } from 'lucide-react';
+import { ArrowUpDown, Search, FileText, ChevronLeft, ChevronRight, Eye, Edit2, Trash2, Delete, Settings, Download, Move, GripVertical, Paperclip, Check, ChevronDown, RefreshCw } from 'lucide-react';
 import { DashboardCard, DashboardGrid } from "@/components/ui/dashboard-card";
 import { Switch } from "@/components/ui/switch";
 import ClientsTab from '@/components/ClientsTab';
@@ -46,7 +45,28 @@ const ClientInformationTab = () => {
   const [limit, setLimit] = useState(10);
   const { visibleTabs, isError } = usePermissionTabs(tabs);
   const [deleteClient, { isLoading: isDeleting }] = useDeleteClientMutation();
-  const { data: clientsData, isLoading, error } = useGetClientsQuery({ page, limit });
+  const [clientInfoSortConfig, setClientInfoSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+  const [clientInfoSearch, setClientInfoSearch] = useState('');
+  const [businessTypeFilter, setBusinessTypeFilter] = useState<Set<string>>(new Set());
+  const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
+  const [auditFilter, setAuditFilter] = useState<Set<string>>(new Set());
+  const [amlFilter, setAmlFilter] = useState<Set<string>>(new Set());
+  const [yearEndFilter, setYearEndFilter] = useState<Set<string>>(new Set());
+
+  const clientsQueryArgs = useMemo(
+    () => ({
+      page,
+      limit,
+      businessTypeIds: Array.from(businessTypeFilter),
+      statuses: Array.from(statusFilter),
+      audit: Array.from(auditFilter),
+      aml: Array.from(amlFilter),
+      yearEnds: Array.from(yearEndFilter),
+    }),
+    [page, limit, businessTypeFilter, statusFilter, auditFilter, amlFilter, yearEndFilter]
+  );
+
+  const { data: clientsData, isLoading, error } = useGetClientsQuery(clientsQueryArgs);
 
   const clientInfo = clientsData?.data?.clients || [];
   const processedClientInfo = useMemo(() => {
@@ -79,9 +99,6 @@ const ClientInformationTab = () => {
   }, [clientInfo]);
 
   console.log('clientInfo===========', processedClientInfo); 
-  const [clientInfoSortConfig, setClientInfoSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
-  const [clientInfoSearch, setClientInfoSearch] = useState('');
-  const [clientTypeFilter, setClientTypeFilter] = useState('all');
   const [showClientDetailsDialog, setShowClientDetailsDialog] = useState(false);
   const [showClientServiceLogDialog, setShowClientServiceLogDialog] = useState(false);
   const [selectedClientForDetails, setSelectedClientForDetails] = useState<ClientInfo | null>(null);
@@ -241,7 +258,6 @@ const ClientInformationTab = () => {
   const filteredAndSortedClientInfo = useMemo(() => {
     let filtered = processedClientInfo;
 
-    // Apply search filter
     if (clientInfoSearch) {
       const searchValue = clientInfoSearch.toLowerCase();
       filtered = filtered.filter((client: any) =>
@@ -252,12 +268,40 @@ const ClientInformationTab = () => {
       );
     }
 
-    // Apply client type filter
-    if (clientTypeFilter && clientTypeFilter !== 'all') {
-      filtered = filtered.filter(client => client.businessTypeId?.name === clientTypeFilter);
+    if (businessTypeFilter.size > 0) {
+      filtered = filtered.filter((client: any) => {
+        const bt = client.businessTypeId;
+        if (!bt) return false;
+        const id = typeof bt === 'object' ? bt._id : bt;
+        return id ? businessTypeFilter.has(id) : false;
+      });
     }
 
-    // Apply sorting
+    if (statusFilter.size > 0) {
+      filtered = filtered.filter((client: any) => {
+        const status = (client.clientStatus || '').trim();
+        return status && statusFilter.has(status);
+      });
+    }
+
+    if (auditFilter.size > 0) {
+      filtered = filtered.filter((client: any) => {
+        const isAudit = Boolean(client.audit);
+        return (isAudit && auditFilter.has('yes')) || (!isAudit && auditFilter.has('no'));
+      });
+    }
+
+    if (amlFilter.size > 0) {
+      filtered = filtered.filter((client: any) => {
+        const isAml = Boolean(client.amlCompliant);
+        return (isAml && amlFilter.has('yes')) || (!isAml && amlFilter.has('no'));
+      });
+    }
+
+    if (yearEndFilter.size > 0) {
+      filtered = filtered.filter((client: any) => client.yearEnd && yearEndFilter.has(client.yearEnd));
+    }
+
     if (!clientInfoSortConfig?.key) return filtered;
 
     return [...filtered].sort((a: any, b: any) => {
@@ -328,23 +372,92 @@ const ClientInformationTab = () => {
         bValue = rawB != null ? rawB : '';
       }
 
-      // Handle numeric comparison
       if (isNumeric) {
         const result = aValue - bValue;
         return clientInfoSortConfig.direction === 'asc' ? result : -result;
       }
 
-      // Convert to strings for comparison
       const strA = String(aValue || '').toLowerCase().trim();
       const strB = String(bValue || '').toLowerCase().trim();
-
-      // Compare strings
       const comparison = strA.localeCompare(strB, undefined, { numeric: true, sensitivity: 'base' });
       return clientInfoSortConfig.direction === 'asc' ? comparison : -comparison;
     });
-  }, [processedClientInfo, clientInfoSearch, clientTypeFilter, clientInfoSortConfig]);
+  }, [processedClientInfo, clientInfoSearch, businessTypeFilter, statusFilter, auditFilter, amlFilter, yearEndFilter, clientInfoSortConfig]);
 
-  const availableClientTypes = [...new Set(processedClientInfo.map(client => client.businessTypeId?.name).filter(Boolean))];
+  const businessTypeOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    processedClientInfo.forEach((client: any) => {
+      const bt = client.businessTypeId;
+      if (bt && typeof bt === 'object' && bt._id) {
+        map.set(bt._id, bt.name || 'Unknown');
+      } else if (typeof bt === 'string') {
+        map.set(bt, bt);
+      }
+    });
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+  }, [processedClientInfo]);
+
+  const statusOptions = useMemo(() => {
+    const defaults = ['Prospect', 'Current', 'Archived'];
+    const seen = new Set<string>();
+    const ordered: string[] = [];
+    const addStatus = (value?: string) => {
+      if (!value) return;
+      if (!seen.has(value)) {
+        seen.add(value);
+        ordered.push(value);
+      }
+    };
+    defaults.forEach(addStatus);
+    processedClientInfo.forEach((client: any) => addStatus(client.clientStatus));
+    return ordered;
+  }, [processedClientInfo]);
+
+  const yearEndOptions = useMemo(() => {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const daysInMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    const template = months.map((month, idx) => `${daysInMonth[idx]} - ${month}`);
+    const seen = new Set(template);
+    processedClientInfo.forEach((client: any) => {
+      if (client.yearEnd && !seen.has(client.yearEnd)) {
+        template.push(client.yearEnd);
+        seen.add(client.yearEnd);
+      }
+    });
+    return template;
+  }, [processedClientInfo]);
+
+  const yesNoOptions = [
+    { label: 'Yes', value: 'yes' },
+    { label: 'No', value: 'no' },
+  ];
+
+  const toggleOption = (value: string, setter: React.Dispatch<React.SetStateAction<Set<string>>>) => {
+    setter(prev => {
+      const next = new Set(prev);
+      if (next.has(value)) {
+        next.delete(value);
+      } else {
+        next.add(value);
+      }
+      return next;
+    });
+  };
+
+  const getSelectedLabel = (values: Set<string>, fallback: string) => {
+    if (values.size === 0) return fallback;
+    const selected = Array.from(values);
+    if (selected.length <= 2) return selected.join(', ');
+    return `${selected.length} Selected`;
+  };
+
+  const handleResetFilters = () => {
+    setBusinessTypeFilter(new Set());
+    setStatusFilter(new Set());
+    setAuditFilter(new Set());
+    setAmlFilter(new Set());
+    setYearEndFilter(new Set());
+  };
 
   useEffect(() => {
     if (Object.keys(serviceSelections).length === 0) {
@@ -362,6 +475,12 @@ const ClientInformationTab = () => {
       setServiceSelections(initialSelections);
     }
   }, [processedClientInfo]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [businessTypeFilter, statusFilter, auditFilter, amlFilter, yearEndFilter]);
+
+  const totalClientRows = clientsData?.data?.pagination?.totalClients ?? filteredAndSortedClientInfo.length;
 
   // Calculate service counts based on current selections
   const serviceCounts = useMemo(() => {
@@ -504,10 +623,10 @@ const ClientInformationTab = () => {
           dataMappers.push((client) => {
             if (!client.arDate) return '';
             const date = new Date(client.arDate);
-            const month = (date.getMonth() + 1).toString().padStart(2, '0');
             const day = date.getDate().toString().padStart(2, '0');
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
             const year = date.getFullYear();
-            return `${month}/${day}/${year}`;
+            return `${day}/${month}/${year}`;
           });
           break;
       }
@@ -588,31 +707,207 @@ const ClientInformationTab = () => {
         </div>
 
         {/* Search and Filters Row */}
-        <div className="flex items-center gap-4 bg-white p-4 rounded-lg">
-          <div className="flex-1 relative">
+        <div className="bg-[#E7E5F2] p-3 rounded-sm flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[220px] max-w-[260px]">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
               placeholder="Search clients..."
               value={clientInfoSearch}
               onChange={(e) => setClientInfoSearch(e.target.value)}
-              className="pl-10 bg-white"
+              className="pl-10 bg-white text-[#381980] font-semibold"
               disabled={isLoading}
             />
           </div>
-          <Select value={clientTypeFilter} onValueChange={setClientTypeFilter} disabled={isLoading}>
-            <SelectTrigger className="w-48 bg-white">
-              <SelectValue placeholder="Filter by client type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All client types</SelectItem>
-              {availableClientTypes.map(type => (
-                <SelectItem key={type} value={type}>{type}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button onClick={() => setAddClient(true)} style={{ backgroundColor: '#017DB9', color: 'white' }} className="hover:opacity-90" disabled={isLoading}>
-            + New Client
-          </Button>
+          <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[300px]">
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  className={`min-w-[170px] h-10 px-3 rounded-md border flex items-center justify-between text-sm font-semibold ${businessTypeFilter.size > 0 ? 'bg-gray-200 border-black' : 'bg-white border-[#d4d4d8]'}`}
+                >
+                  <span className="truncate text-[#381980]">All Business Type</span>
+                  <ChevronDown className="w-4 h-4 text-[#381980]" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 p-2" align="start">
+                <div className="max-h-64 overflow-auto space-y-1">
+                  <div
+                    className={`px-2 py-1.5 rounded-[4px] cursor-pointer ${businessTypeFilter.size === 0 ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                    onClick={() => setBusinessTypeFilter(new Set())}
+                  >
+                    All Business Type
+                  </div>
+                  {businessTypeOptions.map(option => {
+                    const active = businessTypeFilter.has(option.id);
+                    return (
+                      <div
+                        key={option.id}
+                        className={`flex items-center justify-between px-2 py-1.5 rounded-[4px] cursor-pointer ${active ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                        onClick={() => toggleOption(option.id, setBusinessTypeFilter)}
+                      >
+                        <span className="truncate">{option.name}</span>
+                        {active && <Check className="w-4 h-4" />}
+                      </div>
+                    );
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  className={`min-w-[150px] h-10 px-3 rounded-md border flex items-center justify-between text-sm font-semibold ${statusFilter.size > 0 ? 'bg-gray-200 border-black' : 'bg-white border-[#d4d4d8]'}`}
+                >
+                  <span className="truncate text-[#381980]">All Status</span>
+                  <ChevronDown className="w-4 h-4 text-[#381980]" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-48 p-2" align="start">
+                <div className="max-h-64 overflow-auto space-y-1">
+                  <div
+                    className={`px-2 py-1.5 rounded-[4px] cursor-pointer ${statusFilter.size === 0 ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                    onClick={() => setStatusFilter(new Set())}
+                  >
+                    All Status
+                  </div>
+                  {statusOptions.map(option => {
+                    const active = statusFilter.has(option);
+                    return (
+                      <div
+                        key={option}
+                        className={`flex items-center justify-between px-2 py-1.5 rounded-[4px] cursor-pointer ${active ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                        onClick={() => toggleOption(option, setStatusFilter)}
+                      >
+                        <span className="truncate">{option}</span>
+                        {active && <Check className="w-4 h-4" />}
+                      </div>
+                    );
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  className={`min-w-[150px] h-10 px-3 rounded-md border flex items-center justify-between text-sm font-semibold ${auditFilter.size > 0 ? 'bg-gray-200 border-black' : 'bg-white border-[#d4d4d8]'}`}
+                >
+                  <span className="truncate text-[#381980]">In Audit</span>
+                  <ChevronDown className="w-4 h-4 text-[#381980]" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-44 p-2" align="start">
+                <div className="space-y-1">
+                  <div
+                    className={`px-2 py-1.5 rounded-[4px] cursor-pointer ${auditFilter.size === 0 ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                    onClick={() => setAuditFilter(new Set())}
+                  >
+                    All
+                  </div>
+                  {yesNoOptions.map(option => {
+                    const active = auditFilter.has(option.value);
+                    return (
+                      <div
+                        key={option.value}
+                        className={`flex items-center justify-between px-2 py-1.5 rounded-[4px] cursor-pointer ${active ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                        onClick={() => toggleOption(option.value, setAuditFilter)}
+                      >
+                        <span>{option.label}</span>
+                        {active && <Check className="w-4 h-4" />}
+                      </div>
+                    );
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  className={`min-w-[150px] h-10 px-3 rounded-md border flex items-center justify-between text-sm font-semibold ${amlFilter.size > 0 ? 'bg-gray-200 border-black' : 'bg-white border-[#d4d4d8]'}`}
+                >
+                  <span className="truncate text-[#381980]">AML Compliant</span>
+                  <ChevronDown className="w-4 h-4 text-[#381980]" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-44 p-2" align="start">
+                <div className="space-y-1">
+                  <div
+                    className={`px-2 py-1.5 rounded-[4px] cursor-pointer ${amlFilter.size === 0 ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                    onClick={() => setAmlFilter(new Set())}
+                  >
+                    All
+                  </div>
+                  {yesNoOptions.map(option => {
+                    const active = amlFilter.has(option.value);
+                    return (
+                      <div
+                        key={option.value}
+                        className={`flex items-center justify-between px-2 py-1.5 rounded-[4px] cursor-pointer ${active ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                        onClick={() => toggleOption(option.value, setAmlFilter)}
+                      >
+                        <span>{option.label}</span>
+                        {active && <Check className="w-4 h-4" />}
+                      </div>
+                    );
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  className={`min-w-[150px] h-10 px-3 rounded-md border flex items-center justify-between text-sm font-semibold ${yearEndFilter.size > 0 ? 'bg-gray-200 border-black' : 'bg-white border-[#d4d4d8]'}`}
+                >
+                  <span className="truncate text-[#381980]">Year End</span>
+                  <ChevronDown className="w-4 h-4 text-[#381980]" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-52 p-2" align="start">
+                <div className="max-h-64 overflow-auto space-y-1">
+                  <div
+                    className={`px-2 py-1.5 rounded-[4px] cursor-pointer ${yearEndFilter.size === 0 ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                    onClick={() => setYearEndFilter(new Set())}
+                  >
+                    All Year Ends
+                  </div>
+                  {yearEndOptions.map(option => {
+                    const active = yearEndFilter.has(option);
+                    return (
+                      <div
+                        key={option}
+                        className={`flex items-center justify-between px-2 py-1.5 rounded-[4px] cursor-pointer ${active ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                        onClick={() => toggleOption(option, setYearEndFilter)}
+                      >
+                        <span>{option}</span>
+                        {active && <Check className="w-4 h-4" />}
+                      </div>
+                    );
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
+            <Button
+              variant="outline"
+              className="bg-[#381980] w-[42px] rounded-sm text-primary-foreground p-2 hover:bg-primary/90 !text-white"
+              onClick={handleResetFilters}
+              disabled={isLoading}
+            >
+              <RefreshCw className="w-4 h-4" />
+            </Button>
+          </div>
+          <div className="flex items-center gap-3 ml-auto">
+            <span className="text-sm text-[#381980] font-semibold whitespace-nowrap">{totalClientRows} Rows</span>
+            <Button
+              onClick={() => setAddClient(true)}
+              style={{ backgroundColor: '#017DB9', color: 'white' }}
+              className="hover:opacity-90"
+              disabled={isLoading}
+            >
+              + New Client
+            </Button>
+          </div>
         </div>
         <Card>
           <CardContent className="p-0">
@@ -821,10 +1116,10 @@ const ClientInformationTab = () => {
                           case 'arDate':
                             cellContent = client.arDate ? (() => {
                               const date = new Date(client.arDate);
-                              const month = (date.getMonth() + 1).toString().padStart(2, '0');
                               const day = date.getDate().toString().padStart(2, '0');
+                              const month = (date.getMonth() + 1).toString().padStart(2, '0');
                               const year = date.getFullYear();
-                              return `${month}/${day}/${year}`;
+                              return `${day}/${month}/${year}`;
                             })() : '-';
                             break;
                           default:

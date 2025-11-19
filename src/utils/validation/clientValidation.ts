@@ -33,10 +33,9 @@ export const validateBusinessType = (businessType: string): string | null => {
 };
 
 export const validateTaxNumber = (taxNumber: string): string | null => {
-    if (!taxNumber || !taxNumber.trim()) {
-        return 'Tax number is required';
+    if (!taxNumber || !taxNumber.trim() || taxNumber.trim() === 'N/A') {
+        return null;
     }
-   
     return null;
 };
 
@@ -88,7 +87,7 @@ export const convertEmptyToNA = (value: string | undefined | null): string => {
 export const validateClientForm = (formData: ClientData): ValidationResult => {
     const errors: Partial<Record<keyof ClientData, string>> = {};
 
-    // Only validate required fields: name, businessTypeId, taxNumber
+    // Only validate required fields: name, businessTypeId
     const clientNameError = validateClientName(formData.name);
     if (clientNameError) errors.name = clientNameError;
 

@@ -137,7 +137,7 @@ interface GetClientServicesRequest {
     page: number;
     limit: number;
     search?: string;
-    businessType?: string;
+    businessTypeId?: string;
 }
 
 

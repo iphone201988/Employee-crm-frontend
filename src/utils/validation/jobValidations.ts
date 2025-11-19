@@ -56,9 +56,9 @@ export const validateEndDate = (endDate: string, startDate: string): string | nu
 };
 
 export const validateJobCost = (jobCost?: number): string | null => {
-    if (jobCost === undefined || jobCost === null) return 'Estimated cost is required.';
+    if (jobCost === undefined || jobCost === null) return 'Job cost is required.';
     if (typeof jobCost !== 'number' || isNaN(jobCost) || jobCost < 0) {
-        return 'Estimated cost must be a non-negative number.';
+        return 'Job cost must be a non-negative number.';
     }
     return null;
 };

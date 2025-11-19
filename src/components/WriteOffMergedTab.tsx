@@ -120,7 +120,15 @@ const WriteOffMergedTab = () => {
   const { data: dashboardResp, isLoading } = useGetWriteOffDashboardQuery({ type: apiType, page, limit });
 
   // Preserve raw data for dialogs
-  const rawItems: any[] = dashboardResp?.data || [];
+  const rawItems: any[] = useMemo(() => {
+    const resp: any = dashboardResp;
+    if (!resp) return [];
+    if (Array.isArray(resp.data)) return resp.data;
+    if (Array.isArray(resp.records)) return resp.records;
+    if (Array.isArray(resp.results)) return resp.results;
+    return [];
+  }, [dashboardResp]);
+  const pagination = dashboardResp?.pagination ?? (dashboardResp as any)?.data?.pagination;
 
   // Map API data to table rows per type
   const generateData = (): WriteOffMergedData[] => {
@@ -248,6 +256,7 @@ const WriteOffMergedTab = () => {
   const totalOccasions = filteredData.reduce((sum, item) => sum + item.writeOffOccasions, 0);
   const totalJobs = filteredData.reduce((sum, item) => sum + item.noJobsWithWriteOff, 0);
   const avgPercentage = filteredData.reduce((sum, item) => sum + item.percentageWriteOff, 0) / (filteredData.length || 1);
+  const totalRecordCount = pagination?.total || filteredData.length;
 
   const handleOccasionsClick = (item: WriteOffMergedData) => {
     // Find matching raw item to get real occasionDetails
@@ -321,7 +330,9 @@ const WriteOffMergedTab = () => {
     });
   }, [writeOffLogResp]);
 
+  const logPagination = writeOffLogResp?.pagination ?? (writeOffLogResp as any)?.data?.pagination;
   const logTotalWriteOffs = writeOffLogResp?.totalWriteOffs || logData.reduce((sum, entry) => sum + entry.amount, 0);
+  const logTotalRecordCount = logPagination?.total || logData.length;
 
   // Toggle column visibility for Write Off Log
   const toggleLogColumn = (column: keyof typeof logVisibleColumns) => {
@@ -549,6 +560,7 @@ const WriteOffMergedTab = () => {
               </Button>
             </div>
           </div>
+          <span className="text-sm text-[#381980] font-semibold whitespace-nowrap">{logTotalRecordCount} Rows</span>
         </div>
 
         {/* Log Table */}
@@ -715,7 +727,7 @@ const WriteOffMergedTab = () => {
         </Card>
 
         {/* Pagination Controls for Log View */}
-        {writeOffLogResp?.pagination && (
+        {logPagination && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -730,11 +742,14 @@ const WriteOffMergedTab = () => {
                   <option value={10}>10 per page</option>
                   <option value={20}>20 per page</option>
                   <option value={50}>50 per page</option>
+                  <option value={100}>100 per page</option>
+                  <option value={250}>250 per page</option>
+                  <option value={500}>500 per page</option>
                 </select>
               </div>
               <div className="text-sm text-gray-500">
                 {(() => {
-                  const total = writeOffLogResp?.pagination?.total || 0;
+                  const total = logPagination?.total || 0;
                   const start = total > 0 ? ((logPage - 1) * logLimit) + 1 : 0;
                   const end = Math.min(logPage * logLimit, total);
                   return `Showing ${start} to ${end} of ${total} records`;
@@ -742,7 +757,7 @@ const WriteOffMergedTab = () => {
               </div>
             </div>
             {(() => {
-              const totalPages = Math.max(1, Number(writeOffLogResp?.pagination?.totalPages || 1));
+              const totalPages = Math.max(1, Number(logPagination?.totalPages || 1));
               if (totalPages <= 1) return null;
               return (
                 <div className="flex justify-center items-center gap-2">
@@ -760,8 +775,8 @@ const WriteOffMergedTab = () => {
 
   return (
     <div className="space-y-6">
-      {/* Pagination Controls */}
-      {dashboardResp?.pagination && (
+        {/* Pagination Controls */}
+      {pagination && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -775,11 +790,14 @@ const WriteOffMergedTab = () => {
                 <option value={10}>10 per page</option>
                 <option value={20}>20 per page</option>
                 <option value={50}>50 per page</option>
+                <option value={100}>100 per page</option>
+                <option value={250}>250 per page</option>
+                <option value={500}>500 per page</option>
               </select>
             </div>
             <div className="text-sm text-gray-500">
               {(() => {
-                const total = dashboardResp.pagination.total || 0;
+                const total = pagination.total || 0;
                 const start = total > 0 ? ((page - 1) * limit) + 1 : 0;
                 const end = Math.min(page * limit, total);
                 return `Showing ${start} to ${end} of ${total} records`;
@@ -787,7 +805,7 @@ const WriteOffMergedTab = () => {
             </div>
           </div>
           {(() => {
-            const totalPages = Math.max(1, Number(dashboardResp.pagination.totalPages || 1));
+            const totalPages = Math.max(1, Number(pagination.totalPages || 1));
             if (totalPages <= 1) return null;
             return (
               <div className="flex justify-center items-center gap-2">
@@ -883,14 +901,17 @@ const WriteOffMergedTab = () => {
           </Button>
         </div>
 
-        {/* Log Button */}
-        <Button
-          onClick={() => setShowLogView(true)}
-          variant="outline"
-          className="flex items-center gap-2 px-3 py-1 h-8 text-sm rounded-sm"
-        >
-          Write Off Log
-        </Button>
+        {/* Row Count + Log Button */}
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-[#381980] font-semibold whitespace-nowrap">{totalRecordCount} Rows</span>
+          <Button
+            onClick={() => setShowLogView(true)}
+            variant="outline"
+            className="flex items-center gap-2 px-3 py-1 h-8 text-sm rounded-sm"
+          >
+            Write Off Log
+          </Button>
+        </div>
       </div>
 
       {/* Data Table */}

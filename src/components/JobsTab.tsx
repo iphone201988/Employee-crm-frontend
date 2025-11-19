@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Edit2, Trash2, Eye, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Search } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Search, Settings } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
@@ -53,6 +53,7 @@ interface Job {
     description: string;
     priority: Priority;
     actualCost?: number;
+    wipBalance?: number;
 }
 
 
@@ -101,6 +102,7 @@ const JobsTab = () => {
     const [viewingJob, setViewingJob] = useState<Job | null>(null);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [viewDialogOpen, setViewDialogOpen] = useState(false);
+    const [settingsMenu, setSettingsMenu] = useState<{ jobId: string; x: number; y: number } | null>(null);
 
 
     // API Filters
@@ -108,6 +110,7 @@ const JobsTab = () => {
     const [limit, setLimit] = useState(10);
     const [statusFilter, setStatusFilter] = useState('');
     const [priorityFilter, setPriorityFilter] = useState('');
+    const [jobTypeFilter, setJobTypeFilter] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
     const [debouncedSearchTerm] = useDebounce(searchTerm, 500);
     const [dateFilter, setDateFilter] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('yearly');
@@ -118,19 +121,22 @@ const JobsTab = () => {
     const [chartView, setChartView] = useState<'distribution' | 'jobTypes' | 'byStatus' | 'byJobManager' | 'wipPercentage'>('distribution');
     const [isReportCollapsed, setIsReportCollapsed] = useState(false);
     // --- API Hooks ---
+    const jobsQueryArgs = useMemo(() => ({
+        page,
+        limit,
+        status: statusFilter,
+        priority: priorityFilter,
+        jobTypeId: jobTypeFilter,
+        search: debouncedSearchTerm,
+        view: dateFilter
+    }), [page, limit, statusFilter, priorityFilter, jobTypeFilter, debouncedSearchTerm, dateFilter]);
+
     const {
         data: apiData,
         isLoading,
         isError,
         isFetching
-    } = useGetJobsQuery({
-        page,
-        limit,
-        status: statusFilter,
-        priority: priorityFilter,
-        search: debouncedSearchTerm,
-        view: dateFilter
-    });
+    } = useGetJobsQuery(jobsQueryArgs as any);
 
 
     const [createJob, { isLoading: isCreating }] = useCreateJobMutation();
@@ -144,7 +150,7 @@ const JobsTab = () => {
         teamMemberStats,
         statusDistribution,
         jobManagerDistribution,
-        wipFeeDistribution
+        wipFeeDistribution,
     } = useMemo(() => {
         const data = apiData?.data;
         return {
@@ -157,6 +163,16 @@ const JobsTab = () => {
             wipFeeDistribution: data?.wipFeeDistribution || [],
         };
     }, [apiData]);
+
+    const jobTypeCounts = apiData?.data?.jobTypeCounts || [];
+
+    const jobTypeOptions = useMemo(() => {
+        if (!jobTypeCounts || jobTypeCounts.length === 0) return [];
+        return jobTypeCounts.map((jt: any) => ({
+            id: jt._id,
+            name: jt.name || 'Unnamed Job Type',
+        }));
+    }, [jobTypeCounts]);
 
 
     // --- Dialog and Form Handlers ---
@@ -232,6 +248,14 @@ const JobsTab = () => {
         setStatusFilter(status === 'all' ? '' : status);
         setPage(1);
     };
+
+    useEffect(() => {
+        setPage(1);
+    }, [priorityFilter, jobTypeFilter]);
+
+    useEffect(() => {
+        setPage(1);
+    }, [debouncedSearchTerm]);
 
 
     const navigateDate = (direction: 'prev' | 'next') => {
@@ -326,6 +350,35 @@ const JobsTab = () => {
             toast.error('Failed to delete job. Please try again.');
         }
     }
+    const handleSettingsClick = (event: React.MouseEvent<HTMLButtonElement>, jobId: string) => {
+        event.stopPropagation();
+        const rect = event.currentTarget.getBoundingClientRect();
+        setSettingsMenu({
+            jobId,
+            x: rect.left,
+            y: rect.bottom + 5,
+        });
+    };
+
+    const closeSettingsMenu = () => setSettingsMenu(null);
+
+    const handleMenuAction = (action: 'view' | 'edit' | 'delete', jobId: string) => {
+        const job = jobs.find((j: any) => j._id === jobId);
+        if (!job) return;
+        switch (action) {
+            case 'view':
+                openViewDialog(job);
+                break;
+            case 'edit':
+                openEditDialog(job);
+                break;
+            case 'delete':
+                deleteJobById(job);
+                break;
+        }
+        closeSettingsMenu();
+    };
+
     function formatTitle(key: string): string {
         return key
             // Add space before capital letters (camelCase → camel Case)
@@ -484,20 +537,44 @@ const JobsTab = () => {
 
             {/* Jobs Table */}
             <Tabs value={statusFilter || 'all'} onValueChange={handleStatusTabChange} className="w-full">
-                <div className="flex justify-between items-center mb-6">
+                <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
                     <TabsList>
                         <TabsTrigger value="all">All ({statusBreakdown.all || 0})</TabsTrigger>
                         <TabsTrigger value="queued">Queued ({statusBreakdown.queued || 0})</TabsTrigger>
                         <TabsTrigger value="inProgress">In Progress ({statusBreakdown.inProgress || 0})</TabsTrigger>
-                        <TabsTrigger value="withClient">With Client ({statusBreakdown.withClient || 0})</TabsTrigger>
                         <TabsTrigger value="forApproval">For Approval ({statusBreakdown.forApproval || 0})</TabsTrigger>
                         <TabsTrigger value="completed">Completed ({statusBreakdown.completed || 0})</TabsTrigger>
                     </TabsList>
 
-
-                    <div className="flex gap-4">
+                    <div className="flex flex-wrap gap-3 items-center">
+                        <div className="relative w-64">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                            <Input
+                                placeholder="Search by client name..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="pl-10"
+                            />
+                        </div>
                         <Select
-                            value={priorityFilter}
+                            value={jobTypeFilter || 'all'}
+                            onValueChange={v => setJobTypeFilter(v === 'all' ? '' : v)}
+                            disabled={jobTypeOptions.length === 0}
+                        >
+                            <SelectTrigger className="w-44">
+                                <SelectValue placeholder="All Job Types" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Job Types</SelectItem>
+                                {jobTypeOptions.map(option => (
+                                    <SelectItem key={option.id} value={option.id}>
+                                        {option.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <Select
+                            value={priorityFilter || 'all'}
                             onValueChange={v => setPriorityFilter(v === 'all' ? '' : v)}
                         >
                             <SelectTrigger className="w-40">
@@ -531,27 +608,29 @@ const JobsTab = () => {
                                     <TableHead>Job Manager</TableHead>
                                     <TableHead>Team</TableHead>
                                     <TableHead className="text-right">Job Fee</TableHead>
+                                    <TableHead className="text-center">WIP Balance</TableHead>
+                                    <TableHead className="text-center">WIP %</TableHead>
                                     <TableHead className="text-center">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {isLoadingData && (
                                     <TableRow>
-                                        <TableCell colSpan={8} className="text-center py-10">
+                                        <TableCell colSpan={10} className="text-center py-10">
                                             Loading jobs...
                                         </TableCell>
                                     </TableRow>
                                 )}
                                 {isError && (
                                     <TableRow>
-                                        <TableCell colSpan={8} className="text-center py-10 text-red-500">
+                                        <TableCell colSpan={10} className="text-center py-10 text-red-500">
                                             Failed to load jobs.
                                         </TableCell>
                                     </TableRow>
                                 )}
                                 {!isLoadingData && jobs.length === 0 && (
                                     <TableRow>
-                                        <TableCell colSpan={8} className="text-center py-10">
+                                        <TableCell colSpan={10} className="text-center py-10">
                                             No jobs found.
                                         </TableCell>
                                     </TableRow>
@@ -590,17 +669,20 @@ const JobsTab = () => {
                                             {formatCurrency(job.jobCost)}
                                         </TableCell>
                                         <TableCell className="text-center px-4">
-                                            <div className="flex gap-1 justify-center">
-                                                <Button variant="ghost" size="icon" onClick={() => openViewDialog(job)}>
-                                                    <Eye className="w-4 h-4" />
-                                                </Button>
-                                                <Button variant="ghost" size="icon" onClick={() => openEditDialog(job)}>
-                                                    <Edit2 className="w-4 h-4" />
-                                                </Button>
-                                                <Button variant="ghost" size="icon" onClick={() => deleteJobById(job)} className="text-red-500 hover:text-red-700">
-                                                    <Trash2 className="w-4 h-4" />
-                                                </Button>
-                                            </div>
+                                            {formatCurrency(job.wipBalance || 0)}
+                                        </TableCell>
+                                        <TableCell className="text-center px-4">
+                                            {job.jobCost > 0 ? `${Math.min(((job.wipBalance || 0) / job.jobCost) * 100, 9999).toFixed(1)}%` : '0.0%'}
+                                        </TableCell>
+                                        <TableCell className="text-center px-4">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="text-muted-foreground hover:text-foreground"
+                                                onClick={(e) => handleSettingsClick(e, job._id)}
+                                            >
+                                                <Settings className="w-4 h-4" />
+                                            </Button>
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -609,6 +691,35 @@ const JobsTab = () => {
                     </CardContent>
                 </Card>
             </Tabs>
+
+            {settingsMenu && (
+                <>
+                    <div className="fixed inset-0 z-40" onClick={closeSettingsMenu} />
+                    <div
+                        className="fixed z-50 bg-white border border-gray-200 rounded-md shadow-lg py-1 min-w-[160px]"
+                        style={{ top: settingsMenu.y, left: settingsMenu.x }}
+                    >
+                        {/* <button
+                            onClick={() => handleMenuAction('view', settingsMenu.jobId)}
+                            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
+                        >
+                            View Job
+                        </button> */}
+                        <button
+                            onClick={() => handleMenuAction('edit', settingsMenu.jobId)}
+                            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
+                        >
+                            Edit Job
+                        </button>
+                        <button
+                            onClick={() => handleMenuAction('delete', settingsMenu.jobId)}
+                            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 text-red-600 flex items-center gap-2"
+                        >
+                            Delete Job
+                        </button>
+                    </div>
+                </>
+            )}
 
 
             {/* Pagination */}
@@ -627,6 +738,9 @@ const JobsTab = () => {
                                 <option value={10}>10 per page</option>
                                 <option value={20}>20 per page</option>
                                 <option value={50}>50 per page</option>
+                                <option value={100}>100 per page</option>
+                                <option value={250}>250 per page</option>
+                                <option value={500}>500 per page</option>
                             </select>
                         </div>
 
@@ -750,7 +864,7 @@ const JobsTab = () => {
                                     <p className="text-sm text-muted-foreground">{new Date(viewingJob.endDate).toLocaleDateString()}</p>
                                 </div>
                                 <div>
-                                    <Label>Estimated Cost</Label>
+                                    <Label>Job Cost</Label>
                                     <p className="text-sm text-muted-foreground">{formatCurrency(viewingJob?.jobCost)}</p>
                                 </div>
                                 <div>

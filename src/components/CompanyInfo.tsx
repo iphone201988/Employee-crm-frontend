@@ -1005,7 +1005,7 @@ const CompanyInfo = () => {
       <Dialog open={addClientExpenseOpen} onOpenChange={setAddClientExpenseOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Add Client Expenseqwqw</DialogTitle>
+            <DialogTitle>Add Client Expense</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">

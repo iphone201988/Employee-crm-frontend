@@ -5,6 +5,7 @@ export interface Note {
   note: string;
   timesheetId?: string;
   clientId?: string;
+  jobId?: string;
   createdBy: {
     _id: string;
     name: string;
@@ -18,6 +19,7 @@ export interface AddNoteRequest {
   note: string;
   timesheetId?: string;
   clientId?: string;
+  jobId?: string;
 }
 
 export interface UpdateNoteRequest {
@@ -51,18 +53,19 @@ export const notesApi = createApi({
   }),
   tagTypes: ['Note'],
   endpoints: (builder) => ({
-    getNotes: builder.query<GetNotesResponse, { timesheetId?: string; clientId?: string }>({
+    getNotes: builder.query<GetNotesResponse, { timesheetId?: string; clientId?: string; jobId?: string }>({
       query: (params) => {
         const queryParams = new URLSearchParams();
         if (params.timesheetId) queryParams.append('timesheetId', params.timesheetId);
         if (params.clientId) queryParams.append('clientId', params.clientId);
+        if (params.jobId) queryParams.append('jobId', params.jobId);
         return {
           url: `/?${queryParams.toString()}`,
           method: 'GET',
         };
       },
       providesTags: (result, error, arg) => [
-        { type: 'Note' as const, id: arg.clientId || arg.timesheetId || 'LIST' },
+        { type: 'Note' as const, id: arg.clientId || arg.timesheetId || arg.jobId || 'LIST' },
       ],
     }),
     addNote: builder.mutation<AddNoteResponse, AddNoteRequest>({
@@ -72,7 +75,7 @@ export const notesApi = createApi({
         body,
       }),
       invalidatesTags: (result, error, arg) => [
-        { type: 'Note' as const, id: arg.clientId || arg.timesheetId || 'LIST' },
+        { type: 'Note' as const, id: arg.clientId || arg.timesheetId || arg.jobId || 'LIST' },
         'Note',
       ],
     }),

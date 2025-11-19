@@ -1,5 +1,14 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 
+interface GetClientsRequest {
+    page: number;
+    limit: number;
+    businessTypeIds?: string[];
+    statuses?: string[];
+    audit?: string[];
+    aml?: string[];
+    yearEnds?: string[];
+}
 
 export const clientApi = createApi({
     reducerPath: 'clientApi',
@@ -32,16 +41,35 @@ export const clientApi = createApi({
             }),
             invalidatesTags: ['Client', 'ClientServices'],
         }),
-        getClients: builder.query<GetClientsResponse, any>({
-            query: ({ page, limit }) => ({
-                url: `/all?page=${page}&limit=${limit}`,
-                method: 'GET'
-            }),
+        getClients: builder.query<GetClientsResponse, GetClientsRequest>({
+            query: ({ page, limit, businessTypeIds, statuses, audit, aml, yearEnds }) => {
+                const params = new URLSearchParams({
+                    page: String(page),
+                    limit: String(limit),
+                });
+
+                const appendArrayParam = (key: string, values?: string[]) => {
+                    if (values && values.length > 0) {
+                        params.append(key, values.join(','));
+                    }
+                };
+
+                appendArrayParam('businessTypeIds', businessTypeIds);
+                appendArrayParam('statuses', statuses);
+                appendArrayParam('audit', audit);
+                appendArrayParam('aml', aml);
+                appendArrayParam('yearEnds', yearEnds);
+
+                return {
+                    url: `/all?${params.toString()}`,
+                    method: 'GET'
+                };
+            },
             providesTags: ['Client'],
         }),
 
         getClientServices: builder.query<GetClientServicesResponse, GetClientServicesRequest>({
-            query: ({ page, limit, search, businessType }) => {
+            query: ({ page, limit, search, businessTypeId }) => {
                 const params = new URLSearchParams({
                     page: String(page),
                     limit: String(limit),
@@ -49,8 +77,8 @@ export const clientApi = createApi({
                 if (search) {
                     params.append('search', search);
                 }
-                if (businessType) {
-                    params.append('businessType', businessType);
+                if (businessTypeId) {
+                    params.append('businessTypeId', businessTypeId);
                 }
                 return {
                     url: `/services?${params.toString()}`,

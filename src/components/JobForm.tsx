@@ -198,7 +198,7 @@ export const JobForm = ({ job, onSubmit, onCancel }: JobFormProps) => {
                     {errors.jobTypeId && <p className="text-sm text-red-600 mt-1">{errors.jobTypeId}</p>}
                 </div>
 
-                <InputComponent label="Estimated Cost" id="estimatedCost" type="number" value={String(formData.jobCost ?? '')} onChange={(val) => handleInputChange('jobCost')(parseFloat(val as string) || undefined)} error={errors.jobCost} />
+                <InputComponent label="Job Cost" id="estimatedCost" type="number" value={String(formData.jobCost ?? '')} onChange={(val) => handleInputChange('jobCost')(parseFloat(val as string) || undefined)} error={errors.jobCost} />
 
                 <InputComponent label="Start Date" id="startDate" type="date" value={formData.startDate} onChange={handleInputChange('startDate')} error={errors.startDate} />
                 <InputComponent label="End Date" id="endDate" type="date" value={formData.endDate} onChange={handleInputChange('endDate')} error={errors.endDate} />
