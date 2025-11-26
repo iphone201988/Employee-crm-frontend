@@ -17,14 +17,14 @@ const tabs = [
     id: 'services',
     label: 'Job Types'
   },
-  // {
-  //   id: 'jobTemplates',
-  //   label: 'Job Templates'
-  // },
-  // {
-  //   id: 'jobBuilder',
-  //   label: 'Job Builder'
-  // },
+  {
+    id: 'jobTemplates',
+    label: 'Job Templates'
+  },
+  {
+    id: 'jobBuilder',
+    label: 'Job Builder'
+  },
   {
     id: 'jobList',
     label: 'Job List'
@@ -78,8 +78,8 @@ const Jobs = () => {
       <div className='mt-5'>
 
         {activeTab === 'services' && <ServicesTab />}
-        {/* {activeTab === 'jobTemplates' && <JobTemplatesTab />} */}
-        {/* {activeTab === 'jobBuilder' && <JobBuilderTab />} */}
+        {activeTab === 'jobTemplates' && <JobTemplatesTab />}
+        {activeTab === 'jobBuilder' && <JobBuilderTab />}
         {activeTab === 'jobList' && <JobsTab />}
         {activeTab === '' && <div>YOU HAVE NO ACCESS</div>}
       </div>

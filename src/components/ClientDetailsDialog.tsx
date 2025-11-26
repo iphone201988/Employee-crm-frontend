@@ -9,9 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Edit, Save, X, Clock } from 'lucide-react';
+import { Plus, Edit, Save, X, Clock, Loader2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency';
-import { useUpdateClientMutation } from "@/store/clientApi";
+import { useGetClientDebtorsLogQuery, useUpdateClientMutation } from "@/store/clientApi";
 import { useGetDropdownOptionsQuery } from "@/store/teamApi";
 import { useGetNotesQuery, useAddNoteMutation, Note } from "@/store/notesApi";
 import { toast } from 'sonner';
@@ -108,6 +108,43 @@ interface ClientData {
   expenses?: ClientExpense[];
   writeOffLogs?: ClientWriteOffLog[];
   notes?: Note[];
+  debtorsBalance?: number;
+}
+
+interface DebtorsLogEntryData {
+  id: string;
+  date: string;
+  type: string;
+  referenceNumber?: string;
+  docNo?: string;
+  jobName?: string;
+  debit: number;
+  credit: number;
+  allocated: number;
+  outstanding: number;
+  balance: number;
+}
+
+interface DebtorsLogSummary {
+  totalDebit: number;
+  totalCredit: number;
+  totalOutstanding: number;
+  transactionCount: number;
+}
+
+interface DebtorsLogAging {
+  current: number;
+  days30: number;
+  days60: number;
+  days90: number;
+  unallocated: number;
+}
+
+interface DebtorsLogResponseData {
+  entries: DebtorsLogEntryData[];
+  summary: DebtorsLogSummary;
+  aging: DebtorsLogAging;
+  openingBalance: number;
 }
 
 interface ClientDetailsDialogProps {
@@ -126,6 +163,18 @@ const ClientDetailsDialog = ({
   const [isEditing, setIsEditing] = useState(false);
   const [editableData, setEditableData] = useState<ClientData>(clientData);
   const [activeTab, setActiveTab] = useState('details');
+  const clientId = clientData?._id;
+  const { data: debtorsLogResponse, isFetching: isDebtorsLoading } = useGetClientDebtorsLogQuery(clientId ?? '', {
+    skip: !clientId || !open,
+  });
+  const debtorsLogData = debtorsLogResponse?.data as DebtorsLogResponseData | undefined;
+  const debtorsEntries: DebtorsLogEntryData[] = debtorsLogData?.entries ?? [];
+  const debtorsSummary = debtorsLogData?.summary ?? { totalDebit: 0, totalCredit: 0, totalOutstanding: 0, transactionCount: 0 };
+  const debtorsAging = debtorsLogData?.aging ?? { current: 0, days30: 0, days60: 0, days90: 0, unallocated: 0 };
+  const openingDebtorsBalance = typeof debtorsLogData?.openingBalance === 'number'
+    ? debtorsLogData.openingBalance
+    : Number(clientData?.debtorsBalance || 0);
+  const hasDebtorsEntries = debtorsEntries.length > 0;
 
   const [updateClient, { isLoading: isUpdating }] = useUpdateClientMutation();
   const { data: categoriesData } = useGetDropdownOptionsQuery("all");
@@ -241,9 +290,36 @@ const ClientDetailsDialog = ({
     if (map[key]) return map[key];
     return normalized.split(' ').map(w => w ? w[0].toUpperCase() + w.slice(1) : '').join(' ');
   };
+  const displayAmount = (value?: number, allowZero = false) => {
+    const amount = Number(value || 0);
+    if (!allowZero && Math.abs(amount) < 0.01) return '';
+    return formatCurrency(amount);
+  };
+  const getDebtorBadgeMeta = (type?: string) => {
+    const normalized = (type || '').toLowerCase();
+    if (normalized.includes('invoice')) {
+      return { variant: 'default' as const, className: '' };
+    }
+    if (normalized.includes('write')) {
+      return { variant: 'destructive' as const, className: '' };
+    }
+    if (normalized.includes('credit')) {
+      return { variant: 'destructive' as const, className: 'bg-orange-500 text-white hover:bg-orange-600' };
+    }
+    return { variant: 'secondary' as const, className: '' };
+  };
   const timeLogs = useMemo(() => Array.isArray(clientData?.timeLogs) ? clientData.timeLogs : [], [clientData?.timeLogs]);
   const jobs = useMemo(() => Array.isArray(clientData?.jobs) ? clientData.jobs : [], [clientData?.jobs]);
   const expenses = useMemo(() => Array.isArray(clientData?.expenses) ? clientData.expenses : [], [clientData?.expenses]);
+  const writeOffLogs = useMemo(() => Array.isArray(clientData?.writeOffLogs) ? clientData.writeOffLogs : [], [clientData?.writeOffLogs]);
+
+  const timeLogsCount = timeLogs.length;
+  const jobsCount = jobs.length;
+  const expensesCount = expenses.length;
+  const wipCount = jobs.length;
+  const writeOffLogsCount = writeOffLogs.length;
+  const notesCount = Array.isArray(notes) ? notes.length : 0;
+  const debtorsLogCount = debtorsEntries.length;
   const wipSummary = useMemo(() => {
     const totalAmount = jobs.reduce((sum, j) => sum + Number(j.amount || 0), 0);
     const totalHoursSec = jobs.reduce((sum, j) => sum + Number(j.totalTimeLogHours || 0), 0);
@@ -275,13 +351,13 @@ const ClientDetailsDialog = ({
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-8">
           <TabsTrigger value="details">Client Details</TabsTrigger>
-          <TabsTrigger value="time-logs">Time Logs</TabsTrigger>
-          <TabsTrigger value="jobs">Jobs</TabsTrigger>
-          <TabsTrigger value="expenses">Expenses</TabsTrigger>
-          <TabsTrigger value="wip">WIP</TabsTrigger>
-          <TabsTrigger value="write-off-log">Write off Log</TabsTrigger>
-          <TabsTrigger value="notes">Notes ({Array.isArray(notes) ? notes.length : 0})</TabsTrigger>
-          <TabsTrigger value="debtors-log">Debtors Log</TabsTrigger>
+          <TabsTrigger value="time-logs">Time Logs ({timeLogsCount})</TabsTrigger>
+          <TabsTrigger value="jobs">Jobs ({jobsCount})</TabsTrigger>
+          <TabsTrigger value="expenses">Expenses ({expensesCount})</TabsTrigger>
+          <TabsTrigger value="wip">WIP ({wipCount})</TabsTrigger>
+          <TabsTrigger value="write-off-log">Write-Off Log ({writeOffLogsCount})</TabsTrigger>
+          <TabsTrigger value="notes">Notes ({notesCount})</TabsTrigger>
+          <TabsTrigger value="debtors-log">Debtors Log ({debtorsLogCount})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="details" className="space-y-4">
@@ -610,62 +686,112 @@ const ClientDetailsDialog = ({
 
         <TabsContent value="debtors-log" className="space-y-4">
           <Card>
-
-            <CardContent className="mx-0 my-0 px-0 py-[25px]">
-              <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground">Debtors Log Balance</p>
-                  <p className="text-lg font-semibold text-foreground">€1,599.00</p>
+            <CardContent className="mx-0 my-0 px-0 py-6">
+              <div className="px-6">
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Debtors Log</p>
+                    <h4 className="text-lg font-semibold text-foreground">{clientData?.name || '-'}</h4>
+                  </div>
+                  {isDebtorsLoading && (
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Syncing latest data...
+                    </div>
+                  )}
                 </div>
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground">Unallocated</p>
-                  <p className="text-lg font-semibold text-foreground">€0.00</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground">Current</p>
-                  <p className="text-lg font-semibold text-foreground">€0.00</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground">30 Days</p>
-                  <p className="text-lg font-semibold text-foreground">€0.00</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground">60 Days</p>
-                  <p className="text-lg font-semibold text-foreground">€0.00</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground">90+ Days</p>
-                  <p className="text-lg font-semibold text-destructive">€1,599.00</p>
+                <div className="grid grid-cols-2 md:grid-cols-7 gap-4 mb-6">
+                  <div className="text-center">
+                    <p className="text-sm text-muted-foreground">Debtors Log Balance</p>
+                    <p className="text-lg font-semibold text-foreground">{formatCurrency(debtorsSummary.totalOutstanding)}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-muted-foreground">Opening Balance (Imported)</p>
+                    <p className="text-lg font-semibold text-foreground">{formatCurrency(openingDebtorsBalance)}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-muted-foreground">Unallocated</p>
+                    <p className="text-lg font-semibold text-foreground">{formatCurrency(debtorsAging.unallocated)}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-muted-foreground">Current (0-30d)</p>
+                    <p className="text-lg font-semibold text-foreground">{formatCurrency(debtorsAging.current)}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-muted-foreground">30-60 Days</p>
+                    <p className="text-lg font-semibold text-foreground">{formatCurrency(debtorsAging.days30)}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-muted-foreground">60-90 Days</p>
+                    <p className="text-lg font-semibold text-foreground">{formatCurrency(debtorsAging.days60)}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-muted-foreground">90+ Days</p>
+                    <p className="text-lg font-semibold text-destructive">{formatCurrency(debtorsAging.days90)}</p>
+                  </div>
                 </div>
               </div>
-
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-sm">
-                  <thead>
-                    <tr className="border-b border-border bg-muted/50">
-                      <th className="text-left p-3 font-medium text-foreground h-12">Date</th>
-                      <th className="text-left p-3 font-medium text-foreground h-12">Item</th>
-                      <th className="text-left p-3 font-medium text-foreground h-12">Reference Number</th>
-                      <th className="text-right p-3 font-medium text-foreground h-12">Debit</th>
-                      <th className="text-right p-3 font-medium text-foreground h-12">Credit</th>
-                      <th className="text-right p-3 font-medium text-foreground h-12">Outstanding</th>
-                      <th className="text-right p-3 font-medium text-foreground h-12">Balance</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="border-b border-border hover:bg-muted/30 transition-colors">
-                      <td className="p-4 text-foreground">28/03/2024</td>
-                      <td className="p-4 text-foreground">
-                        <Badge variant="default">Invoice</Badge>
-                      </td>
-                      <td className="p-4 text-foreground">IN-104</td>
-                      <td className="p-4 text-right text-foreground">€1,599.00</td>
-                      <td className="p-4 text-right text-foreground"></td>
-                      <td className="p-4 text-right text-foreground">€1,599.00</td>
-                      <td className="p-4 text-right font-semibold text-foreground">€1,599.00</td>
-                    </tr>
-                  </tbody>
-                </table>
+                {isDebtorsLoading ? (
+                  <div className="p-6 text-sm text-muted-foreground">Loading debtors log...</div>
+                ) : hasDebtorsEntries ? (
+                  <table className="w-full border-collapse text-sm">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/50">
+                        <th className="text-left p-3 font-medium text-foreground h-12">Date</th>
+                        <th className="text-left p-3 font-medium text-foreground h-12">Item</th>
+                        <th className="text-left p-3 font-medium text-foreground h-12">Reference Number</th>
+                        <th className="text-right p-3 font-medium text-foreground h-12">Debit</th>
+                        <th className="text-right p-3 font-medium text-foreground h-12">Credit</th>
+                        <th className="text-right p-3 font-medium text-foreground h-12">Allocated</th>
+                        <th className="text-right p-3 font-medium text-foreground h-12">Outstanding</th>
+                        <th className="text-right p-3 font-medium text-foreground h-12">Debtors Log Balance</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {debtorsEntries.map((entry) => {
+                        const badgeMeta = getDebtorBadgeMeta(entry.type);
+                        return (
+                          <tr key={entry.id} className="border-b border-border hover:bg-muted/30 transition-colors">
+                            <td className="p-4 text-foreground">{formatDate(entry.date)}</td>
+                            <td className="p-4 text-foreground">
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-2">
+                                  <Badge variant={badgeMeta.variant} className={badgeMeta.className}>{entry.type}</Badge>
+                                  {entry.jobName && <span className="text-xs text-muted-foreground">{entry.jobName}</span>}
+                                </div>
+                                {entry.docNo && <span className="text-xs text-muted-foreground">{entry.docNo}</span>}
+                              </div>
+                            </td>
+                            <td className="p-4 text-foreground">{entry.referenceNumber || entry.docNo || '-'}</td>
+                            <td className="p-4 text-right text-foreground">{displayAmount(entry.debit)}</td>
+                            <td className="p-4 text-right text-foreground">{displayAmount(entry.credit)}</td>
+                            <td className="p-4 text-right text-foreground">{displayAmount(entry.allocated)}</td>
+                            <td className="p-4 text-right text-foreground">{displayAmount(entry.outstanding)}</td>
+                            <td className="p-4 text-right font-semibold text-foreground">{displayAmount(entry.balance, true)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t-2 border-border bg-muted/50">
+                        <td className="p-4 text-foreground text-sm" colSpan={3}>TOTALS</td>
+                        <td className="p-4 text-right text-foreground text-sm">{formatCurrency(debtorsSummary.totalDebit)}</td>
+                        <td className="p-4 text-right text-foreground text-sm">{formatCurrency(debtorsSummary.totalCredit)}</td>
+                        <td className="p-4 text-right text-foreground text-sm"></td>
+                        <td className="p-4 text-right text-foreground text-sm"></td>
+                        <td className="p-4 text-right text-foreground text-sm">{formatCurrency(debtorsSummary.totalOutstanding)}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                ) : (
+                  <div className="p-6 text-sm text-muted-foreground">
+                    No debtors log activity recorded yet.
+                    {openingDebtorsBalance > 0 && (
+                      <> Imported balance of {formatCurrency(openingDebtorsBalance)} will remain outstanding until invoices or receipts are recorded.</>
+                    )}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -778,8 +904,8 @@ const ClientDetailsDialog = ({
                     </tr>
                   </thead>
                   <tbody>
-                    {Array.isArray(clientData?.writeOffLogs) && clientData.writeOffLogs.length > 0 ? (
-                      clientData.writeOffLogs.map((log: ClientWriteOffLog) => (
+                    {writeOffLogs.length > 0 ? (
+                      writeOffLogs.map((log: ClientWriteOffLog) => (
                         <tr key={log._id || log.jobId} className="border-b hover:bg-gray-50 h-12">
                           <td className="p-3">
                             <div className="text-sm">-</div>

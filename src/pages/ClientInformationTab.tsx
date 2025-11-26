@@ -29,7 +29,7 @@ import { toast } from 'sonner';
 const tabs = [
   {
     id: 'clientList',
-    label: 'Details',
+    label: 'Client List',
   }, {
     id: 'clientBreakdown',
     label: 'Client Breakdown',
@@ -196,7 +196,7 @@ const ClientInformationTab = () => {
       emailNote: clientInfo.emailNote,
       phone: clientInfo.phone,
       phoneNote: clientInfo.phoneNote,
-      onboardedDate: new Date(clientInfo.onboardedDate),
+      onboardedDate: clientInfo.onboardedDate ? new Date(clientInfo.onboardedDate) : undefined,
       amlCompliant: clientInfo.amlCompliant,
       audit: clientInfo.audit,
       clientStatus: clientInfo.clientStatus || 'Current',
@@ -603,6 +603,7 @@ const ClientInformationTab = () => {
           break;
         case 'onboardedDate':
           dataMappers.push((client) => {
+            if (!client.onboardedDate) return '-';
             const date = new Date(client.onboardedDate);
             const month = (date.getMonth() + 1).toString().padStart(2, '0');
             const day = date.getDate().toString().padStart(2, '0');
@@ -707,18 +708,18 @@ const ClientInformationTab = () => {
         </div>
 
         {/* Search and Filters Row */}
-        <div className="bg-[#E7E5F2] p-3 rounded-sm flex flex-wrap items-center gap-3">
-          <div className="relative flex-1 min-w-[220px] max-w-[260px]">
+        <div className="bg-[#E7E5F2] p-[6px] rounded-sm flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-end gap-2 flex-1 min-w-[300px]">
+            <div className="relative flex-1 min-w-[220px] max-w-[260px]">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
               placeholder="Search clients..."
               value={clientInfoSearch}
               onChange={(e) => setClientInfoSearch(e.target.value)}
-              className="pl-10 bg-white text-[#381980] font-semibold"
+                className="pl-10 bg-white text-[#381980] font-semibold h-10"
               disabled={isLoading}
             />
           </div>
-          <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[300px]">
             <Popover>
               <PopoverTrigger asChild>
                 <button
@@ -1093,13 +1094,13 @@ const ClientInformationTab = () => {
                             cellContent = client.phoneNote;
                             break;
                           case 'onboardedDate':
-                            cellContent = (() => {
+                            cellContent = client.onboardedDate ? (() => {
                               const date = new Date(client.onboardedDate);
                               const month = (date.getMonth() + 1).toString().padStart(2, '0');
                               const day = date.getDate().toString().padStart(2, '0');
                               const year = date.getFullYear();
                               return `${month}/${day}/${year}`;
-                            })();
+                            })() : '-';
                             break;
                           case 'amlCompliant':
                             cellContent = client.amlCompliant ? 'Yes' : '';

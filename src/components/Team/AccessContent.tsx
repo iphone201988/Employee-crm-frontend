@@ -35,7 +35,7 @@ const systemFeatures = {
   'Jobs': {
     features: [
       { key: 'services', label: 'Job Types' },
-      { key: 'jobTemplates', label: 'Job Templates' },
+      // { key: 'jobTemplates', label: 'Job Templates' },
       { key: 'jobBuilder', label: 'Job Builder' },
       { key: 'jobList', label: 'Job List' }
     ]
@@ -62,10 +62,10 @@ const systemFeatures = {
   'Settings': {
     features: [
       { key: 'general', label: 'General' },
-      { key: 'tags', label: 'Tags' },
+      { key: 'tags', label: 'Categories' },
       { key: 'clientImport', label: 'Client Import' },
-      { key: 'timeLogsImport', label: 'Time Logs Import' },
       { key: 'jobImport', label: 'Job Import' },
+      { key: 'timeLogsImport', label: 'Time Logs Import' },
       { key: 'integrations', label: 'Integrations' }
     ]
   },

@@ -22,13 +22,14 @@ export interface Job {
     endDate: string;
     jobCost: number;
     teamMembers: PopulatedUser[];
-    status: 'queued' | 'inProgress' | 'withClient' | 'forApproval' | 'completed' | 'cancelled';
+    status: 'queued' | 'awaitingRecords' | 'inProgress' | 'withClient' | 'forApproval' | 'completed';
     description: string;
     createdBy: PopulatedUser;
     priority: 'high' | 'medium' | 'low' | 'urgent';
     createdAt: string;
     updatedAt: string;
     __v: number;
+    hoursLogged?: number;
 }
 
 // --- Request Type for Creating/Updating a Job ---
@@ -42,7 +43,7 @@ export type JobMutationRequest = {
     endDate: string;
     jobCost: number;
     teamMembers: string[];
-    status: 'queued' | 'inProgress' | 'withClient' | 'forApproval' | 'completed' | 'cancelled';
+    status: 'queued' | 'awaitingRecords' | 'inProgress' | 'withClient' | 'forApproval' | 'completed';
     priority: 'high' | 'medium' | 'low' | 'urgent';
 };
 
@@ -73,6 +74,9 @@ export interface GetJobsRequest {
     jobTypeId?: string;
     search?: string;
     view?: string;
+    jobManagerIds?: string;
+    teamMemberIds?: string;
+    periodOffset?: number;
 }
 
 // --- Interfaces for the 'getJobs' Response Data ---
@@ -154,7 +158,7 @@ export const jobApi = createApi({
 
     // Endpoint to get all jobs with filters
     getJobs: builder.query<GetJobsResponse, GetJobsRequest>({
-        query: ({ page, limit, status, priority, jobTypeId, search, view }) => {
+        query: ({ page, limit, status, priority, jobTypeId, search, view, jobManagerIds, teamMemberIds, periodOffset }) => {
             const params = new URLSearchParams({
                 page: String(page),
                 limit: String(limit),
@@ -164,6 +168,9 @@ export const jobApi = createApi({
             if (priority) params.append('priority', priority);
             if (jobTypeId) params.append('jobTypeId', jobTypeId);
             if (search) params.append('search', search);
+            if (jobManagerIds) params.append('jobManagerIds', jobManagerIds);
+            if (teamMemberIds) params.append('teamMemberIds', teamMemberIds);
+            if (typeof periodOffset === 'number') params.append('periodOffset', String(periodOffset));
             return { url: `/all?${params.toString()}` };
         },
         providesTags: (result) => result?.data?.jobs

@@ -38,6 +38,23 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
   const [clientTriggers, setClientTriggers] = useState<{ [key: string]: string }>({});
   const [jobTriggers, setJobTriggers] = useState<{ [key: string]: string }>({});
   const [showInvoiceDialog, setShowInvoiceDialog] = useState(false);
+  const getClientTargetStatus = (client: WIPClient) => {
+    const status = (client as any).clientTargetOverall ?? (client as any).clientTargetMet ?? '0';
+    return {
+      status,
+      hasTarget: status !== '0',
+      met: status === '2'
+    };
+  };
+
+  const getJobTargetStatus = (job: any) => {
+    const status = job.targetMetStatus ?? (job.triggerMet ? '2' : '0');
+    return {
+      status,
+      hasTarget: status !== '0',
+      met: status === '2'
+    };
+  };
   const [selectedInvoiceData, setSelectedInvoiceData] = useState<any>(null);
   const [showWIPBalanceDialog, setShowWIPBalanceDialog] = useState(false);
   const [wipBalanceData, setWIPBalanceData] = useState<any>(null);
@@ -88,7 +105,9 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
   };
 
   const getWarningIcon = (job: any) => {
-    const wipPercentage = (job.wipAmount / job.jobFee) * 100;
+    const jobFee = Number(job.jobFee || 0);
+    if (jobFee <= 0) return null;
+    const wipPercentage = (job.wipAmount / jobFee) * 100;
     return wipPercentage >= warningPercentage ? (
       <AlertTriangle className="h-4 w-4  text-red-500 ml-1 " />
     ) : null;
@@ -155,12 +174,14 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
       return Array.from(new Set<string>([...clientIds, ...jobIds]));
     };
     const collectExpenseIds = (): string[] => (client.activeExpenses || []).map((e: any) => String(e.id || e._id)).filter(Boolean);
+    const wipAmount = job ? job.wipAmount : (client as any).clientWipBalance || 0;
     const invoiceData = {
       invoiceNumber: String(Math.floor(Math.random() * 90000) + 10000), // Generate 5-digit number
       clientName: client.clientName,
       clientCode: client.clientCode,
       clientAddress: client.address || '',
-      amount: job ? job.wipAmount : (client as any).clientWipBalance || 0,
+      amount: wipAmount,
+      wipAmount,
       date: new Date().toISOString(),
       status: 'issued' as const,
       jobName: job?.jobName,
@@ -174,8 +195,8 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
         locked: true
       })),
       clientId: client.id,
-      scope: job ? 'job' : 'client',
       jobId: job?.id,
+      scope: job ? 'job' : 'client',
       timeLogIdsBase: collectTimeLogIds(),
       expenseIdsBase: collectExpenseIds(),
       wipOpenBalanceIdsBase: collectWipOpenBalanceIds(),
@@ -340,7 +361,9 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
     // Warning jobs filter
     if (showWarningJobsOnly) {
       const hasWarningJobs = client.jobs.some(job => {
-        const wipPercentage = (job.wipAmount / job.jobFee) * 100;
+        const jobFee = Number(job.jobFee || 0);
+        if (jobFee <= 0) return false;
+        const wipPercentage = (job.wipAmount / jobFee) * 100;
         return wipPercentage >= warningPercentage;
       });
       if (!hasWarningJobs) return false;
@@ -348,36 +371,24 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
 
     if (targetMetFilter === 'all') return true;
 
-    const clientInvoiceLevel = invoiceLevel[client.id] || 'client';
+    const clientStatus = getClientTargetStatus(client);
+    const jobStatuses = client.jobs.map(getJobTargetStatus);
+    const hasTarget = clientStatus.hasTarget || jobStatuses.some(s => s.hasTarget);
+    const met = clientStatus.met || jobStatuses.some(s => s.met);
 
-    let passesTargetMetFilter = true;
-
-    if (clientInvoiceLevel === 'client') {
-      const currentTrigger = (clientTriggers[client.id] || (client as any).trigger) as string | undefined;
-      const isThreshold = !!currentTrigger && currentTrigger.includes('threshold');
-      const totalWIP = client.jobs.reduce((sum, job) => sum + job.wipAmount, 0);
-      const reached = isThreshold ? (totalWIP >= parseFloat(currentTrigger!.split('-')[1])) : undefined;
-
-      if (targetMetFilter === 'yes') passesTargetMetFilter = isThreshold && reached === true;
-      else if (targetMetFilter === 'no') passesTargetMetFilter = isThreshold && reached === false;
-      else if (targetMetFilter === 'na') passesTargetMetFilter = !isThreshold;
-      else passesTargetMetFilter = true;
-    } else {
-      // invoiceLevel === 'job' → match ANY job for the selected filter
-      const anyMatch = client.jobs.some(job => {
-        const currentTrigger = (jobTriggers[job.id] || job.trigger) as string | undefined;
-        const isThreshold = !!currentTrigger && currentTrigger.includes('threshold');
-        const reached = isThreshold ? (job.wipAmount >= parseFloat(currentTrigger!.split('-')[1])) : undefined;
-
-        if (targetMetFilter === 'yes') return isThreshold && reached === true;
-        if (targetMetFilter === 'no') return isThreshold && reached === false;
-        if (targetMetFilter === 'na') return !isThreshold;
-        return true;
-      });
-      passesTargetMetFilter = anyMatch;
+    if (targetMetFilter === 'yes') {
+      return met;
     }
 
-    return passesTargetMetFilter;
+    if (targetMetFilter === 'no') {
+      return hasTarget && !met;
+    }
+
+    if (targetMetFilter === 'na') {
+      return !hasTarget;
+    }
+
+    return true;
   });
 
   // Sort filtered data
@@ -668,6 +679,7 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
                               if (wipTargetId) {
                                 try {
                                   await attachWipTarget({ type: 'client', clientId: client.id, wipTargetId }).unwrap();
+                                  if (onWipMutated) onWipMutated();
                                 } catch (err) {
                                   // noop: keep UI state, backend failure won't break other flows
                                 }
@@ -693,15 +705,11 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
                         {(invoiceLevel[client.id] || 'client') === 'client' ? (
                           <div className="flex justify-center">
                             {(() => {
-                              // Use clientWipBalance which includes client open balance + all jobs' wipAmount + job open balances
-                              const totalWIP = (client as any).clientWipBalance || 0;
-                              const currentTrigger = (clientTriggers[client.id] || (client as any).trigger) as string | undefined;
-                              const isThreshold = !!currentTrigger && currentTrigger.includes('threshold');
-                              if (!isThreshold) {
+                              const targetState = getClientTargetStatus(client);
+                              if (!targetState.hasTarget) {
                                 return <span className="text-xs text-muted-foreground">N/A</span>;
                               }
-                              const triggerMet = totalWIP >= parseFloat(currentTrigger.split('-')[1]);
-                              return triggerMet ? (
+                              return targetState.met ? (
                                 <Check className="h-4 w-4 text-green-600" />
                               ) : (
                                 <X className="h-4 w-4 text-red-600" />
@@ -715,15 +723,11 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
                       <td className="p-4 text-center">
                         {(invoiceLevel[client.id] || 'client') === 'client' ? (
                           (() => {
-                            // Use clientWipBalance which includes client open balance + all jobs' wipAmount + job open balances
-                            const totalWIP = (client as any).clientWipBalance || 0;
-                            const currentTrigger = (clientTriggers[client.id] || (client as any).trigger) as string | undefined;
-                            const isThreshold = !!currentTrigger && currentTrigger.includes('threshold');
-                            if (!isThreshold) {
+                            const targetState = getClientTargetStatus(client);
+                            if (!targetState.hasTarget) {
                               return <Badge variant="secondary" className="bg-gray-100 text-gray-800 text-xs">N/A</Badge>;
                             }
-                            const triggerMet = totalWIP >= parseFloat(currentTrigger.split('-')[1]);
-                            return triggerMet ? (
+                            return targetState.met ? (
                               <Badge
                                 variant="secondary"
                                 className="bg-green-100 text-green-800 text-xs cursor-pointer hover:bg-green-200"
@@ -875,6 +879,7 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
                                 if (wipTargetId) {
                                   try {
                                     await attachWipTarget({ type: 'job', jobId: job.id, wipTargetId }).unwrap();
+                                    if (onWipMutated) onWipMutated();
                                   } catch (err) {
                                     // noop
                                   }
@@ -900,13 +905,11 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
                           {(invoiceLevel[client.id] || 'client') === 'job' ? (
                             <div className="flex justify-center">
                               {(() => {
-                                const currentTrigger = (jobTriggers[job.id] || job.trigger) as string | undefined;
-                                const isThreshold = !!currentTrigger && currentTrigger.includes('threshold');
-                                if (!isThreshold) {
+                                const targetState = getJobTargetStatus(job);
+                                if (!targetState.hasTarget) {
                                   return <span className="text-xs text-muted-foreground">N/A</span>;
                                 }
-                                const triggerMet = job.wipAmount >= parseFloat(currentTrigger.split('-')[1]);
-                                return triggerMet ? (
+                                return targetState.met ? (
                                   <Check className="h-4 w-4 text-green-600" />
                                 ) : (
                                   <X className="h-4 w-4 text-red-600" />
@@ -920,13 +923,11 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
                         <td className="p-4 text-center">
                           {(invoiceLevel[client.id] || 'client') === 'job' ? (
                             (() => {
-                              const currentTrigger = (jobTriggers[job.id] || job.trigger) as string | undefined;
-                              const isThreshold = !!currentTrigger && currentTrigger.includes('threshold');
-                              if (!isThreshold) {
+                              const targetState = getJobTargetStatus(job);
+                              if (!targetState.hasTarget) {
                                 return <Badge variant="secondary" className="bg-gray-100 text-gray-800 text-xs">N/A</Badge>;
                               }
-                              const triggerMet = job.wipAmount >= parseFloat(currentTrigger.split('-')[1]);
-                              return triggerMet ? (
+                              return targetState.met ? (
                                 <Badge
                                   variant="secondary"
                                   className="bg-green-100 text-green-800 text-xs cursor-pointer hover:bg-green-200"

@@ -128,7 +128,7 @@ export const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({ isOpen, on
           <X size={16}/>
         </button>
         <DialogHeader className="bg-[#381980] sticky z-50 top-0 left-0 w-full text-center ">
-          <DialogTitle className="text-center text-white py-4">+ {expenseType === 'client' ? 'Client' : 'Team'} Expense</DialogTitle>
+          <DialogTitle className="text-center text-white py-4">+ New {expenseType === 'client' ? 'Client' : 'Team'} Expense</DialogTitle>
         </DialogHeader>
         <div className="space-y-4  form-change">
           <div className="grid grid-cols-2 gap-4 px-[20px]">

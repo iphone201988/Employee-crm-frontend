@@ -233,7 +233,7 @@ const TimeLogPopup = ({ onClose, editingLog }: TimeLogPopupProps) => {
   };
   return (
     <div className="w-full min-h-[100vh] bg-[#000000a6] absolute z-[9999999] left-0 top-0 flex items-center justify-center p-[16px] m-0">
-      <div className="p-[0px] bg-white w-auto ">
+      <div className="p-[0px] bg-white w-full max-w-2xl">
         <div className="bg-[#381980] py-[14px] relative">
             <h5 className=" font-semibold text-white text-center">{editingLog ? 'Edit Time Log' : '+ Time Log'}</h5>
             <button onClick={onClose} className=" bg-[#381980] text-white absolute right-[-35px] top-0 p-[6px] rounded-full max-sm:hidden"><X size={16}/></button>
@@ -422,7 +422,7 @@ const TimeLogPopup = ({ onClose, editingLog }: TimeLogPopupProps) => {
           <div className="flex gap-[15px] max-sm:flex-wrap ">
             <label className="flex flex-col gap-[3px] text-[14px] font-semibold text-[#381980] w-[20%] max-sm:w-full" htmlFor="">
                 Billable
-                <div className="flex items-center gap-2 bg-white border border-[#eee] rounded-sm px-[10px] py-[6px]">
+                <div className="flex items-center gap-2 rounded-sm px-[10px] py-[6px] bg-transparent">
                   <div className="scale-90 origin-left">
                     <Switch checked={billable} onCheckedChange={setBillable} />
                   </div>

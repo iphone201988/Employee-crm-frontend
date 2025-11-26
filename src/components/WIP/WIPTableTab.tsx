@@ -25,11 +25,20 @@ const WIPTableTab = ({ onInvoiceCreate, onWriteOff }: WIPTableTabProps) => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [debouncedSearch] = useDebounce(searchQuery, 400);
+  const computedTargetMetCondition: '0' | '1' | '2' | undefined =
+    targetMetFilter === 'yes'
+      ? '2'
+      : targetMetFilter === 'no'
+        ? '1'
+        : targetMetFilter === 'na'
+          ? '0'
+          : undefined;
+
   const { data: wipResp, refetch: refetchWip } = useGetWipQuery({
     page,
     limit,
     serach: debouncedSearch || undefined,
-    targetMetCondition: targetMetFilter === 'yes' ? '2' : targetMetFilter === 'no' ? '1' : undefined,
+    targetMetCondition: computedTargetMetCondition,
     WIPWarningJobs: showWarningJobsOnly || undefined,
   });
   const { data: currentUserResp }: any = useGetCurrentUserQuery();
@@ -55,16 +64,23 @@ const WIPTableTab = ({ onInvoiceCreate, onWriteOff }: WIPTableTabProps) => {
     };
     return raw.map((client: any) => {
       const triggerAmount = client?.clientWipTraget?.amount;
+      const clientTargetMet = client?.clientTargetMet || '0';
+      const clientTargetOverall = client?.clientTargetMetCombined || clientTargetMet;
       
       // Calculate total WIP for client: sum of all jobs' wipAmount + wipTotalOpenBalance + clientWipTotalOpenBalance + importedWipBalance
       const clientWIPBalance = Number(client.clientWipTotalOpenBalance || 0);
       const importedWipBalance = Number(client.importedWipBalance || 0);
       const jobsTotalWIP = (client.jobs || []).reduce((sum: number, job: any) => {
-        const jobWipAmount = Number(job.wipAmount || 0);
-        const jobWipOpenBalance = Number(job.wipTotalOpenBalance || 0);
-        return sum + jobWipAmount + jobWipOpenBalance;
+        const jobTotal = job.jobTotalWipAmount !== undefined
+          ? Number(job.jobTotalWipAmount || 0)
+          : Number(job.wipAmount || 0) + Number(job.wipTotalOpenBalance || 0);
+        return sum + jobTotal;
       }, 0);
       const totalClientWIP = clientWIPBalance + jobsTotalWIP + importedWipBalance;
+      const backendClientWipBalance =
+        client.clientTotalWipAmount !== undefined
+          ? Number(client.clientTotalWipAmount || 0)
+          : totalClientWIP;
       
       const clientOpenBalances = mapOpenBalances(client.clientWipOpenBalance);
 
@@ -79,6 +95,8 @@ const WIPTableTab = ({ onInvoiceCreate, onWriteOff }: WIPTableTabProps) => {
           : [],
         clientOpenBalances,
         trigger: triggerAmount ? `threshold-${triggerAmount}` : null,
+        clientTargetMet,
+        clientTargetOverall,
         lastInvoiced: null,
         daysSinceLastInvoice: null,
         activeExpenses: Array.isArray(client?.expensesData) && client.expensesData.length > 0
@@ -100,23 +118,25 @@ const WIPTableTab = ({ onInvoiceCreate, onWriteOff }: WIPTableTabProps) => {
         jobs: (client.jobs || []).map((job: any) => {
           const status = job.status === 'completed' ? 'completed' : job.status === 'inProgress' ? 'active' : 'on-hold';
           // For each job: wipAmount + wipTotalOpenBalance
-          const jobWipAmount = Number(job.wipAmount || 0);
-          const jobWipOpenBalance = Number(job.wipTotalOpenBalance || 0);
-          const totalJobWIP = jobWipAmount + jobWipOpenBalance;
+          const jobTotal = job.jobTotalWipAmount !== undefined
+            ? Number(job.jobTotalWipAmount || 0)
+            : Number(job.wipAmount || 0) + Number(job.wipTotalOpenBalance || 0);
           const jobTriggerAmount = job?.jobWipTraget?.amount;
           const jobOpenBalances = mapOpenBalances(job.wipopenbalances);
+          const jobTargetMetStatus = job?.targetMet || '0';
           return {
             id: job._id,
             jobName: job.name,
             jobStatus: status,
             hoursLogged: (job.wipDuration || 0) / 3600,
-            wipAmount: totalJobWIP,
+            wipAmount: jobTotal,
             invoicedToDate: 0,
             toInvoice: 0,
             lastInvoiced: null,
             daysSinceLastInvoice: null,
             trigger: jobTriggerAmount ? `threshold-${jobTriggerAmount}` : null,
-            triggerMet: false,
+            triggerMet: jobTargetMetStatus === '2',
+            targetMetStatus: jobTargetMetStatus,
             actionStatus: 'upcoming',
             jobFee: Number(job.jobCost || 0),
             wipBreakdown: job.wipBreakdown || [],
@@ -128,7 +148,7 @@ const WIPTableTab = ({ onInvoiceCreate, onWriteOff }: WIPTableTabProps) => {
             endDate: job.endDate || null,
           };
         }),
-        clientWipBalance: totalClientWIP,
+        clientWipBalance: backendClientWipBalance,
         wipBreakdown: client.wipBreakdown || [],
         importedWipBalance: importedWipBalance
       } as WIPClient;
@@ -182,13 +202,23 @@ const WIPTableTab = ({ onInvoiceCreate, onWriteOff }: WIPTableTabProps) => {
   const apiSummary = (wipResp as any)?.summary || {};
   const totalClients = typeof apiSummary.totalClients === 'number' ? apiSummary.totalClients : filteredWipData.length;
   const totalJobs = typeof apiSummary.totalJobs === 'number' ? apiSummary.totalJobs : filteredWipData.reduce((sum, client) => sum + client.jobs.length, 0);
-  const totalWIP = typeof apiSummary.totalWipAmount === 'number' ? apiSummary.totalWipAmount : filteredWipData.reduce((sum, client) =>
-    sum + client.jobs.reduce((jobSum, job) => jobSum + job.wipAmount, 0), 0
-  );
-  const readyToInvoiceAmount = typeof apiSummary.totalInvoicedAmount === 'number' ? apiSummary.totalInvoicedAmount : 0;
-  const readyToInvoice = Array.isArray((wipResp as any)?.data)
-    ? ((wipResp as any).data as any[]).filter((c: any) => c.clientTargetMet === '2').length
-    : 0;
+  const totalWIP = typeof apiSummary.totalWipAmount === 'number'
+    ? apiSummary.totalWipAmount
+    : filteredWipData.reduce((sum, client) => sum + Number(client.clientWipBalance || 0), 0);
+
+  const readyToInvoiceAmount = typeof apiSummary.totalInvoicedAmount === 'number'
+    ? apiSummary.totalInvoicedAmount
+    : filteredWipData.reduce((sum, client) => {
+        const clientMet = (client as any).clientTargetOverall === '2' || (client as any).clientTargetMet === '2';
+        const jobMet = client.jobs.some(job => job.targetMetStatus === '2');
+        return clientMet || jobMet ? sum + Number(client.clientWipBalance || 0) : sum;
+      }, 0);
+
+  const readyToInvoice = filteredWipData.filter(client => {
+    const clientMet = (client as any).clientTargetOverall === '2' || (client as any).clientTargetMet === '2';
+    const jobMet = client.jobs.some(job => job.targetMetStatus === '2');
+    return clientMet || jobMet;
+  }).length;
 
   return (
     <div className="space-y-6">
@@ -214,8 +244,16 @@ const WIPTableTab = ({ onInvoiceCreate, onWriteOff }: WIPTableTabProps) => {
                 onClick={() => setTargetMetFilter('all')}
                 className="h-8 px-3 text-xs rounded-sm"
               >
-                N/A
+                All
               </Button>
+              {/* <Button
+                variant={targetMetFilter === 'na' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setTargetMetFilter('na')}
+                className="h-8 px-3 text-xs rounded-sm"
+              >
+                N/A
+              </Button> */}
               <Button
                 variant={targetMetFilter === 'yes' ? 'default' : 'ghost'}
                 size="sm"

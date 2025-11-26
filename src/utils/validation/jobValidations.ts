@@ -9,11 +9,13 @@ export interface JobFormData {
     endDate: string;
     jobCost?: number;
     jobManagerId: string;
+    teamMembers?: string[];
+    description?: string;
 }
 
 export interface ValidationResult {
     isValid: boolean;
-    errors: Partial<Record<keyof JobFormData, string>>;
+    errors: Partial<Record<keyof JobFormData | 'teamMembers', string>>;
 }
 
 export const validateJobName = (name: string): string | null => {
@@ -56,15 +58,23 @@ export const validateEndDate = (endDate: string, startDate: string): string | nu
 };
 
 export const validateJobCost = (jobCost?: number): string | null => {
-    if (jobCost === undefined || jobCost === null) return 'Job cost is required.';
+    if (jobCost === undefined || jobCost === null) return 'Job fee is required.';
     if (typeof jobCost !== 'number' || isNaN(jobCost) || jobCost < 0) {
-        return 'Job cost must be a non-negative number.';
+        return 'Job fee must be a non-negative number.';
+    }
+    // Allow 0 as a valid value
+    return null;
+};
+
+export const validateTeamMembers = (teamMembers?: string[]): string | null => {
+    if (!teamMembers || !Array.isArray(teamMembers) || teamMembers.length === 0) {
+        return 'At least one team member is required.';
     }
     return null;
 };
 
 export const validateJobForm = (formData: JobFormData, clientList: { _id: string, name: string }[]): ValidationResult => {
-    const errors: Partial<Record<keyof JobFormData, string>> = {};
+    const errors: Partial<Record<keyof JobFormData | 'teamMembers', string>> = {};
 
     const nameError = validateJobName(formData.name);
     if (nameError) errors.name = nameError;
@@ -86,6 +96,11 @@ export const validateJobForm = (formData: JobFormData, clientList: { _id: string
 
     const jobCostError = validateJobCost(formData.jobCost);
     if (jobCostError) errors.jobCost = jobCostError;
+
+    const teamMembersError = validateTeamMembers(formData.teamMembers);
+    if (teamMembersError) errors.teamMembers = teamMembersError;
+
+    // Description is optional, no validation needed
 
     return {
         isValid: Object.keys(errors).length === 0,

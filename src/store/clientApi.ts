@@ -69,13 +69,16 @@ export const clientApi = createApi({
         }),
 
         getClientServices: builder.query<GetClientServicesResponse, GetClientServicesRequest>({
-            query: ({ page, limit, search, businessTypeId }) => {
+            query: ({ page, limit, search, businessTypeId, businessTypeIds }) => {
                 const params = new URLSearchParams({
                     page: String(page),
                     limit: String(limit),
                 });
                 if (search) {
                     params.append('search', search);
+                }
+                if (businessTypeIds && businessTypeIds.length > 0) {
+                    params.append('businessTypeIds', businessTypeIds.join(','));
                 }
                 if (businessTypeId) {
                     params.append('businessTypeId', businessTypeId);
@@ -120,6 +123,13 @@ export const clientApi = createApi({
             }),
             providesTags: (result, error, clientId) => [{ type: 'Client', id: clientId }],
         }),
+        getClientDebtorsLog: builder.query<any, string>({
+            query: (clientId) => ({
+                url: `/${clientId}/debtors-log`,
+                method: 'GET',
+            }),
+            providesTags: (result, error, clientId) => [{ type: 'Client', id: clientId }, { type: 'Client', id: 'DEBTORS_LOG' }],
+        }),
         deleteClient: builder.mutation<void, string>({
             query: (clientId) => ({
                 url: `/${clientId}`,
@@ -148,6 +158,7 @@ export const {
     useUpdateClientMutation,
     useGetClientQuery,
     useDeleteClientMutation,
-    useImportClientsMutation
+    useImportClientsMutation,
+    useGetClientDebtorsLogQuery
 } = clientApi;
 

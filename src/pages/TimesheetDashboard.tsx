@@ -15,6 +15,7 @@ import { usePermissionTabs } from "@/hooks/usePermissionTabs";
 import AllTimeLogsTab from "@/components/AllTimeLogsTab";
 import MyTimeLogs from "@/components/MyTimeLogs";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
@@ -69,6 +70,7 @@ type TableItem = {
   updatedAt?: string;
   avatar?: string;
   displayStatus: string;
+  weekNumber: string;
 };
 
 const normalizeSubmissionStatus = (status?: string): TableItem['status'] => {
@@ -449,6 +451,18 @@ export function TimesheetDashboard() {
     });
   };
 
+  const getWeekNumber = (value?: string | number | Date | null) => {
+    if (!value) return '-';
+    const date = new Date(value);
+    if (isNaN(date.getTime())) return '-';
+    const target = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+    const dayNum = target.getUTCDay() || 7;
+    target.setUTCDate(target.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(target.getUTCFullYear(), 0, 1));
+    const weekNo = Math.ceil((((target.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+    return weekNo.toString();
+  };
+
   const tableData = useMemo(() => {
     return (apiTimesheets || []).map((t) => {
       const name = t?.user?.name || '—';
@@ -490,18 +504,31 @@ export function TimesheetDashboard() {
         submitted: submittedDisplay,
         submittedAt: submittedAtRaw || undefined,
         updatedAt: t?.updatedAt,
-        avatar: ''
+        avatar: '',
+        weekNumber: getWeekNumber(t?.weekStart || t?.weekEnd)
       } as const;
     });
   }, [apiTimesheets, departmentMap]);
 
   const statusCounts = useMemo(() => {
-    const total = tableData.length;
+    const summaryTotal = apiSummary?.totalTeam;
+    const paginationTotal = apiPagination?.totalItems ?? apiPagination?.totalRecords;
+    const total = summaryTotal ?? paginationTotal ?? tableData.length;
     const approved = apiSummary?.approved ?? tableData.filter(i => i.status === 'approved').length;
-    const autoApproved = apiSummary?.autoApproved ?? 0;
+    const review = apiSummary?.forReview ?? tableData.filter(i => i.status === 'review').length;
+    const rejected = apiSummary?.rejected ?? tableData.filter(i => i.status === 'rejected').length;
+    const autoApproved = apiSummary?.autoApproved ?? tableData.filter(i => /auto approved/i.test(i.displayStatus || '')).length;
     const notSubmitted = apiSummary?.draft ?? tableData.filter(i => i.status === 'not-submitted').length;
-    return { total, approved, autoApproved, allTimesheets: total, notSubmitted } as const;
-  }, [tableData, apiSummary]);
+    return {
+      total,
+      approved,
+      review,
+      rejected,
+      autoApproved,
+      allTimesheets: total,
+      notSubmitted
+    } as const;
+  }, [tableData, apiSummary, apiPagination]);
   // Handle URL parameters for timesheet viewing
   useEffect(() => {
     const tabFromUrl = searchParams.get('tab');
@@ -839,7 +866,7 @@ export function TimesheetDashboard() {
               : 'bg-transparent text-[#71717A] '
               }`}
           >
-            All Timesheets
+            All Timesheets ({statusCounts.allTimesheets || 0})
           </button>
           {/* <button
             onClick={() => setActiveFilter("not-submitted")}
@@ -858,7 +885,7 @@ export function TimesheetDashboard() {
                 : 'bg-transparent text-[#71717A] '
                 }`}
             >
-              Auto-Approve
+              Auto-Approve ({statusCounts.autoApproved || 0})
             </button>
           )}
           {!autoApproveTimesheets && (
@@ -870,7 +897,7 @@ export function TimesheetDashboard() {
                   : 'bg-transparent text-[#71717A] '
                   }`}
               >
-                For Review
+                For Review ({statusCounts.review || 0})
               </button>
               <button
                 onClick={() => setActiveFilter("rejected")}
@@ -879,7 +906,7 @@ export function TimesheetDashboard() {
                   : 'bg-transparent text-[#71717A] '
                   }`}
               >
-                Rejected
+                Rejected ({statusCounts.rejected || 0})
               </button>
               <button
                 onClick={() => setActiveFilter("approved")}
@@ -888,7 +915,7 @@ export function TimesheetDashboard() {
                   : 'bg-transparent text-[#71717A] '
                   }`}
               >
-                Approved
+                Approved ({statusCounts.approved || 0})
               </button>
             </>
           )}
@@ -1079,6 +1106,7 @@ export function TimesheetDashboard() {
                       {getSortIcon('department')}
                     </button>
                   </TableHead>
+                  <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">WEEK NUMBER</TableHead>
                   <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">
                     <button className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleSort('capacity')}>
                       CAPACITY
@@ -1111,14 +1139,14 @@ export function TimesheetDashboard() {
               <TableBody>
                 {isFetching && (
                   <TableRow>
-                    <TableCell colSpan={canBulkDelete ? 10 : 9} className="p-4 text-sm text-center">
+                    <TableCell colSpan={canBulkDelete ? 11 : 10} className="p-4 text-sm text-center">
                       Loading timesheets...
                     </TableCell>
                   </TableRow>
                 )}
                 {fetchError && !isFetching && (
                   <TableRow>
-                    <TableCell colSpan={canBulkDelete ? 10 : 9} className="p-4 text-sm text-red-600 text-center">
+                    <TableCell colSpan={canBulkDelete ? 11 : 10} className="p-4 text-sm text-red-600 text-center">
                       {fetchError}
                     </TableCell>
                   </TableRow>
@@ -1144,6 +1172,7 @@ export function TimesheetDashboard() {
                       </div>
                     </TableCell>
                     <TableCell className="p-4 text-sm text-muted-foreground">{item.department || '-'}</TableCell>
+                    <TableCell className="p-4 text-sm text-muted-foreground">{item.weekNumber || '-'}</TableCell>
                     <TableCell className="p-4 text-sm text-foreground">{formatSeconds(item.capacitySec)}</TableCell>
                     <TableCell className="p-4 text-sm text-foreground">{formatSeconds(item.loggedSec)}</TableCell>
                     <TableCell className="p-4 text-sm text-foreground">{formatVariance(item.varianceSec)}</TableCell>
@@ -1153,20 +1182,20 @@ export function TimesheetDashboard() {
                       </StatusBadge>
                     </TableCell>
                     <TableCell className="p-4 text-sm text-muted-foreground">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className={`text-xs ${item.notes > 0 ? 'bg-blue-50 text-blue-700 hover:bg-blue-100' : 'text-muted-foreground hover:bg-muted'}`}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setSelectedTimesheetId(item.id);
-                          setSelectedTimesheetName(item.name);
-                          setShowNotesDialog(true);
-                        }}
-                      >
-                        {item.notes || 0}
-                      </Button>
+                      <div className="flex w-full justify-left">
+                        <Badge
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setSelectedTimesheetId(item.id);
+                            setSelectedTimesheetName(item.name);
+                            setShowNotesDialog(true);
+                          }}
+                          className={`cursor-pointer bg-blue-100 text-blue-800 hover:bg-blue-200 ${item.notes === 0 ? 'opacity-70' : ''}`}
+                        >
+                          {item.notes || 0}
+                        </Badge>
+                      </div>
                     </TableCell>
                     <TableCell className="p-4 text-sm text-muted-foreground">{item.submitted}</TableCell>
                     <TableCell className="p-4">

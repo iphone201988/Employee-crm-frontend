@@ -151,9 +151,10 @@ const SettingsTab = ({
       toast.success('Category added successfully!');
       resetInput();
       closeDialog(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error(`Failed to add category: ${type}`, err);
-      toast.error('Failed to add category. Please try again.');
+      const errorMessage = err?.data?.message || err?.error || 'Failed to add category. Please try again.';
+      toast.error(errorMessage);
     }
   };
 
@@ -416,7 +417,10 @@ const SettingsTab = ({
               </div>
             </CardHeader>
             <CardContent className="flex flex-wrap gap-2">
-              {categories?.data?.wipTargetAmount?.map((item: any) => (
+              {categories?.data?.wipTargetAmount
+                ?.slice()
+                .sort((a: any, b: any) => Number(a.amount || 0) - Number(b.amount || 0))
+                .map((item: any) => (
                 <Badge
                   key={item._id}
                   variant="secondary"
@@ -603,10 +607,42 @@ const SettingsTab = ({
       )}
       {activeTab === "jobImport" && (
         <Card>
-          <CardContent className="py-8">
-            <div className="text-center text-muted-foreground">
-              job Import functionality coming soon.
-            </div>
+          <CardContent className="space-y-6 p-6">
+            <Card>
+              <CardContent className="py-8">
+                <div className="text-center text-muted-foreground">
+                job Import functionality coming soon.
+                </div>
+              </CardContent>
+            </Card>
+            {/* <Card className="pt-6">
+            <CardHeader>
+              <CardTitle>QuickBooks Integration</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 p-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-base">Connect to QuickBooks</Label>
+                  <p className="text-sm text-muted-foreground">Sync data with QuickBooks for seamless accounting.</p>
+                </div>
+                <Button variant="outline" className="w-full sm:w-auto">Connect</Button>
+              </div>
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-base">Auto-sync invoices</Label>
+                  <p className="text-sm text-muted-foreground">Automatically sync new invoices to QuickBooks.</p>
+                </div>
+                <Switch className="self-start sm:self-center" />
+              </div>
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-base">Sync time entries</Label>
+                  <p className="text-sm text-muted-foreground">Sync time tracking data to QuickBooks.</p>
+                </div>
+                <Switch className="self-start sm:self-center" />
+              </div>
+            </CardContent>
+          </Card> */}
           </CardContent>
         </Card>
       )}
@@ -614,13 +650,42 @@ const SettingsTab = ({
 
       {activeTab === "timeLogsImport" && (
         <Card>
-          <CardHeader>
-            <CardTitle>Time Logs Import</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center py-8 text-muted-foreground">
-              Time Logs Import functionality coming soon.
-            </div>
+          <CardContent className="space-y-6 p-6">
+            <Card>
+              <CardContent className="py-8">
+                <div className="text-center text-muted-foreground">
+                  Time Logs Import functionality coming soon.
+                </div>
+              </CardContent>
+            </Card>
+            {/* <Card className="pt-6">
+            <CardHeader>
+              <CardTitle>QuickBooks Integration</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 p-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-base">Connect to QuickBooks</Label>
+                  <p className="text-sm text-muted-foreground">Sync data with QuickBooks for seamless accounting.</p>
+                </div>
+                <Button variant="outline" className="w-full sm:w-auto">Connect</Button>
+              </div>
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-base">Auto-sync invoices</Label>
+                  <p className="text-sm text-muted-foreground">Automatically sync new invoices to QuickBooks.</p>
+                </div>
+                <Switch className="self-start sm:self-center" />
+              </div>
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-base">Sync time entries</Label>
+                  <p className="text-sm text-muted-foreground">Sync time tracking data to QuickBooks.</p>
+                </div>
+                <Switch className="self-start sm:self-center" />
+              </div>
+            </CardContent>
+          </Card> */}
           </CardContent>
         </Card>
       )}
@@ -632,9 +697,9 @@ const SettingsTab = ({
             <Card>
               <CardContent className="py-8">
                 <div className="text-center text-muted-foreground">
-                QuickBooks feature is coming soon.
+                  QuickBooks feature is coming soon.
                 </div>
-              </CardContent>  
+              </CardContent>
             </Card>
             {/* <Card className="pt-6">
               <CardHeader>

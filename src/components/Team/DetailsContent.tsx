@@ -355,10 +355,10 @@ const DetailsContent: React.FC<DetailsContentProps> = ({ onUnsavedChangesChange 
             <Table>
               <TableHeader>
                 <TableRow className="h-12 !bg-[#edecf4] text-[#381980]">
-                  <TableHead className="w-[400px] cursor-pointer hover:bg-muted/50" onClick={() => handleSort('name')}>
-                    <div className="w-[250px] flex items-center gap-2">Team Member <ArrowUpDown className="h-3 w-3 " /></div>
+                  <TableHead className="w-[230px] cursor-pointer hover:bg-muted/50" onClick={() => handleSort('name')}>
+                    <div className="w-[160px] flex items-center gap-2">Team Member <ArrowUpDown className="h-3 w-3 " /></div>
                   </TableHead>
-                  <TableHead className="w-[120px] cursor-pointer hover:bg-muted/50" onClick={() => handleSort('department')}>
+                  <TableHead className="w-[110px] cursor-pointer hover:bg-muted/50" onClick={() => handleSort('department')}>
                     <div className="flex items-center gap-2">Department <ArrowUpDown className="h-3 w-3 " /></div>
                   </TableHead>
                   <TableHead className="w-[250px] cursor-pointer hover:bg-muted/50" onClick={() => handleSort('email')}>

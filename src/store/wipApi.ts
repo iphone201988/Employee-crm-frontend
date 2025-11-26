@@ -16,7 +16,7 @@ export interface GetWipRequest {
   page?: number;
   limit?: number;
   serach?: string; // backend expects this exact key
-  targetMetCondition?: '1' | '2';
+  targetMetCondition?: '0' | '1' | '2';
   WIPWarningJobs?: boolean;
 }
 
@@ -94,13 +94,21 @@ export const wipApi = createApi({
         body: payload,
       }),
     }),
-    createInvoice: builder.mutation<any, any>({
+    generateInvoice: builder.mutation<any, any>({
+      query: (payload) => ({
+        url: '/wip/invoice/generate',
+        method: 'POST',
+        body: payload,
+      }),
+      invalidatesTags: ['Invoices', 'Wip'],
+    }),
+    logInvoice: builder.mutation<any, any>({
       query: (payload) => ({
         url: '/wip/invoice',
         method: 'POST',
         body: payload,
       }),
-      invalidatesTags: ['Invoices'],
+      invalidatesTags: ['Invoices', 'Wip'],
     }),
     createInvoiceLog: builder.mutation<any, { invoiceId: string; action: string; amount: number; date: string }>({
       query: (payload) => ({
@@ -109,6 +117,13 @@ export const wipApi = createApi({
         body: payload,
       }),
       invalidatesTags: ['Invoices'],
+    }),
+    getInvoiceTimeLogs: builder.mutation<any, { timeLogIds: string[] }>({
+      query: (payload) => ({
+        url: '/wip/invoice/time-logs',
+        method: 'POST',
+        body: payload,
+      }),
     }),
     updateInvoiceStatus: builder.mutation<any, { invoiceId: string; status: 'issued' | 'paid' | 'partPaid' }>({
       query: (payload) => ({
@@ -205,7 +220,7 @@ export const wipApi = createApi({
   }),
 });
 
-export const { useGetWipQuery, useGetAgedWipQuery, useGetAgedDebtorsQuery, useAddWipOpenBalanceMutation, useAttachWipTargetMutation, useCreateInvoiceMutation, useGetInvoicesQuery, useUpdateInvoiceStatusMutation, useGetInvoiceByInvoiceNoQuery, useCreateWriteOffMutation, useGetWriteOffDashboardQuery, useGetWriteOffQuery } = wipApi;
+export const { useGetWipQuery, useGetAgedWipQuery, useGetAgedDebtorsQuery, useAddWipOpenBalanceMutation, useAttachWipTargetMutation, useGenerateInvoiceMutation, useLogInvoiceMutation, useGetInvoicesQuery, useUpdateInvoiceStatusMutation, useGetInvoiceByInvoiceNoQuery, useCreateWriteOffMutation, useGetWriteOffDashboardQuery, useGetWriteOffQuery, useGetInvoiceTimeLogsMutation } = wipApi;
 export const { useCreateInvoiceLogMutation } = wipApi;
 
 

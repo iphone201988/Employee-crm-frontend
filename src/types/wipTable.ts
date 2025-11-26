@@ -19,6 +19,7 @@ export interface WIPJob {
   daysSinceLastInvoice: number | null;
   trigger: string | null;
   triggerMet: boolean;
+  targetMetStatus?: string;
   actionStatus: 'ready-to-invoice' | 'review' | 'upcoming';
   jobFee: number;
   wipBreakdown?: any[];
@@ -53,4 +54,6 @@ export interface WIPClient {
   clientWipBalance?: number;
   wipBreakdown?: any[];
   importedWipBalance?: number;
+  clientTargetMet?: string;
+  clientTargetOverall?: string;
 }

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Lock, Unlock, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Lock, Unlock, ChevronLeft, ChevronRight, ChevronDown, Check } from 'lucide-react';
 import { DashboardCard, DashboardGrid } from "@/components/ui/dashboard-card";
 import { Switch } from "@/components/ui/switch";
 import ClientNameLink from './ClientNameLink';
@@ -14,12 +14,13 @@ import { useGetClientServicesQuery, useUpdateClientServicesMutation } from '@/st
 import { useGetAllCategorieasQuery } from '@/store/categoryApi';
 import { toast } from 'sonner';
 import { useDebounce } from 'use-debounce';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 const ServicesTab = () => {
     const [page, setPage] = useState(1);
     const [limit, setLimit] = useState(10);
     const [searchTerm, setSearchTerm] = useState('');
-    const [businessTypeFilter, setBusinessTypeFilter] = useState('all');
+    const [businessTypeFilter, setBusinessTypeFilter] = useState<Set<string>>(new Set());
     const [debouncedSearchTerm] = useDebounce(searchTerm, 500);
 
     const [jobCategoriesLocked, setJobCategoriesLocked] = useState(true);
@@ -27,12 +28,15 @@ const ServicesTab = () => {
 
     const [pendingChanges, setPendingChanges] = useState<{ [clientId: string]: { [jobCategoryId: string]: boolean } }>({});
 
+    const selectedBusinessTypeIds = useMemo(() => Array.from(businessTypeFilter), [businessTypeFilter]);
+
     // --- Using useGetClientServicesQuery as requested ---
     const { data: clientServicesData, isLoading, isError, isFetching }: any = useGetClientServicesQuery({
         page,
         limit,
         search: debouncedSearchTerm,
-        businessTypeId: businessTypeFilter === 'all' ? undefined : businessTypeFilter,
+        businessTypeIds: selectedBusinessTypeIds.length ? selectedBusinessTypeIds : undefined,
+        businessTypeId: selectedBusinessTypeIds.length === 1 ? selectedBusinessTypeIds[0] : undefined,
     });
 
     // --- Using useUpdateClientServicesMutation as requested ---
@@ -40,6 +44,31 @@ const ServicesTab = () => {
 
     const { data: businessTypesData, isLoading: isBusinessTypesLoading } = useGetAllCategorieasQuery("bussiness");
     const businessTypeOptions = useMemo(() => businessTypesData?.data?.bussiness ?? [], [businessTypesData]);
+
+    const toggleBusinessType = (value: string) => {
+        setBusinessTypeFilter(prev => {
+            const next = new Set(prev);
+            if (next.has(value)) {
+                next.delete(value);
+            } else {
+                next.add(value);
+            }
+            return next;
+        });
+    };
+
+    const selectedBusinessTypeLabel = useMemo(() => {
+        if (businessTypeFilter.size === 0) return 'All Business Types';
+        const selectedNames = businessTypeOptions
+            .filter((type: any) => businessTypeFilter.has(type._id))
+            .map((type: any) => type.name);
+        if (selectedNames.length === 0) return 'All Business Types';
+        return selectedNames.length <= 2 ? selectedNames.join(', ') : `${selectedNames.length} Selected`;
+    }, [businessTypeFilter, businessTypeOptions]);
+
+    useEffect(() => {
+        setPage(1);
+    }, [businessTypeFilter]);
 
     // The internal logic is updated to handle the new API response structure (clients, jobCategories, etc.)
     const { clients, jobCategories, pagination, breakdown, filteredCounts } = useMemo(() => {
@@ -136,52 +165,74 @@ const ServicesTab = () => {
                 ))}
             </div>
 
-            <div className="flex items-center justify-between gap-4 bg-white p-4 rounded-lg shadow-sm">
-                <div className="flex-1 relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                    <Input
-                        placeholder="Search clients by name, ref..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10 bg-white"
-                    />
+            <div className="p-[6px] rounded-sm bg-[#E7E5F2] flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2">
+                    <div className="relative flex-1 w-full max-w-[260px]">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Search clients by name, ref..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-10 w-[240px] bg-white text-[#381980] font-semibold placeholder:text-[#381980]"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <button
+                                    type="button"
+                                    className={`w-56 h-10 ${businessTypeFilter.size > 0 ? 'bg-gray-200 border-black' : 'bg-white border-input'} text-[#381980] font-semibold rounded-md border px-3 flex items-center justify-between`}
+                                    disabled={isBusinessTypesLoading}
+                                >
+                                    <span className="truncate text-[14px]">
+                                        {selectedBusinessTypeLabel}
+                                    </span>
+                                    <ChevronDown className="w-4 h-4" />
+                                </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-56 p-2" align="start">
+                                <div className="max-h-64 overflow-auto">
+                                    <div
+                                        className={`px-2 py-1.5 rounded-[4px] cursor-pointer ${businessTypeFilter.size === 0 ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                                        onClick={() => {
+                                            setBusinessTypeFilter(new Set());
+                                        }}
+                                    >
+                                        All Business Types
+                                    </div>
+                                    {businessTypeOptions.map((type: any) => {
+                                        const active = businessTypeFilter.has(type._id);
+                                        return (
+                                            <div
+                                                key={type._id}
+                                                className={`flex items-center justify-between px-2 py-1.5 rounded-[4px] cursor-pointer ${active ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                                                onClick={() => toggleBusinessType(type._id)}
+                                            >
+                                                <span className="truncate">{type.name}</span>
+                                                {active && <Check className="w-4 h-4" />}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </PopoverContent>
+                        </Popover>
+                    </div>
                 </div>
-                <Select
-                    value={businessTypeFilter}
-                    onValueChange={(value) => {
-                        setBusinessTypeFilter(value);
-                        setPage(1);
-                    }}
-                    disabled={isBusinessTypesLoading}
-                >
-                    <SelectTrigger className="w-56 bg-white">
-                        <SelectValue placeholder="Filter by business type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">All Business Types</SelectItem>
-                        {businessTypeOptions.map((type: any) => (
-                            <SelectItem key={type._id} value={type._id}>
-                                {type.name}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-            </div>
-
-            <div className="flex justify-end items-center mb-4 gap-4">
-                {Object.keys(pendingChanges).length > 0 && (
-                    <Button onClick={handleSaveChanges} disabled={isUpdating}>
-                        {isUpdating ? 'Saving...' : 'Save Changes'}
+                <div className="flex items-center gap-3 ml-auto">
+                    {Object.keys(pendingChanges).length > 0 && (
+                        <Button onClick={handleSaveChanges} disabled={isUpdating} className="rounded-md">
+                            {isUpdating ? 'Saving...' : 'Save Changes'}
+                        </Button>
+                    )}
+                    <Button
+                        variant={jobCategoriesLocked ? "default" : "outline"}
+                        onClick={() => setJobCategoriesLocked(!jobCategoriesLocked)}
+                        className="flex items-center gap-2 rounded-md"
+                    >
+                        {jobCategoriesLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+                        {jobCategoriesLocked ? 'Unlock to Edit' : 'Lock Changes'}
                     </Button>
-                )}
-                <Button
-                    variant={jobCategoriesLocked ? "default" : "outline"}
-                    onClick={() => setJobCategoriesLocked(!jobCategoriesLocked)}
-                    className="flex items-center gap-2"
-                >
-                    {jobCategoriesLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
-                    {jobCategoriesLocked ? 'Unlock to Edit' : 'Lock Changes'}
-                </Button>
+                </div>
             </div>
 
             <Card>

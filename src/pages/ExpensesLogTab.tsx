@@ -84,11 +84,11 @@ const normalizeCategoryToSlug = (categoryLabel: string) => {
 
 const tabs = [
   {
-    label: 'Client',
+    label: 'Client Expenses',
     id: 'clientExpenses'
   },
   {
-    label: 'Team',
+    label: 'Team Expenses',
     id: 'teamExpenses'
   }
 ]
@@ -960,7 +960,7 @@ const ExpensesLogTab = () => {
       }}>
         <DialogContent className="max-w-2xl !rounded-none p-0 border-none for-close">
           <DialogHeader className="bg-[#381980] sticky z-50 top-0 left-0 w-full text-center ">
-            <DialogTitle className="text-center text-white py-4">{editingExpense ? 'Edit Client Expense' : '+ Client Expense'}</DialogTitle>
+            <DialogTitle className="text-center text-white py-4">{editingExpense ? 'Edit Client Expense' : '+ New Client Expense'}</DialogTitle>
           </DialogHeader>
           <button
             onClick={() => {
@@ -1132,7 +1132,7 @@ const ExpensesLogTab = () => {
       }}>
         <DialogContent className="max-w-2xl !rounded-none p-0 border-none for-close">
           <DialogHeader className="bg-[#381980] sticky z-50 top-0 left-0 w-full text-center ">
-            <DialogTitle className="text-center text-white py-4">{editingExpense ? 'Edit Team Expense' : '+ Team Expense'}</DialogTitle>
+            <DialogTitle className="text-center text-white py-4">{editingExpense ? 'Edit Team Expense' : '+ New Team Expense'}</DialogTitle>
           </DialogHeader>
           <button
             onClick={() => {

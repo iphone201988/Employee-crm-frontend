@@ -500,16 +500,30 @@ const MyTimeLogs = () => {
   const uniqueTeamMembers = apiSummary?.uniqueJobs ?? new Set(filteredTimeLogs.map(log => log.teamMember)).size;
 
 
+  const formatStatusLabel = (status?: string) => {
+    if (!status) return '';
+    const normalized = status.toString().trim().toLowerCase();
+    if (normalized === 'notinvoiced' || normalized === 'not invoiced' || normalized === 'notinvoiced') {
+      return 'Not Invoiced';
+    }
+    if (normalized === 'invoiced') return 'Invoiced';
+    if (normalized === 'paid') return 'Paid';
+    return status
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+  };
+
   const getStatusBadge = (status: TimeLog['status']) => {
-    switch (status) {
-      case 'notInvoiced':
-        return <Badge variant="secondary" className="bg-[#FEEBEA] text-[#F50000] border border-[#F50000] whitespace-nowrap">Not Invoiced</Badge>;
+    const label = formatStatusLabel(status);
+    switch ((status || '').toLowerCase()) {
+      case 'notinvoiced':
+        return <Badge variant="secondary" className="bg-[#FEEBEA] text-[#F50000] border border-[#F50000] whitespace-nowrap">{label}</Badge>;
       case 'invoiced':
-        return <Badge variant="secondary" className="bg-[#FEF8E7] text-[#F6B800] border border-[#F6B800]">Invoiced</Badge>;
+        return <Badge variant="secondary" className="bg-[#FEF8E7] text-[#F6B800] border border-[#F6B800]">{label}</Badge>;
       case 'paid':
-        return <Badge variant="secondary" className="bg-green-100 text-green-800 border border-green-800">Paid</Badge>;
+        return <Badge variant="secondary" className="bg-green-100 text-green-800 border border-green-800">{label}</Badge>;
       default:
-        return <Badge variant="outline">{status}</Badge>;
+        return <Badge variant="outline">{label || status}</Badge>;
     }
   };
 
@@ -751,10 +765,7 @@ const MyTimeLogs = () => {
       dataMappers.push((log) => formatCurrency(log.amount));
           break;
         case 'status':
-          dataMappers.push((log) => {
-            const status = (log.status || '').toLowerCase();
-            return status ? status.charAt(0).toUpperCase() + status.slice(1) : '';
-          });
+          dataMappers.push((log) => formatStatusLabel(log.status));
           break;
       }
     });
@@ -762,9 +773,10 @@ const MyTimeLogs = () => {
     // Use current page logs only
     const pageStart = (page - 1) * (apiPagination?.limit || limit);
     const currentPageLogs = filteredTimeLogs.slice(pageStart, pageStart + (apiPagination?.limit || limit));
-    const csvContent = `${headers.join(',')}\n${currentPageLogs.map(log =>
+    const csvRows = `${headers.join(',')}\n${currentPageLogs.map(log =>
       dataMappers.map(mapper => mapper(log)).join(',')
     ).join('\n')}`;
+    const csvContent = `\uFEFF${csvRows}`;
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);

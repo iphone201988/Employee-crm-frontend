@@ -252,7 +252,8 @@ const WriteOffLogicDialog = ({
     }
     setWriteOffReasonError(null);
 
-    if (isManualMode && totalPercentage !== 100) {
+    // Only validate percentage if there are time logs
+    if (logsWithWriteOff.length > 0 && isManualMode && totalPercentage !== 100) {
       toast({
         title: "Invalid Percentage",
         description: "Total percentage must equal 100% before saving.",
@@ -261,7 +262,7 @@ const WriteOffLogicDialog = ({
       return;
     }
 
-    // Prepare time logs in the format expected by the API
+    // Prepare time logs in the format expected by the API (can be empty if no time logs)
     const timeLogsData = logsWithWriteOff.map(log => ({
       timeLogId: log.timeLogId || log.id,
       writeOffAmount: log.writeOffAmount || 0,
@@ -277,8 +278,10 @@ const WriteOffLogicDialog = ({
     const saveData = {
       reason: writeOffReason,
       writeOffBalance: writeOffBalance,
-      timeLogs: timeLogsData,
-      logic: isManualMode ? 'manually' as const : 'proportionally' as const
+      timeLogs: timeLogsData, // Can be empty array if no time logs
+      logic: logsWithWriteOff.length > 0 
+        ? (isManualMode ? 'manually' as const : 'proportionally' as const)
+        : 'proportionally' as const // Default to proportional when no time logs
     };
 
     if (onSave) {
@@ -356,7 +359,19 @@ const WriteOffLogicDialog = ({
                 </tr>
               </thead>
               <tbody>
-                {Object.values(teamMemberGroups).map((group, groupIndex) => (
+                {timeLogs.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="p-6 text-center text-muted-foreground">
+                      <div className="space-y-2">
+                        <p className="font-medium">No time logs available for write-off</p>
+                        <p className="text-sm">
+                          The write-off amount of {formatCurrency(writeOffBalance)} will be applied directly to open balances and/or imported WIP.
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  Object.values(teamMemberGroups).map((group, groupIndex) => (
                   <React.Fragment key={group.teamMember}>
                     {/* Team Member Summary Row */}
                     <tr 
@@ -413,29 +428,32 @@ const WriteOffLogicDialog = ({
                       </tr>
                     ))}
                   </React.Fragment>
-                ))}
+                  ))
+                )}
               </tbody>
-              <tfoot className="bg-muted/30 border-t-2">
-                <tr>
-                  <td className="p-3 font-bold">Total</td>
-                  <td className="p-3 text-center">-</td>
-                  <td className="p-3 text-center font-bold">
-                    {timeLogs.reduce((sum, log) => sum + log.hours, 0).toFixed(2)}
-                  </td>
-                  <td className="p-3 text-center">-</td>
-                  <td className="p-3 text-center font-bold">{formatCurrency(totalAmount)}</td>
-                  <td className="p-3 text-center font-bold">
-                    <span className={totalPercentage !== 100 ? 'text-red-600' : 'text-green-600'}>
-                      {totalPercentage.toFixed(2)}%
-                    </span>
-                  </td>
-                  <td className="p-3 text-center font-bold text-red-600">{formatCurrency(totalWriteOffAmount)}</td>
-                </tr>
-              </tfoot>
+              {timeLogs.length > 0 && (
+                <tfoot className="bg-muted/30 border-t-2">
+                  <tr>
+                    <td className="p-3 font-bold">Total</td>
+                    <td className="p-3 text-center">-</td>
+                    <td className="p-3 text-center font-bold">
+                      {timeLogs.reduce((sum, log) => sum + log.hours, 0).toFixed(2)}
+                    </td>
+                    <td className="p-3 text-center">-</td>
+                    <td className="p-3 text-center font-bold">{formatCurrency(totalAmount)}</td>
+                    <td className="p-3 text-center font-bold">
+                      <span className={totalPercentage !== 100 ? 'text-red-600' : 'text-green-600'}>
+                        {totalPercentage.toFixed(2)}%
+                      </span>
+                    </td>
+                    <td className="p-3 text-center font-bold text-red-600">{formatCurrency(totalWriteOffAmount)}</td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
 
-          {isManualMode && totalPercentage !== 100 && (
+          {timeLogs.length > 0 && isManualMode && totalPercentage !== 100 && (
             <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-center">
               <span className="text-yellow-800 font-medium">
                 Total percentage must equal 100%. Current: {totalPercentage.toFixed(2)}%
@@ -466,14 +484,14 @@ const WriteOffLogicDialog = ({
               <Button 
                 onClick={handleSpreadProportionally}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-6"
-                disabled={!isManualMode}
+                disabled={!isManualMode || timeLogs.length === 0}
               >
                 Spread Proportionally
               </Button>
               <Button 
                 onClick={handleManualChoose}
                 className="bg-green-600 hover:bg-green-700 text-white px-6"
-                disabled={isManualMode}
+                disabled={isManualMode || timeLogs.length === 0}
               >
                 Manually Choose
               </Button>

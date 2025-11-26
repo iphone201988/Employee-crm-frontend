@@ -138,6 +138,7 @@ interface GetClientServicesRequest {
     limit: number;
     search?: string;
     businessTypeId?: string;
+    businessTypeIds?: string[];
 }
 
 

@@ -14,7 +14,7 @@ import InputComponent from './client/component/Input';
 import { Loader2 } from 'lucide-react';
 
 // --- Type Definitions ---
-type JobStatus = 'queued' | 'inProgress' | 'withClient' | 'forApproval' | 'completed' | 'cancelled';
+type JobStatus = 'queued' | 'awaitingRecords' | 'inProgress' | 'withClient' | 'forApproval' | 'completed';
 type Priority = 'low' | 'medium' | 'high' | 'urgent';
 
 interface DropdownOption {
@@ -50,7 +50,7 @@ export const JobForm = ({ job, onSubmit, onCancel }: JobFormProps) => {
         description: job?.description || ''
     });
 
-    const [errors, setErrors] = useState<Partial<Record<keyof JobFormData, string>>>({});
+    const [errors, setErrors] = useState<Partial<Record<keyof JobFormData | 'teamMembers', string>>>({});
     const [submitError, setSubmitError] = useState<string>('');
     const [showClientSuggestions, setShowClientSuggestions] = useState(false);
     const clientInputContainerRef = useRef<HTMLDivElement>(null);
@@ -104,13 +104,13 @@ export const JobForm = ({ job, onSubmit, onCancel }: JobFormProps) => {
 
         const payload = {
             name: formData.name,
-            description: formData.description,
+            description: formData.description || '', // Optional field, default to empty string
             clientId: formData.clientId,
             jobTypeId: formData.jobTypeId,
             jobManagerId: formData.jobManagerId,
             startDate: formData.startDate,
             endDate: formData.endDate,
-            jobCost: formData.jobCost,
+            jobCost: formData.jobCost ?? 0, // Allow 0 as valid value
             teamMembers: formData.teamMembers,
             status: formData.status,
             priority: formData.priority,
@@ -198,7 +198,10 @@ export const JobForm = ({ job, onSubmit, onCancel }: JobFormProps) => {
                     {errors.jobTypeId && <p className="text-sm text-red-600 mt-1">{errors.jobTypeId}</p>}
                 </div>
 
-                <InputComponent label="Job Cost" id="estimatedCost" type="number" value={String(formData.jobCost ?? '')} onChange={(val) => handleInputChange('jobCost')(parseFloat(val as string) || undefined)} error={errors.jobCost} />
+                <InputComponent label="Job Fee" id="estimatedCost" type="number" value={String(formData.jobCost ?? '')} onChange={(val) => {
+                    const numVal = parseFloat(val as string);
+                    handleInputChange('jobCost')(isNaN(numVal) ? undefined : numVal);
+                }} error={errors.jobCost} />
 
                 <InputComponent label="Start Date" id="startDate" type="date" value={formData.startDate} onChange={handleInputChange('startDate')} error={errors.startDate} />
                 <InputComponent label="End Date" id="endDate" type="date" value={formData.endDate} onChange={handleInputChange('endDate')} error={errors.endDate} />
@@ -221,11 +224,11 @@ export const JobForm = ({ job, onSubmit, onCancel }: JobFormProps) => {
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="queued">Queued</SelectItem>
+                            <SelectItem value="awaitingRecords">Awaiting Records</SelectItem>
                             <SelectItem value="inProgress">In Progress</SelectItem>
                             <SelectItem value="withClient">With Client</SelectItem>
                             <SelectItem value="forApproval">For Approval</SelectItem>
                             <SelectItem value="completed">Completed</SelectItem>
-                            <SelectItem value="cancelled">Cancelled</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
@@ -240,10 +243,13 @@ export const JobForm = ({ job, onSubmit, onCancel }: JobFormProps) => {
                 </div>
 
                 <div>
-                    <Label htmlFor="team">Team Members</Label>
+                    <Label htmlFor="team">Team Members *</Label>
                     <Select onValueChange={value => {
                         if (value && !formData.teamMembers.includes(value)) {
                             handleInputChange('teamMembers')([...formData.teamMembers, value]);
+                            if (errors.teamMembers) {
+                                setErrors(prev => ({ ...prev, teamMembers: undefined }));
+                            }
                         }
                     }}>
                         <SelectTrigger><SelectValue placeholder="Add team member" /></SelectTrigger>
@@ -252,13 +258,19 @@ export const JobForm = ({ job, onSubmit, onCancel }: JobFormProps) => {
                     <div className="flex flex-wrap gap-1 mt-2">
                         {formData.teamMembers.map((memberId) => {
                             const memberName = teamMembers.find(tm => tm._id === memberId)?.name || memberId;
-                            return <Badge key={memberId} variant="secondary" className="text-xs">{memberName}<button type="button" onClick={() => handleInputChange('teamMembers')(formData.teamMembers.filter(id => id !== memberId))} className="ml-1 font-bold">×</button></Badge>;
+                            return <Badge key={memberId} variant="secondary" className="text-xs">{memberName}<button type="button" onClick={() => {
+                                handleInputChange('teamMembers')(formData.teamMembers.filter(id => id !== memberId));
+                                if (errors.teamMembers) {
+                                    setErrors(prev => ({ ...prev, teamMembers: undefined }));
+                                }
+                            }} className="ml-1 font-bold">×</button></Badge>;
                         })}
                     </div>
+                    {errors.teamMembers && <p className="text-sm text-red-600 mt-1">{errors.teamMembers}</p>}
                 </div>
             </div>
 
-            <InputComponent className='px-[20px]' label="Description" id="description" type="textarea" value={formData.description} onChange={handleInputChange('description')} placeholder="Job description..." />
+            <InputComponent className='px-[20px]' label="Description (Optional)" id="description" type="textarea" value={formData.description} onChange={handleInputChange('description')} placeholder="Job description..." />
 
             {submitError && (
                 <div className="text-sm text-red-600 bg-red-50 p-3 rounded-md border border-red-200">{submitError}</div>

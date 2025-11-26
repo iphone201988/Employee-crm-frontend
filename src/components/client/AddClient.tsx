@@ -218,7 +218,7 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
 
     return (
         <Dialog  open={dialogOpen} onOpenChange={handleDialogClose} >
-            <DialogContent className="max-w-xl  h-[80vh] !rounded-none p-0 border-none for-close">
+            <DialogContent className="max-w-2xl  h-[80vh] !rounded-none p-0 border-none for-close">
                 <button 
                     onClick={() => handleDialogClose(false)}
                     className=" bg-[#381980] text-white absolute right-[-35px] top-0 p-[6px] rounded-full max-sm:hidden"
@@ -226,7 +226,7 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
                     <X size={16}/>
                 </button>
                 <DialogHeader className="bg-[#381980] sticky z-50 top-0 left-0 w-full text-center ">
-                    <DialogTitle className="text-center text-white py-4">{editMode ? 'Edit Client' : '+ Add Client'}</DialogTitle>
+                    <DialogTitle className="text-center text-white py-4">{editMode ? 'Edit Client' : '+ New Client'}</DialogTitle>
                 </DialogHeader>
 
               <div className="overflow-auto h-full">

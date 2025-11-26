@@ -4,11 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Search, Settings } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Search, Settings, X, RefreshCw, Check, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { formatCurrency } from '@/lib/currency';
@@ -19,10 +18,11 @@ import { useGetJobsQuery, useUpdateJobMutation, useCreateJobMutation, useDeleteJ
 import { useDebounce } from 'use-debounce';
 import { toast } from 'sonner';
 import { format } from 'path';
+import { useGetDropdownOptionsQuery } from '@/store/teamApi';
 
 
 // --- Type Definitions ---
-type JobStatus = 'queued' | 'inProgress' | 'withClient' | 'forApproval' | 'completed' | 'cancelled';
+type JobStatus = 'queued' | 'awaitingRecords' | 'inProgress' | 'withClient' | 'forApproval' | 'completed';
 type Priority = 'low' | 'medium' | 'high' | 'urgent';
 
 
@@ -34,6 +34,11 @@ interface PopulatedUser {
 
 
 interface PopulatedJobType {
+    _id: string;
+    name: string;
+}
+
+interface TeamOption {
     _id: string;
     name: string;
 }
@@ -54,6 +59,7 @@ interface Job {
     priority: Priority;
     actualCost?: number;
     wipBalance?: number;
+    hoursLogged?: number;
 }
 
 
@@ -68,11 +74,11 @@ const priorityColors = {
 
 const statusColors = {
     queued: 'bg-blue-100 text-blue-800',
+    awaitingRecords: 'bg-purple-100 text-purple-800',
     inProgress: 'bg-green-100 text-green-800',
     withClient: 'bg-orange-100 text-orange-800',
     forApproval: 'bg-yellow-100 text-yellow-800',
-    completed: 'bg-gray-100 text-gray-800',
-    cancelled: 'bg-red-200 text-red-800'
+    completed: 'bg-gray-100 text-gray-800'
 };
 
 
@@ -95,6 +101,14 @@ const generateColorFromString = (str: string) => {
     return color;
 };
 
+const formatHoursToHHMMSS = (hours: number = 0) => {
+    const totalSeconds = Math.max(0, Math.round(hours * 3600));
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+};
+
 
 const JobsTab = () => {
     // --- State Management ---
@@ -111,16 +125,24 @@ const JobsTab = () => {
     const [statusFilter, setStatusFilter] = useState('');
     const [priorityFilter, setPriorityFilter] = useState('');
     const [jobTypeFilter, setJobTypeFilter] = useState('');
+    const [selectedJobManagerIds, setSelectedJobManagerIds] = useState<Set<string>>(new Set());
+    const [selectedTeamMemberIds, setSelectedTeamMemberIds] = useState<Set<string>>(new Set());
     const [searchTerm, setSearchTerm] = useState('');
     const [debouncedSearchTerm] = useDebounce(searchTerm, 500);
     const [dateFilter, setDateFilter] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('yearly');
-    const [selectedDate, setSelectedDate] = useState(new Date());
+    const [currentPeriodOffset, setCurrentPeriodOffset] = useState(0);
 
 
     // UI State
     const [chartView, setChartView] = useState<'distribution' | 'jobTypes' | 'byStatus' | 'byJobManager' | 'wipPercentage'>('distribution');
     const [isReportCollapsed, setIsReportCollapsed] = useState(false);
+    type SortField = 'jobName' | 'clientName' | 'jobType' | 'status' | 'jobManager' | 'jobFee' | 'wipBalance' | 'wipPercent' | 'loggedTime';
+    type SortDirection = 'asc' | 'desc' | null;
+    const [sortState, setSortState] = useState<{ field: SortField | null; direction: SortDirection }>({ field: null, direction: null });
     // --- API Hooks ---
+    const jobManagerIdsCsv = useMemo(() => Array.from(selectedJobManagerIds).join(','), [selectedJobManagerIds]);
+    const teamMemberIdsCsv = useMemo(() => Array.from(selectedTeamMemberIds).join(','), [selectedTeamMemberIds]);
+
     const jobsQueryArgs = useMemo(() => ({
         page,
         limit,
@@ -128,8 +150,11 @@ const JobsTab = () => {
         priority: priorityFilter,
         jobTypeId: jobTypeFilter,
         search: debouncedSearchTerm,
-        view: dateFilter
-    }), [page, limit, statusFilter, priorityFilter, jobTypeFilter, debouncedSearchTerm, dateFilter]);
+        view: dateFilter,
+        periodOffset: currentPeriodOffset,
+        jobManagerIds: jobManagerIdsCsv || undefined,
+        teamMemberIds: teamMemberIdsCsv || undefined
+    }), [page, limit, statusFilter, priorityFilter, jobTypeFilter, debouncedSearchTerm, dateFilter, currentPeriodOffset, jobManagerIdsCsv, teamMemberIdsCsv]);
 
     const {
         data: apiData,
@@ -166,6 +191,64 @@ const JobsTab = () => {
 
     const jobTypeCounts = apiData?.data?.jobTypeCounts || [];
 
+    const sortedJobs = useMemo(() => {
+        if (!sortState.field || !sortState.direction) return jobs;
+        const sorted = [...jobs];
+        sorted.sort((a: any, b: any) => {
+            let aValue: any;
+            let bValue: any;
+            switch (sortState.field) {
+                case 'jobName':
+                    aValue = a.name;
+                    bValue = b.name;
+                    break;
+                case 'clientName':
+                    aValue = a.clientId?.name;
+                    bValue = b.clientId?.name;
+                    break;
+                case 'jobType':
+                    aValue = a.jobTypeId?.name;
+                    bValue = b.jobTypeId?.name;
+                    break;
+                case 'status':
+                    aValue = a.status;
+                    bValue = b.status;
+                    break;
+                case 'jobManager':
+                    aValue = a.jobManagerId?.name;
+                    bValue = b.jobManagerId?.name;
+                    break;
+                case 'jobFee':
+                    aValue = a.jobCost ?? 0;
+                    bValue = b.jobCost ?? 0;
+                    break;
+                case 'wipBalance':
+                    aValue = a.wipBalance ?? 0;
+                    bValue = b.wipBalance ?? 0;
+                    break;
+                case 'wipPercent':
+                    aValue = a.jobCost > 0 ? (a.wipBalance || 0) / a.jobCost : 0;
+                    bValue = b.jobCost > 0 ? (b.wipBalance || 0) / b.jobCost : 0;
+                    break;
+                case 'loggedTime':
+                    aValue = a.hoursLogged ?? 0;
+                    bValue = b.hoursLogged ?? 0;
+                    break;
+                default:
+                    aValue = '';
+                    bValue = '';
+            }
+            if (typeof aValue === 'number' && typeof bValue === 'number') {
+                return sortState.direction === 'asc' ? aValue - bValue : bValue - aValue;
+            }
+            const aStr = (aValue ?? '').toString().toLowerCase();
+            const bStr = (bValue ?? '').toString().toLowerCase();
+            const comparison = aStr.localeCompare(bStr);
+            return sortState.direction === 'asc' ? comparison : -comparison;
+        });
+        return sorted;
+    }, [jobs, sortState]);
+
     const jobTypeOptions = useMemo(() => {
         if (!jobTypeCounts || jobTypeCounts.length === 0) return [];
         return jobTypeCounts.map((jt: any) => ({
@@ -174,6 +257,33 @@ const JobsTab = () => {
         }));
     }, [jobTypeCounts]);
 
+    const { data: teamDropdownOptions } = useGetDropdownOptionsQuery('team');
+    const teamOptions = (teamDropdownOptions?.data?.teams || []) as TeamOption[];
+
+    const jobTypeFilterActive = Boolean(jobTypeFilter);
+    const priorityFilterActive = Boolean(priorityFilter);
+    const jobManagerFilterActive = selectedJobManagerIds.size > 0;
+    const teamFilterActive = selectedTeamMemberIds.size > 0;
+    const totalJobCount = pagination?.totalJobs ?? jobs.length;
+
+    const toggleSelection = (
+        value: string,
+        setter: React.Dispatch<React.SetStateAction<Set<string>>>
+    ) => {
+        setter(prev => {
+            const next = new Set(prev);
+            if (next.has(value)) {
+                next.delete(value);
+            } else {
+                next.add(value);
+            }
+            return next;
+        });
+    };
+
+    const clearSelection = (setter: React.Dispatch<React.SetStateAction<Set<string>>>) => {
+        setter(new Set());
+    };
 
     // --- Dialog and Form Handlers ---
     const openAddDialog = () => {
@@ -249,60 +359,78 @@ const JobsTab = () => {
         setPage(1);
     };
 
+    const handleRefreshFilters = () => {
+        setSearchTerm('');
+        setJobTypeFilter('');
+        setPriorityFilter('');
+        clearSelection(setSelectedJobManagerIds);
+        clearSelection(setSelectedTeamMemberIds);
+        handleStatusTabChange('all');
+    };
+
     useEffect(() => {
         setPage(1);
-    }, [priorityFilter, jobTypeFilter]);
+    }, [priorityFilter, jobTypeFilter, jobManagerIdsCsv, teamMemberIdsCsv]);
 
     useEffect(() => {
         setPage(1);
     }, [debouncedSearchTerm]);
 
-
-    const navigateDate = (direction: 'prev' | 'next') => {
-        const newDate = new Date(selectedDate);
-        switch (dateFilter) {
-            case 'daily':
-                newDate.setDate(newDate.getDate() + (direction === 'next' ? 1 : -1));
-                break;
-            case 'weekly':
-                newDate.setDate(newDate.getDate() + (direction === 'next' ? 7 : -7));
-                break;
-            case 'monthly':
-                newDate.setMonth(newDate.getMonth() + (direction === 'next' ? 1 : -1));
-                break;
-            case 'yearly':
-                newDate.setFullYear(newDate.getFullYear() + (direction === 'next' ? 1 : -1));
-                break;
-        }
-        setSelectedDate(newDate);
+    const handleSort = (field: SortField) => {
+        setSortState(prev => {
+            if (prev.field === field) {
+                if (prev.direction === 'asc') return { field, direction: 'desc' };
+                if (prev.direction === 'desc') return { field: null, direction: null };
+                return { field, direction: 'asc' };
+            }
+            return { field, direction: 'asc' };
+        });
     };
 
-
-    const formatDateDisplay = () => {
-        const options: Intl.DateTimeFormatOptions = {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
-        };
-
-
-        switch (dateFilter) {
-            case 'daily':
-                return selectedDate.toLocaleDateString('en-GB', options);
-            case 'weekly':
-                const weekStart = new Date(selectedDate);
-                weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-                const weekEnd = new Date(weekStart);
-                weekEnd.setDate(weekEnd.getDate() + 6);
-                return `${weekStart.toLocaleDateString('en-GB', options)} to ${weekEnd.toLocaleDateString('en-GB', options)}`;
-            case 'monthly':
-                return selectedDate.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
-            case 'yearly':
-                return selectedDate.getFullYear().toString();
-            default:
-                return '';
-        }
+    const getSortIcon = (field: SortField) => {
+        if (sortState.field !== field) return <ArrowUpDown className="h-3 w-3 opacity-50" />;
+        if (sortState.direction === 'asc') return <ArrowUp className="h-3 w-3" />;
+        if (sortState.direction === 'desc') return <ArrowDown className="h-3 w-3" />;
+        return <ArrowUpDown className="h-3 w-3 opacity-50" />;
     };
+
+    const handleTimeFilterChange = (newFilter: 'daily' | 'weekly' | 'monthly' | 'yearly') => {
+        setDateFilter(newFilter);
+        setCurrentPeriodOffset(0);
+        setPage(1);
+    };
+
+    const handlePeriodChange = (direction: 'prev' | 'next') => {
+        setCurrentPeriodOffset(prev => direction === 'prev' ? prev - 1 : prev + 1);
+        setPage(1);
+    };
+
+    const periodInfo = useMemo(() => {
+        const now = new Date();
+        const formatDate = (date: Date) => date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+        if (dateFilter === 'daily') {
+            const targetDate = new Date();
+            targetDate.setDate(now.getDate() + currentPeriodOffset);
+            return { label: formatDate(targetDate) };
+        }
+        if (dateFilter === 'weekly') {
+            const startOfWeek = new Date();
+            startOfWeek.setDate(now.getDate() - now.getDay() + 1 + currentPeriodOffset * 7);
+            const endOfWeek = new Date(startOfWeek);
+            endOfWeek.setDate(startOfWeek.getDate() + 6);
+            const getWeekNumber = (d: Date) => {
+                const onejan = new Date(d.getFullYear(), 0, 1);
+                return Math.ceil((((d.getTime() - onejan.getTime()) / 86400000) + onejan.getDay() + 1) / 7);
+            };
+            return { label: `${formatDate(startOfWeek)} to ${formatDate(endOfWeek)} - Week ${getWeekNumber(startOfWeek)}` };
+        }
+        if (dateFilter === 'monthly') {
+            const d = new Date(now.getFullYear(), now.getMonth() + currentPeriodOffset, 1);
+            return { label: d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) };
+        }
+        return { label: `${now.getFullYear() + currentPeriodOffset}` };
+    }, [dateFilter, currentPeriodOffset]);
 
 
     const isLoadingData = isLoading || isFetching;
@@ -391,30 +519,28 @@ const JobsTab = () => {
         <div className="space-y-6">
             {/* Date Filter Controls */}
             <Card>
-                <CardContent className="p-4 flex items-center justify-between">
+                <CardContent className="p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex gap-1">
                         {(['daily', 'weekly', 'monthly', 'yearly'] as const).map(v => (
                             <Button
                                 key={v}
                                 variant={dateFilter === v ? 'default' : 'outline'}
                                 size="sm"
-                                onClick={() => setDateFilter(v)}
+                                onClick={() => handleTimeFilterChange(v)}
                             >
                                 {v.charAt(0).toUpperCase() + v.slice(1)}
                             </Button>
                         ))}
                     </div>
-                    {/* <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" onClick={() => navigateDate('prev')}>
-                            <ChevronLeft className="w-4 h-4" />
+                    <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => handlePeriodChange('prev')}>
+                            <ChevronLeft className="h-4 w-4" />
                         </Button>
-                        <span className="text-sm font-medium min-w-[200px] text-center">
-                            {formatDateDisplay()}
-                        </span>
-                        <Button variant="outline" size="sm" onClick={() => navigateDate('next')}>
-                            <ChevronRight className="w-4 h-4" />
+                        <span className="text-sm font-medium whitespace-nowrap">{periodInfo.label}</span>
+                        <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => handlePeriodChange('next')}>
+                            <ChevronRight className="h-4 w-4" />
                         </Button>
-                    </div> */}
+                    </div>
                 </CardContent>
             </Card>
 
@@ -445,13 +571,13 @@ const JobsTab = () => {
                             >
                                 By Job Manager
                             </Button>
-                            <Button
+                            {/* <Button
                                 variant={chartView === 'wipPercentage' ? 'default' : 'outline'}
                                 size="sm"
                                 onClick={() => setChartView('wipPercentage')}
                             >
                                 WIP % of Fee
-                            </Button>
+                            </Button> */}
                         </div>
                         <Button
                             variant="ghost"
@@ -536,61 +662,279 @@ const JobsTab = () => {
 
 
             {/* Jobs Table */}
-            <Tabs value={statusFilter || 'all'} onValueChange={handleStatusTabChange} className="w-full">
-                <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-                    <TabsList>
-                        <TabsTrigger value="all">All ({statusBreakdown.all || 0})</TabsTrigger>
-                        <TabsTrigger value="queued">Queued ({statusBreakdown.queued || 0})</TabsTrigger>
-                        <TabsTrigger value="inProgress">In Progress ({statusBreakdown.inProgress || 0})</TabsTrigger>
-                        <TabsTrigger value="forApproval">For Approval ({statusBreakdown.forApproval || 0})</TabsTrigger>
-                        <TabsTrigger value="completed">Completed ({statusBreakdown.completed || 0})</TabsTrigger>
-                    </TabsList>
+            <div className="w-full">
+                <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+                    <div className="flex items-center gap-3 mt-4 w-max p-[6px] rounded-sm pl-4">
+                        <p className='text-[#381980] font-semibold text-[14px]'>Status:</p>
+                        <div className="flex gap-0">
+                            <button
+                                onClick={() => handleStatusTabChange('all')}
+                                className={`px-4 py-2 text-sm font-medium transition-colors ${(statusFilter || 'all') === 'all'
+                                    ? 'bg-[#381980] text-white rounded-l-full'
+                                    : 'bg-transparent text-[#71717A]'
+                                    }`}
+                            >
+                                All ({statusBreakdown.all || 0})
+                            </button>
+                            <button
+                                onClick={() => handleStatusTabChange('queued')}
+                                className={`px-4 py-2 text-sm font-medium transition-colors ${statusFilter === 'queued'
+                                    ? 'bg-[#381980] text-white'
+                                    : 'bg-transparent text-[#71717A]'
+                                    }`}
+                            >
+                                Queued ({statusBreakdown.queued || 0})
+                            </button>
+          <button
+            onClick={() => handleStatusTabChange('awaitingRecords')}
+            className={`px-4 py-2 text-sm font-medium transition-colors ${statusFilter === 'awaitingRecords'
+              ? 'bg-[#381980] text-white'
+              : 'bg-transparent text-[#71717A]'
+              }`}
+          >
+            Awaiting Records ({statusBreakdown.awaitingRecords || 0})
+          </button>
+          <button
+            onClick={() => handleStatusTabChange('inProgress')}
+            className={`px-4 py-2 text-sm font-medium transition-colors ${statusFilter === 'inProgress'
+              ? 'bg-[#381980] text-white'
+              : 'bg-transparent text-[#71717A]'
+              }`}
+          >
+            In Progress ({statusBreakdown.inProgress || 0})
+          </button>
+          <button
+            onClick={() => handleStatusTabChange('withClient')}
+            className={`px-4 py-2 text-sm font-medium transition-colors ${statusFilter === 'withClient'
+              ? 'bg-[#381980] text-white'
+              : 'bg-transparent text-[#71717A]'
+              }`}
+          >
+            With Client ({statusBreakdown.withClient || 0})
+          </button>
+          <button
+            onClick={() => handleStatusTabChange('forApproval')}
+            className={`px-4 py-2 text-sm font-medium transition-colors ${statusFilter === 'forApproval'
+              ? 'bg-[#381980] text-white'
+              : 'bg-transparent text-[#71717A]'
+              }`}
+          >
+            For Approval ({statusBreakdown.forApproval || 0})
+          </button>
+          <button
+            onClick={() => handleStatusTabChange('completed')}
+            className={`px-4 py-2 text-sm font-medium transition-colors rounded-r-full ${statusFilter === 'completed'
+              ? 'bg-[#381980] text-white'
+              : 'bg-transparent text-[#71717A]'
+              }`}
+          >
+            Completed ({statusBreakdown.completed || 0})
+          </button>
+                        </div>
+                    </div>
+                </div>
 
-                    <div className="flex flex-wrap gap-3 items-center">
-                        <div className="relative w-64">
+                <div className="bg-[#E7E5F2] p-[6px] rounded-sm flex flex-wrap items-center justify-between gap-3 mb-6">
+                    <div className="flex flex-wrap items-end gap-2">
+                        <div className="relative flex-1 w-full max-w-[220px]">
                             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                             <Input
                                 placeholder="Search by client name..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-10"
+                                className="pl-10 bg-white text-[#381980] font-semibold placeholder:text-[#381980]"
                             />
                         </div>
-                        <Select
-                            value={jobTypeFilter || 'all'}
-                            onValueChange={v => setJobTypeFilter(v === 'all' ? '' : v)}
-                            disabled={jobTypeOptions.length === 0}
+
+                        {/* Job Type Filter */}
+                        <div className="space-y-2">
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <button
+                                        className={`w-36 h-10 ${jobTypeFilterActive ? 'bg-gray-200 border-[#381980]' : 'bg-white border-input'} text-[#381980] font-semibold rounded-md border px-3 flex items-center justify-between`}
+                                    >
+                                        <span className="truncate text-[14px]">
+                                            Job Type{jobTypeFilter && ` (${jobTypeOptions.find(option => option.id === jobTypeFilter)?.name || 'Selected'})`}
+                                        </span>
+                                        <ChevronDown className="w-4 h-4" />
+                                    </button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-56 p-2" align="start">
+                                    <div className="max-h-64 overflow-auto">
+                                        <div
+                                            className={`px-2 py-1.5 rounded-[4px] cursor-pointer ${!jobTypeFilter ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                                            onClick={() => setJobTypeFilter('')}
+                                        >
+                                            <div className="flex items-center justify-between">
+                                                <span>All</span>
+                                                {!jobTypeFilter && <Check className="w-4 h-4" />}
+                                            </div>
+                                        </div>
+                                        {jobTypeOptions.map(option => {
+                                            const active = jobTypeFilter === option.id;
+                                            return (
+                                                <div
+                                                    key={option.id}
+                                                    className={`flex items-center justify-between px-2 py-1.5 rounded-[4px] cursor-pointer ${active ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                                                    onClick={() => setJobTypeFilter(option.id)}
+                                                >
+                                                    <span className="truncate">{option.name}</span>
+                                                    {active && <Check className="w-4 h-4" />}
+                                                </div>
+                                            );
+                                        })}
+                                        {jobTypeOptions.length === 0 && (
+                                            <div className="px-2 py-1.5 text-sm text-muted-foreground">No job types available.</div>
+                                        )}
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+
+                        {/* Priority Filter */}
+                        <div className="space-y-2">
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <button
+                                        className={`w-32 h-10 ${priorityFilterActive ? 'bg-gray-200 border-[#381980]' : 'bg-white border-input'} text-[#381980] font-semibold rounded-md border px-3 flex items-center justify-between`}
+                                    >
+                                        <span className="truncate text-[14px]">
+                                            Priority{priorityFilter && ` (${priorityFilter.charAt(0).toUpperCase() + priorityFilter.slice(1)})`}
+                                        </span>
+                                        <ChevronDown className="w-4 h-4" />
+                                    </button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-48 p-2" align="start">
+                                    <div className="max-h-64 overflow-auto">
+                                        <div
+                                            className={`px-2 py-1.5 rounded-[4px] cursor-pointer ${!priorityFilter ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                                            onClick={() => setPriorityFilter('')}
+                                        >
+                                            <div className="flex items-center justify-between">
+                                                <span>All</span>
+                                                {!priorityFilter && <Check className="w-4 h-4" />}
+                                            </div>
+                                        </div>
+                                        {['low', 'medium', 'high', 'urgent'].map(option => {
+                                            const active = priorityFilter === option;
+                                            return (
+                                                <div
+                                                    key={option}
+                                                    className={`flex items-center justify-between px-2 py-1.5 rounded-[4px] cursor-pointer ${active ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                                                    onClick={() => setPriorityFilter(option)}
+                                                >
+                                                    <span className="truncate">{option.charAt(0).toUpperCase() + option.slice(1)}</span>
+                                                    {active && <Check className="w-4 h-4" />}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+
+                        {/* Job Manager Filter */}
+                        <div className="space-y-2">
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <button
+                                        className={`w-40 h-10 ${jobManagerFilterActive ? 'bg-gray-200 border-[#381980]' : 'bg-white border-input'} text-[#381980] font-semibold rounded-md border px-3 flex items-center justify-between`}
+                                    >
+                                        <span className="truncate text-[14px]">
+                                            Job Manager{jobManagerFilterActive ? ` (${selectedJobManagerIds.size})` : ''}
+                                        </span>
+                                        <ChevronDown className="w-4 h-4" />
+                                    </button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-56 p-2" align="start">
+                                    <div className="max-h-64 overflow-auto">
+                                        <div
+                                            className={`px-2 py-1.5 rounded-[4px] cursor-pointer ${!jobManagerFilterActive ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                                            onClick={() => clearSelection(setSelectedJobManagerIds)}
+                                        >
+                                            <div className="flex items-center justify-between">
+                                                <span>All</span>
+                                                {!jobManagerFilterActive && <Check className="w-4 h-4" />}
+                                            </div>
+                                        </div>
+                                        {teamOptions.map(option => {
+                                            const active = selectedJobManagerIds.has(option._id);
+                                            return (
+                                                <div
+                                                    key={`manager-${option._id}`}
+                                                    className={`flex items-center justify-between px-2 py-1.5 rounded-[4px] cursor-pointer ${active ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                                                    onClick={() => toggleSelection(option._id, setSelectedJobManagerIds)}
+                                                >
+                                                    <span className="truncate">{option.name}</span>
+                                                    {active && <Check className="w-4 h-4" />}
+                                                </div>
+                                            );
+                                        })}
+                                        {teamOptions.length === 0 && (
+                                            <div className="px-2 py-1.5 text-sm text-muted-foreground">No team members available.</div>
+                                        )}
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+
+                        {/* Team Members Filter */}
+                        <div className="space-y-2">
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <button
+                                        className={`w-40 h-10 ${teamFilterActive ? 'bg-gray-200 border-[#381980]' : 'bg-white border-input'} text-[#381980] font-semibold rounded-md border px-3 flex items-center justify-between`}
+                                    >
+                                        <span className="truncate text-[14px]">
+                                            Team Members{teamFilterActive ? ` (${selectedTeamMemberIds.size})` : ''}
+                                        </span>
+                                        <ChevronDown className="w-4 h-4" />
+                                    </button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-56 p-2" align="start">
+                                    <div className="max-h-64 overflow-auto">
+                                        <div
+                                            className={`px-2 py-1.5 rounded-[4px] cursor-pointer ${!teamFilterActive ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                                            onClick={() => clearSelection(setSelectedTeamMemberIds)}
+                                        >
+                                            <div className="flex items-center justify-between">
+                                                <span>All</span>
+                                                {!teamFilterActive && <Check className="w-4 h-4" />}
+                                            </div>
+                                        </div>
+                                        {teamOptions.map(option => {
+                                            const active = selectedTeamMemberIds.has(option._id);
+                                            return (
+                                                <div
+                                                    key={`team-${option._id}`}
+                                                    className={`flex items-center justify-between px-2 py-1.5 rounded-[4px] cursor-pointer ${active ? 'bg-[#5f46b9] text-white' : 'hover:bg-[#5f46b9] hover:text-white'}`}
+                                                    onClick={() => toggleSelection(option._id, setSelectedTeamMemberIds)}
+                                                >
+                                                    <span className="truncate">{option.name}</span>
+                                                    {active && <Check className="w-4 h-4" />}
+                                                </div>
+                                            );
+                                        })}
+                                        {teamOptions.length === 0 && (
+                                            <div className="px-2 py-1.5 text-sm text-muted-foreground">No team members available.</div>
+                                        )}
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+                        <Button
+                            variant="outline"
+                            className="bg-[#381980] w-[42px] rounded-sm text-white p-2 hover:bg-[#2c1469]"
+                            onClick={handleRefreshFilters}
                         >
-                            <SelectTrigger className="w-44">
-                                <SelectValue placeholder="All Job Types" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Job Types</SelectItem>
-                                {jobTypeOptions.map(option => (
-                                    <SelectItem key={option.id} value={option.id}>
-                                        {option.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        <Select
-                            value={priorityFilter || 'all'}
-                            onValueChange={v => setPriorityFilter(v === 'all' ? '' : v)}
-                        >
-                            <SelectTrigger className="w-40">
-                                <SelectValue placeholder="All Priority" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Priority</SelectItem>
-                                <SelectItem value="low">Low</SelectItem>
-                                <SelectItem value="medium">Medium</SelectItem>
-                                <SelectItem value="high">High</SelectItem>
-                                <SelectItem value="urgent">Urgent</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <Button onClick={openAddDialog}>
+                            <RefreshCw className="w-3 h-3" />
+                        </Button>
+                    </div>
+                    <div className="flex items-center gap-3 ml-auto">
+                        <span className="text-sm text-[#381980] font-semibold">{totalJobCount} Rows</span>
+                        <Button onClick={openAddDialog} className="bg-[#017DB9] text-white hover:bg-[#016798]">
                             <Plus className="w-4 h-4 mr-2" />
-                            Add Job
+                             New Job
                         </Button>
                     </div>
                 </div>
@@ -601,15 +945,52 @@ const JobsTab = () => {
                         <Table>
                             <TableHeader>
                                 <TableRow className='!bg-[#edecf4] text-[#381980]'>
-                                    <TableHead>Job Name</TableHead>
-                                    <TableHead>Client</TableHead>
-                                    <TableHead>Job Type</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Job Manager</TableHead>
+                                    <TableHead>
+                                        <button type="button" className="flex items-center gap-1 font-semibold" onClick={() => handleSort('jobName')}>
+                                            Job Name {getSortIcon('jobName')}
+                                        </button>
+                                    </TableHead>
+                                    <TableHead>
+                                        <button type="button" className="flex items-center gap-1 font-semibold" onClick={() => handleSort('clientName')}>
+                                            Client {getSortIcon('clientName')}
+                                        </button>
+                                    </TableHead>
+                                    <TableHead>
+                                <button type="button" className="flex items-center gap-1 font-semibold" onClick={() => handleSort('jobType')}>
+                                            Job Type {getSortIcon('jobType')}
+                                        </button>
+                                    </TableHead>
+                                    <TableHead>
+                                        <button type="button" className="flex items-center gap-1 font-semibold" onClick={() => handleSort('status')}>
+                                            Status {getSortIcon('status')}
+                                        </button>
+                                    </TableHead>
+                                    <TableHead>
+                                        <button type="button" className="flex items-center gap-1 font-semibold" onClick={() => handleSort('jobManager')}>
+                                            Job Manager {getSortIcon('jobManager')}
+                                        </button>
+                                    </TableHead>
                                     <TableHead>Team</TableHead>
-                                    <TableHead className="text-right">Job Fee</TableHead>
-                                    <TableHead className="text-center">WIP Balance</TableHead>
-                                    <TableHead className="text-center">WIP %</TableHead>
+                                    <TableHead className="text-center">
+                                        <button type="button" className="flex items-center gap-1 font-semibold mx-auto" onClick={() => handleSort('loggedTime')}>
+                                            Logged Time {getSortIcon('loggedTime')}
+                                        </button>
+                                    </TableHead>
+                                    <TableHead className="text-right">
+                                        <button type="button" className="flex items-center gap-1 font-semibold ml-auto" onClick={() => handleSort('jobFee')}>
+                                            Job Fee {getSortIcon('jobFee')}
+                                        </button>
+                                    </TableHead>
+                                    <TableHead className="text-center">
+                                        <button type="button" className="flex items-center gap-1 font-semibold mx-auto" onClick={() => handleSort('wipBalance')}>
+                                            WIP Balance {getSortIcon('wipBalance')}
+                                        </button>
+                                    </TableHead>
+                                    <TableHead className="text-center">
+                                        <button type="button" className="flex items-center gap-1 font-semibold mx-auto" onClick={() => handleSort('wipPercent')}>
+                                            WIP % {getSortIcon('wipPercent')}
+                                        </button>
+                                    </TableHead>
                                     <TableHead className="text-center">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -635,7 +1016,7 @@ const JobsTab = () => {
                                         </TableCell>
                                     </TableRow>
                                 )}
-                                {jobs.map((job: any) => (
+                                {sortedJobs.map((job: any) => (
                                     <TableRow key={job._id}>
                                         <TableCell className='px-4'>
                                             <JobNameLink
@@ -665,6 +1046,11 @@ const JobsTab = () => {
                                                 ))}
                                             </div>
                                         </TableCell>
+                                        <TableCell className="text-center px-4 text-sm">
+                                            {job.hoursLogged && job.hoursLogged > 0
+                                                ? formatHoursToHHMMSS(job.hoursLogged)
+                                                : '—'}
+                                        </TableCell>
                                         <TableCell className="text-right px-4">
                                             {formatCurrency(job.jobCost)}
                                         </TableCell>
@@ -690,7 +1076,7 @@ const JobsTab = () => {
                         </Table>
                     </CardContent>
                 </Card>
-            </Tabs>
+            </div>
 
             {settingsMenu && (
                 <>
@@ -807,8 +1193,14 @@ const JobsTab = () => {
             {/* Dialogs */}
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogContent className="max-w-2xl !rounded-none p-0 border-none for-close">
+                    <button
+                        onClick={() => setDialogOpen(false)}
+                        className="bg-[#381980] text-white absolute right-[-35px] top-0 p-[6px] rounded-full max-sm:hidden"
+                    >
+                        <X size={16} />
+                    </button>
                     <DialogHeader className="bg-[#381980] sticky z-50 top-0 left-0 w-full text-center ">
-                        <DialogTitle className="text-center text-white py-4">{editingJob ? 'Edit Job' : '+ Add New Job'}</DialogTitle>
+                        <DialogTitle className="text-center text-white py-4">{editingJob ? 'Edit Job' : '+ New Job'}</DialogTitle>
                     </DialogHeader>
                     <JobForm
                         job={editingJob}
@@ -864,7 +1256,7 @@ const JobsTab = () => {
                                     <p className="text-sm text-muted-foreground">{new Date(viewingJob.endDate).toLocaleDateString()}</p>
                                 </div>
                                 <div>
-                                    <Label>Job Cost</Label>
+                                    <Label>Job Fee</Label>
                                     <p className="text-sm text-muted-foreground">{formatCurrency(viewingJob?.jobCost)}</p>
                                 </div>
                                 <div>

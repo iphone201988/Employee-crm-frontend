@@ -3,16 +3,19 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
-import { FileText } from 'lucide-react';
+import { Label } from "@/components/ui/label";
+import { FileText, X, Loader2 } from 'lucide-react';
 import { InvoiceOptionsSection } from './Invoice/InvoiceOptionsSection';
 import { ItemizationOptionsSection } from './Invoice/ItemizationOptionsSection';
 import { InvoicePreviewSection } from './Invoice/InvoicePreviewSection';
 import { ExpenseItem } from './Invoice/ExpensesSection';
 import { formatCurrency } from '@/lib/currency';
-import { useCreateInvoiceMutation, useGetInvoiceByInvoiceNoQuery, useCreateWriteOffMutation, useCreateInvoiceLogMutation } from '@/store/wipApi';
+import { formatDate } from '@/utils/dateFormat';
+import { useGenerateInvoiceMutation, useGetInvoiceTimeLogsMutation, useLogInvoiceMutation } from '@/store/wipApi';
+import { useUploadImageMutation } from '@/store/teamApi';
 import WriteOffLogicDialog from './WriteOffLogicDialog';
-import { useDebounce } from 'use-debounce';
 import { toast } from 'sonner';
+import InputComponent from './client/component/Input';
 
 interface InvoicePreviewDialogProps {
   isOpen: boolean;
@@ -32,6 +35,8 @@ interface InvoicePreviewDialogProps {
   openLogInvoiceOnly?: boolean;
 }
 
+const DEFAULT_VAT_PERCENTAGE = '23';
+
 export const InvoicePreviewDialog = ({ 
   isOpen, 
   onClose, 
@@ -39,7 +44,8 @@ export const InvoicePreviewDialog = ({
   onInvoiceCreate,
   openLogInvoiceOnly = false
 }: InvoicePreviewDialogProps) => {
-  const [createInvoice, { isLoading: isCreating }] = useCreateInvoiceMutation();
+  const [generateInvoice, { isLoading: isGeneratingInvoice }] = useGenerateInvoiceMutation();
+  const [logInvoice, { isLoading: isLoggingInvoice }] = useLogInvoiceMutation();
   const [itemizeTimeLogs, setItemizeTimeLogs] = useState(false);
   const [includeTimeAmount, setIncludeTimeAmount] = useState(false);
   const [includeValueAmount, setIncludeValueAmount] = useState(false);
@@ -50,62 +56,132 @@ export const InvoicePreviewDialog = ({
   const [includeVAT, setIncludeVAT] = useState(false);
   const [vatRate, setVatRate] = useState<number>(23);
   const [logInvoiceDialogOpen, setLogInvoiceDialogOpen] = useState(false);
-  const [wipBalanceDialogOpen, setWipBalanceDialogOpen] = useState(false);
   const [writeOffLogicDialogOpen, setWriteOffLogicDialogOpen] = useState(false);
   const [logInvoiceData, setLogInvoiceData] = useState({
     invoiceNumber: '',
     invoiceDate: '',
-    invoiceAmount: '',
-    invoiceAmountIncVAT: ''
+    netAmount: '',
+    vatPercentage: DEFAULT_VAT_PERCENTAGE,
+    attachmentUrl: ''
   });
-  const [wipAmount, setWipAmount] = useState<number | null>(null);
-  const [fetchedInvoice, setFetchedInvoice] = useState<any>(null);
   const [writeOffData, setWriteOffData] = useState<any>(null);
-  
-  // Debounce invoice number for API call
-  const [debouncedInvoiceNo] = useDebounce(logInvoiceData.invoiceNumber, 500);
-  
-  // Fetch invoice by invoice number
-  const { data: invoiceResponse, isLoading: isLoadingInvoice, error: invoiceError } = useGetInvoiceByInvoiceNoQuery(
-    debouncedInvoiceNo,
-    { skip: !debouncedInvoiceNo || debouncedInvoiceNo.length < 3 }
-  );
-  
-  const [createWriteOff, { isLoading: isCreatingWriteOff }] = useCreateWriteOffMutation();
-  const [createInvoiceLog, { isLoading: isCreatingInvoiceLog }] = useCreateInvoiceLogMutation();
+  const [logInvoiceTimeLogs, setLogInvoiceTimeLogs] = useState<any[]>([]);
+  const [fetchInvoiceTimeLogs, { isLoading: isFetchingTimeLogs }] = useGetInvoiceTimeLogsMutation();
+  const [uploadAttachment, { isLoading: isUploadingAttachment }] = useUploadImageMutation();
 
-  // Update WIP amount and form data when invoice is fetched
-  useEffect(() => {
-    if (invoiceResponse?.data) {
-      const invoice = invoiceResponse.data;
-      setFetchedInvoice(invoice);
-      setWipAmount(invoice.totalAmount || null);
-      setLogInvoiceData(prev => ({
-        ...prev,
-        invoiceDate: invoice.date ? new Date(invoice.date).toISOString().split('T')[0] : prev.invoiceDate,
-        invoiceAmount: invoice.totalAmount ? invoice.totalAmount.toString() : prev.invoiceAmount
-      }));
-    } else if (debouncedInvoiceNo && debouncedInvoiceNo.length >= 3 && !isLoadingInvoice) {
-      // Reset if invoice not found
-      setFetchedInvoice(null);
-      setWipAmount(null);
-    }
-  }, [invoiceResponse, debouncedInvoiceNo, isLoadingInvoice]);
+  const computeManualInvoiceNumbers = () => {
+    const wipAmountNumber = Number((((invoiceData as any)?.wipAmount ?? invoiceData.amount) ?? 0) || 0);
+    const netAmountNumber = parseFloat(logInvoiceData.netAmount || '0');
+    const vatPercentageNumber = parseFloat(logInvoiceData.vatPercentage || '0');
+    const vatAmountNumber = Number((netAmountNumber * (vatPercentageNumber / 100)).toFixed(2));
+    const grossAmountNumber = Number((netAmountNumber + vatAmountNumber).toFixed(2));
+    // Remaining balance should be WIP Amount - Net Amount (not Gross)
+    const remainingBalance = Math.max(0, Number((wipAmountNumber - netAmountNumber).toFixed(2)));
+    return { wipAmountNumber, netAmountNumber, vatPercentageNumber, vatAmountNumber, grossAmountNumber, remainingBalance };
+  };
 
-  // Reset when dialog closes
   useEffect(() => {
-    if (!logInvoiceDialogOpen) {
-      setLogInvoiceData({
-        invoiceNumber: '',
-        invoiceDate: '',
-        invoiceAmount: '',
-        invoiceAmountIncVAT: ''
-      });
-      setWipAmount(null);
-      setFetchedInvoice(null);
+    if (writeOffData) {
       setWriteOffData(null);
     }
-  }, [logInvoiceDialogOpen]);
+  }, [logInvoiceData.netAmount, logInvoiceData.vatPercentage]);
+
+  const handleLogInvoiceSubmit = async () => {
+    const { wipAmountNumber, netAmountNumber, vatPercentageNumber, vatAmountNumber, grossAmountNumber, remainingBalance } = computeManualInvoiceNumbers();
+    if (!logInvoiceData.invoiceNumber.trim()) {
+      toast.error('Invoice number is required.');
+      return;
+    }
+    if (!logInvoiceData.invoiceDate) {
+      toast.error('Invoice date is required.');
+      return;
+    }
+    if (!netAmountNumber || netAmountNumber <= 0) {
+      toast.error('Net amount must be greater than 0.');
+      return;
+    }
+    // Check if there's any WIP to invoice (time logs, open balances, or imported WIP)
+    const hasTimeLogs = Array.isArray((invoiceData as any)?.timeLogIdsBase) && (invoiceData as any)?.timeLogIdsBase.length > 0;
+    const hasOpenBalances = Array.isArray((invoiceData as any)?.wipOpenBalanceIdsBase) && (invoiceData as any)?.wipOpenBalanceIdsBase.length > 0;
+    const hasWipAmount = wipAmountNumber > 0;
+    
+    if (!hasTimeLogs && !hasOpenBalances && !hasWipAmount) {
+      toast.error('No WIP available to invoice (no time logs, open balances, or imported WIP).');
+      return;
+    }
+    // If there's a remaining balance, require write-off data (can be empty timeLogs if no time logs exist)
+    if (remainingBalance > 0 && !writeOffData) {
+      toast.error('Please apply write off logic for the remaining balance.');
+      return;
+    }
+    const payload: any = {
+      date: logInvoiceData.invoiceDate,
+      clientId: (invoiceData as any)?.clientId,
+      jobId: (invoiceData as any)?.jobId,
+      scope: (invoiceData as any)?.scope,
+      netAmount: netAmountNumber,
+      vatPercentage: vatPercentageNumber,
+      vatAmount: vatAmountNumber,
+      expenseAmount: 0,
+      totalAmount: grossAmountNumber,
+      timeLogIds: (invoiceData as any)?.timeLogIdsBase || [],
+      expenseIds: (invoiceData as any)?.expenseIdsBase || [],
+      wipOpenBalanceIds: (invoiceData as any)?.wipOpenBalanceIdsBase || [],
+      invoiceNo: logInvoiceData.invoiceNumber,
+      source: 'manual',
+      attachmentUrl: logInvoiceData.attachmentUrl,
+    };
+    if (writeOffData && remainingBalance > 0) {
+      payload.writeOffData = {
+        ...writeOffData,
+        writeOffBalance: remainingBalance
+      };
+    }
+    try {
+      const resp = await logInvoice(payload).unwrap();
+      toast.success('Invoice logged successfully');
+      onInvoiceCreate?.(resp?.data || payload);
+      setLogInvoiceDialogOpen(false);
+      setWriteOffData(null);
+      onClose();
+    } catch (error: any) {
+      console.error('Failed to log invoice', error);
+      toast.error(error?.data?.message || 'Failed to log invoice');
+    }
+  };
+
+  useEffect(() => {
+    if (openLogInvoiceOnly && isOpen) {
+      setLogInvoiceDialogOpen(true);
+    }
+  }, [openLogInvoiceOnly, isOpen]);
+
+  useEffect(() => {
+    if (logInvoiceDialogOpen && openLogInvoiceOnly && isOpen) {
+      const today = new Date().toISOString().split('T')[0];
+      const defaultNet = Number(((invoiceData as any)?.wipAmount ?? invoiceData.amount ?? 0) || 0);
+      setLogInvoiceData((prev) => ({
+        ...prev,
+        invoiceNumber: '',
+        invoiceDate: today,
+        netAmount: defaultNet > 0 ? defaultNet.toFixed(2) : '',
+        attachmentUrl: ''
+      }));
+      setWriteOffData(null);
+      const ids = (invoiceData as any)?.timeLogIdsBase;
+      if (Array.isArray(ids) && ids.length) {
+        fetchInvoiceTimeLogs({ timeLogIds: ids })
+          .unwrap()
+          .then((resp) => setLogInvoiceTimeLogs(Array.isArray(resp?.data) ? resp.data : []))
+          .catch(() => {
+            setLogInvoiceTimeLogs([]);
+            toast.error('Failed to load time logs for this invoice.');
+          });
+      } else {
+        setLogInvoiceTimeLogs([]);
+      }
+    }
+  }, [logInvoiceDialogOpen, openLogInvoiceOnly, isOpen, invoiceData, fetchInvoiceTimeLogs]);
 
   // Sample time logs data for the write-off logic dialog (will be replaced with API data)
   const sampleTimeLogs = [
@@ -192,121 +268,6 @@ export const InvoicePreviewDialog = ({
     }
   ];
 
-  // Convert fetched invoice time logs to format needed for WriteOffLogicDialog
-  const getTimeLogsForWriteOff = () => {
-    if (!fetchedInvoice?.timeLogIds) return [];
-    
-    return fetchedInvoice.timeLogIds.map((log: any) => ({
-      id: log._id || String(log._id),
-      timeLogId: log._id || String(log._id),
-      teamMember: log.userId?.name || 'Unknown',
-      hours: (log.duration || 0) / 3600,
-      billableRate: log.rate || 0,
-      amount: log.amount || 0,
-      date: log.date || new Date().toISOString(),
-      description: log.description || '',
-      duration: log.duration || 0,
-      clientId: log.clientId?._id || log.clientId || '',
-      jobId: log.jobId?._id || log.jobId || '',
-      userId: log.userId?._id || log.userId || '',
-      jobCategoryId: log.jobTypeId?._id || log.jobTypeId || '',
-      originalAmount: log.amount || 0
-    }));
-  };
-
-  const handleLogInvoiceSubmit = async () => {
-    if (!logInvoiceData.invoiceNumber || !logInvoiceData.invoiceDate || !logInvoiceData.invoiceAmount) {
-      toast.error('Please fill all required fields');
-      return;
-    }
-
-    const invoiceAmountNum = parseFloat(logInvoiceData.invoiceAmount);
-    const totalLogAmount = fetchedInvoice?.totalLogAmount || 0;
-    const currentWipAmount = wipAmount || 0;
-
-    // Option 2: Balance should not exceed Total Log Amount
-    // Balance = WIP Amount - Invoice Amount
-    const currentBalance = currentWipAmount - invoiceAmountNum;
-
-    if (currentBalance > totalLogAmount) {
-      toast.error(`Balance (${formatCurrency(currentBalance)}) cannot exceed Total Log Amount (${formatCurrency(totalLogAmount)})`);
-      return;
-    }
-
-    if (invoiceAmountNum < 0) {
-      toast.error('Invoice amount cannot be negative');
-      return;
-    }
-
-    // Get invoice ID from fetched invoice
-    const invoiceId = fetchedInvoice?._id;
-    if (!invoiceId) {
-      toast.error('Invoice ID not found. Please fetch the invoice first.');
-      return;
-    }
-
-    // If there's write-off data and balance > 0, create write-off first
-    if (writeOffData && currentBalance > 0 && writeOffData.writeOffBalance > 0) {
-      try {
-        // The 'amount' field should be the Invoice Amount entered by the user in Log Invoice Only dialog
-        // Backend sets invoice.totalAmount = amount, so we send the user-entered invoice amount
-        const writeOffPayload = {
-          invoiceNo: logInvoiceData.invoiceNumber,
-          amount: invoiceAmountNum, // Invoice Amount entered by user in Log Invoice Only dialog
-          date: logInvoiceData.invoiceDate ? new Date(logInvoiceData.invoiceDate).toISOString() : new Date().toISOString(),
-          writeOffData: {
-            timeLogs: writeOffData.timeLogs || [],
-            reason: writeOffData.reason || '',
-            logic: writeOffData.logic || 'manually'
-          }
-        };
-
-        await createWriteOff(writeOffPayload).unwrap();
-        toast.success('Write-off created successfully');
-      } catch (error: any) {
-        console.error('Failed to create write-off', error);
-        toast.error(error?.data?.message || 'Failed to create write-off');
-        return;
-      }
-    }
-
-    // Create invoice log
-    try {
-      const invoiceLogPayload = {
-        invoiceId: invoiceId,
-        action: 'logged',
-        amount: invoiceAmountNum,
-        date: logInvoiceData.invoiceDate ? new Date(logInvoiceData.invoiceDate).toISOString() : new Date().toISOString()
-      };
-
-      await createInvoiceLog(invoiceLogPayload).unwrap();
-      toast.success('Invoice logged successfully');
-      
-      // Close dialogs and call onInvoiceCreate if provided
-      setLogInvoiceDialogOpen(false);
-      if (onInvoiceCreate) {
-        onInvoiceCreate({
-          invoiceId,
-          invoiceNo: logInvoiceData.invoiceNumber,
-          amount: invoiceAmountNum,
-          date: logInvoiceData.invoiceDate
-        });
-      }
-      onClose();
-    } catch (error: any) {
-      console.error('Failed to log invoice', error);
-      toast.error(error?.data?.message || 'Failed to log invoice');
-    }
-  };
-
-
-  // Auto-open log invoice dialog if openLogInvoiceOnly is true
-  useEffect(() => {
-    if (openLogInvoiceOnly && isOpen) {
-      setLogInvoiceDialogOpen(true);
-    }
-  }, [openLogInvoiceOnly, isOpen]);
-
   // Prefill expenses from invoiceData when includeExpenses is enabled and list is empty
   useEffect(() => {
     if (!isOpen) return;
@@ -326,229 +287,328 @@ export const InvoicePreviewDialog = ({
 
   // Don't render the main dialog content if we're only showing log invoice
   if (openLogInvoiceOnly) {
+    const { wipAmountNumber, netAmountNumber, vatPercentageNumber, vatAmountNumber, grossAmountNumber, remainingBalance } = computeManualInvoiceNumbers();
+    const formattedLogs = logInvoiceTimeLogs.map((log: any) => ({
+      id: String(log.timeLogId || log._id),
+      timeLogId: log.timeLogId || log._id,
+      teamMember: log.userName || 'Team Member',
+      hours: Number(log.duration || 0) / 3600,
+      billableRate: Number(log.rate || 0),
+      amount: Number(log.amount || 0),
+      date: log.date,
+      description: log.description || '',
+      duration: Number(log.duration || 0),
+      clientId: log.clientId || (invoiceData as any)?.clientId,
+      jobId: log.jobId || (invoiceData as any)?.jobId,
+      userId: log.userId,
+      jobCategoryId: log.jobCategoryId || log.jobTypeId,
+      originalAmount: Number(log.amount || 0),
+    }));
+    const handleAttachmentUpload = async (files: FileList | null) => {
+      const file = files?.[0];
+      if (!file) return;
+      try {
+        const result = await uploadAttachment(file).unwrap();
+        setLogInvoiceData(prev => ({ ...prev, attachmentUrl: result?.fileUrl || '' }));
+        toast.success('Attachment uploaded successfully');
+      } catch (error: any) {
+        console.error('Failed to upload attachment', error);
+        toast.error(error?.data?.message || 'Failed to upload attachment');
+      }
+    };
+    // Check if there's any WIP to invoice
+    const hasTimeLogs = formattedLogs.length > 0;
+    const hasOpenBalances = Array.isArray((invoiceData as any)?.wipOpenBalanceIdsBase) && (invoiceData as any)?.wipOpenBalanceIdsBase.length > 0;
+    const hasWipAmount = wipAmountNumber > 0;
+    
+    const canSubmit = Boolean(
+      logInvoiceData.invoiceNumber &&
+      logInvoiceData.invoiceDate &&
+      netAmountNumber > 0 &&
+      (hasTimeLogs || hasOpenBalances || hasWipAmount) &&
+      (!remainingBalance || writeOffData)
+    );
+
+    const handleDialogClose = (open: boolean) => {
+      setLogInvoiceDialogOpen(open);
+      if (!open) {
+        setWriteOffData(null);
+        onClose();
+      }
+    };
+
     return (
       <>
-        {/* Log Invoice Only Dialog */}
-        <Dialog open={logInvoiceDialogOpen} onOpenChange={(open) => {
-          setLogInvoiceDialogOpen(open);
-          if (!open) onClose();
-        }}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Log Invoice Only</DialogTitle>
+        <Dialog open={logInvoiceDialogOpen} onOpenChange={handleDialogClose}>
+          <DialogContent className="max-w-xl h-[80vh] !rounded-none p-0 border-none for-close">
+            <button 
+              onClick={() => handleDialogClose(false)}
+              className="bg-[#381980] text-white absolute right-[-35px] top-0 p-[6px] rounded-full max-sm:hidden"
+            >
+              <X size={16}/>
+            </button>
+            <DialogHeader className="bg-[#381980] sticky z-50 top-0 left-0 w-full text-center">
+              <DialogTitle className="text-center text-white py-4">Log Invoice Only</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 mt-4">
-              {isLoadingInvoice && (
-                <div className="text-sm text-muted-foreground text-center py-2">
-                  Loading invoice...
-                </div>
-              )}
-              {invoiceError && (
-                <div className="text-sm text-red-600 text-center py-2">
-                  Invoice not found
-                </div>
-              )}
-              
-              <div className="space-y-3 p-4 bg-gray-50 rounded-lg">
-                <div className="flex justify-between text-sm">
-                  <span className="font-medium">WIP Amount:</span>
-                  <span className="font-bold">
-                    {wipAmount !== null ? formatCurrency(wipAmount) : 'N/A'}
-                  </span>
-                </div>
-                {fetchedInvoice?.totalLogAmount && (
-                  <div className="flex justify-between text-sm text-muted-foreground">
-                    <span>Total Log Amount:</span>
-                    <span>{formatCurrency(fetchedInvoice.totalLogAmount)}</span>
+
+            <div className="overflow-auto h-full">
+              <form onSubmit={async (e) => { 
+                e.preventDefault(); 
+                await handleLogInvoiceSubmit(); 
+              }} className="space-y-6 form-change">
+                <div className="space-y-4 px-[20px]">
+                  <h3 className="text-lg font-semibold text-gray-800">Invoice Information</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="border rounded-lg p-4 bg-muted/30">
+                      <p className="text-sm text-muted-foreground">Client</p>
+                      <p className="text-lg font-semibold">{invoiceData.clientName}</p>
+                      {invoiceData.jobName && (
+                        <p className="text-sm text-muted-foreground mt-1">Job: {invoiceData.jobName}</p>
+                      )}
+                    </div>
+                    <div className="border rounded-lg p-4 bg-muted/30">
+                      <p className="text-sm text-muted-foreground">WIP Amount</p>
+                      <p className="text-lg font-semibold">{formatCurrency(wipAmountNumber)}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {formattedLogs.length > 0 
+                          ? `Based on current selection (${formattedLogs.length} time logs)`
+                          : hasOpenBalances 
+                            ? 'Based on open balances and/or imported WIP'
+                            : 'Based on imported WIP'}
+                      </p>
+                    </div>
                   </div>
-                )}
-              </div>
-              
-              <div className="space-y-2">
-                <label className="text-sm font-medium block">Invoice Number</label>
-                <Input
-                  value={logInvoiceData.invoiceNumber}
-                  onChange={(e) => setLogInvoiceData(prev => ({ ...prev, invoiceNumber: e.target.value }))}
-                  placeholder="Enter invoice number"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium block">Invoice Date</label>
-                <Input
-                  type="date"
-                  value={logInvoiceData.invoiceDate}
-                  onChange={(e) => setLogInvoiceData(prev => ({ ...prev, invoiceDate: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium block">Invoice Amount</label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={logInvoiceData.invoiceAmount}
-                  onChange={(e) => {
-                    // Allow free editing without validation while typing
-                    setLogInvoiceData(prev => ({ ...prev, invoiceAmount: e.target.value }));
-                  }}
-                  onBlur={(e) => {
-                    // Validate only when user leaves the input field
-                    const value = e.target.value;
-                    const numValue = parseFloat(value);
-                    const totalLogAmount = fetchedInvoice?.totalLogAmount || 0;
-                    const currentWipAmount = wipAmount || 0;
-                    
-                    if (value && !isNaN(numValue)) {
-                      // Option 2: Balance should not exceed Total Log Amount
-                      // Balance = WIP Amount - Invoice Amount
-                      const balance = currentWipAmount - numValue;
-                      
-                      if (numValue < 0) {
-                        toast.error('Invoice amount cannot be negative');
-                        setLogInvoiceData(prev => ({ ...prev, invoiceAmount: '0' }));
-                        return;
-                      }
-                      
-                      if (balance > totalLogAmount) {
-                        const minInvoiceAmount = Math.max(0, currentWipAmount - totalLogAmount);
-                        toast.error(`Balance (${formatCurrency(balance)}) cannot exceed Total Log Amount (${formatCurrency(totalLogAmount)}). Minimum invoice amount: ${formatCurrency(minInvoiceAmount)}`);
-                        // Auto-correct to minimum valid amount
-                        setLogInvoiceData(prev => ({ ...prev, invoiceAmount: minInvoiceAmount.toString() }));
-                        return;
-                      }
-                    }
-                  }}
-                  placeholder="0.00"
-                  min={wipAmount !== null && fetchedInvoice?.totalLogAmount ? Math.max(0, wipAmount - fetchedInvoice.totalLogAmount) : 0}
-                />
-                {fetchedInvoice?.totalLogAmount && wipAmount !== null && (
-                  <p className="text-xs text-muted-foreground">
-                    Minimum: {formatCurrency(Math.max(0, wipAmount - fetchedInvoice.totalLogAmount))} 
-                    (Balance must not exceed {formatCurrency(fetchedInvoice.totalLogAmount)})
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <p className="text-sm text-muted-foreground">Client</p>
+                  <p className="text-lg font-semibold">{invoiceData.clientName}</p>
+                  {invoiceData.jobName && (
+                    <p className="text-sm text-muted-foreground mt-1">Job: {invoiceData.jobName}</p>
+                  )}
+                </div>
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <p className="text-sm text-muted-foreground">WIP Amount</p>
+                  <p className="text-lg font-semibold">{formatCurrency(wipAmountNumber)}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {formattedLogs.length > 0 
+                      ? `Based on current selection (${formattedLogs.length} time logs)`
+                      : hasOpenBalances 
+                        ? 'Based on open balances and/or imported WIP'
+                        : 'Based on imported WIP'}
                   </p>
-                )}
+                </div>
               </div>
-              
-              {logInvoiceData.invoiceAmount && wipAmount !== null && (
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex justify-between text-sm">
-                    <span className="font-medium">Balance:</span>
-                    <span className="font-bold text-blue-800">
-                      {formatCurrency(wipAmount - parseFloat(logInvoiceData.invoiceAmount || '0'))}
-                    </span>
+
+                    <InputComponent
+                      label="Invoice Number *"
+                      id="invoiceNumber"
+                      value={logInvoiceData.invoiceNumber}
+                      onChange={(value) => setLogInvoiceData(prev => ({ ...prev, invoiceNumber: value as string }))}
+                      placeholder="Enter invoice number"
+                      required
+                    />
+                    <InputComponent
+                      label="Invoice Date *"
+                      id="invoiceDate"
+                      type="date"
+                      value={logInvoiceData.invoiceDate}
+                      onChange={(value) => setLogInvoiceData(prev => ({ ...prev, invoiceDate: value as string }))}
+                      required
+                    />
                   </div>
-                  {wipAmount - parseFloat(logInvoiceData.invoiceAmount || '0') > 0 && (
-                     <div className="space-y-3 mt-3">
-                      {/* Apply Write Off Logic button */}
-                      <div className="flex justify-center">
-                        <Button
-                          onClick={() => setWriteOffLogicDialogOpen(true)}
-                          className="bg-orange-600 hover:bg-orange-700 text-white"
-                          size="sm"
+                </div>
+
+                <div className="space-y-4 px-[20px]">
+                  <h3 className="text-lg font-semibold text-gray-800">Amount Details</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <InputComponent
+                      label="Net Amount *"
+                      id="netAmount"
+                      type="number"
+                      value={logInvoiceData.netAmount}
+                      onChange={(value) => setLogInvoiceData(prev => ({ ...prev, netAmount: value as string }))}
+                      placeholder="0.00"
+                      required
+                    />
+                    <InputComponent
+                      label="VAT %"
+                      id="vatPercentage"
+                      type="number"
+                      value={logInvoiceData.vatPercentage}
+                      onChange={(value) => setLogInvoiceData(prev => ({ ...prev, vatPercentage: value as string }))}
+                      placeholder="23"
+                    />
+                    <div>
+                      <Label htmlFor="vatAmount" className="text-sm font-medium">VAT Amount</Label>
+                      <Input
+                        id="vatAmount"
+                        value={formatCurrency(vatAmountNumber)}
+                        readOnly
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="grossAmount" className="text-sm font-medium">Gross Amount</Label>
+                      <Input
+                        id="grossAmount"
+                        value={formatCurrency(grossAmountNumber)}
+                        readOnly
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4 px-[20px]">
+                  <h3 className="text-lg font-semibold text-gray-800">Attachment</h3>
+                  <div className="space-y-2">
+                    <Input
+                      type="file"
+                      accept=".pdf,.png,.jpg,.jpeg"
+                      disabled={isUploadingAttachment}
+                      onChange={(e) => handleAttachmentUpload(e.target.files)}
+                      className="mt-1"
+                    />
+                    {logInvoiceData.attachmentUrl && (
+                      <div className="flex items-center justify-between text-sm mt-2">
+                        <a
+                          href={`${import.meta.env.VITE_BACKEND_BASE_URL || ''}${logInvoiceData.attachmentUrl}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-blue-600 hover:text-blue-800 underline"
                         >
-                          Apply Write Off Logic
+                          View Attachment
+                        </a>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setLogInvoiceData(prev => ({ ...prev, attachmentUrl: '' }))}
+                        >
+                          Remove
                         </Button>
                       </div>
-                    </div>
-                  )}
-                  {wipAmount - parseFloat(logInvoiceData.invoiceAmount || '0') < 0 && (
-                    <div className="mt-3">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => {
-                          console.log('Use Minus Balance As New WIP Balance clicked');
-                        }}
-                      >
-                        Use Minus Balance As New WIP Balance
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              )}
-              <div className="flex justify-end space-x-2 pt-4">
-                <Button variant="outline" onClick={() => {
-                  setLogInvoiceDialogOpen(false);
-                  onClose();
-                }}>
-                  Cancel
-                </Button>
-                <Button 
-                  onClick={handleLogInvoiceSubmit}
-                  disabled={!logInvoiceData.invoiceNumber || !logInvoiceData.invoiceDate || !logInvoiceData.invoiceAmount || !writeOffData || isCreatingWriteOff || isCreatingInvoiceLog}
-                >
-                  {(isCreatingWriteOff || isCreatingInvoiceLog) ? 'Processing...' : 'Log Invoice'}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        {/* WIP Balance Dialog */}
-        <Dialog open={wipBalanceDialogOpen} onOpenChange={(open) => {
-          setWipBalanceDialogOpen(open);
-          if (!open) onClose();
-        }}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>WIP Balance</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 mt-4">
-              <div className="space-y-3 p-4 bg-gray-50 rounded-lg">
-                <div className="flex justify-between text-sm">
-                  <span className="font-medium">WIP Balance Amount:</span>
-                  <span className="font-bold text-lg">
-                    {formatCurrency(invoiceData.amount - parseFloat(logInvoiceData.invoiceAmount || '0'))}
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm text-gray-600">
-                  <span>Client:</span>
-                  <span>{invoiceData.clientName}</span>
-                </div>
-                {invoiceData.jobName && (
-                  <div className="flex justify-between text-sm text-gray-600">
-                    <span>Job:</span>
-                    <span>{invoiceData.jobName}</span>
+                    )}
                   </div>
-                )}
-              </div>
-              <div className="text-sm text-gray-600 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                This balance has been moved to the Write Off Log.
-              </div>
-              <div className="flex justify-end space-x-2 pt-4">
-                <Button onClick={() => {
-                  setWipBalanceDialogOpen(false);
-                  onClose();
-                }}>
-                  Close
-                </Button>
-              </div>
+                </div>
+
+                <div className="space-y-4 px-[20px]">
+                  <h3 className="text-lg font-semibold text-gray-800">Time Logs ({formattedLogs.length})</h3>
+                  <div className="space-y-2">
+                    {isFetchingTimeLogs && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Loading time logs...
+                      </div>
+                    )}
+                    {formattedLogs.length === 0 ? (
+                      <div className="p-4 border rounded text-sm text-muted-foreground">
+                        {hasOpenBalances || hasWipAmount 
+                          ? 'No time logs available, but open balances and/or imported WIP can still be invoiced.'
+                          : 'No pending time logs found for this invoice.'}
+                      </div>
+                    ) : (
+                      <div className="max-h-64 overflow-y-auto border rounded">
+                        <table className="w-full text-sm">
+                          <thead className="bg-muted/50">
+                            <tr>
+                              <th className="text-left p-2">Date</th>
+                              <th className="text-left p-2">Team Member</th>
+                              <th className="text-right p-2">Hours</th>
+                              <th className="text-right p-2">Amount</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {formattedLogs.map((log) => (
+                              <tr key={log.id} className="border-t">
+                                <td className="p-2">{formatDate(log.date)}</td>
+                                <td className="p-2">{log.teamMember}</td>
+                                <td className="p-2 text-right">{log.hours.toFixed(2)}</td>
+                                <td className="p-2 text-right">{formatCurrency(log.amount)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-4 px-[20px]">
+                  <h3 className="text-lg font-semibold text-gray-800">Write Off Summary</h3>
+                  <div className="p-4 border rounded bg-muted/30 space-y-3">
+                    <div className="flex justify-between text-sm">
+                      <span className="font-medium">Invoice Amount</span>
+                      <span className="font-semibold">{formatCurrency(grossAmountNumber)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="font-medium">Balance to Write Off</span>
+                      <span className={`font-semibold ${remainingBalance > 0 ? 'text-red-600' : ''}`}>
+                        {formatCurrency(remainingBalance)}
+                      </span>
+                    </div>
+                    {remainingBalance > 0 && (
+                      <Button
+                        variant="outline"
+                        onClick={() => setWriteOffLogicDialogOpen(true)}
+                        disabled={!hasTimeLogs && !hasOpenBalances && !hasWipAmount}
+                        className="w-full"
+                      >
+                        Apply Write Off Logic
+                      </Button>
+                    )}
+                    {remainingBalance > 0 && writeOffData && (
+                      <p className="text-sm text-green-600">
+                        Write off prepared ({writeOffData.logic === 'manually' ? 'Manual' : 'Proportional'})
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex justify-end space-x-3 pt-6 border-t p-[20px] bg-[#381980]">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => handleDialogClose(false)}
+                    disabled={isLoggingInvoice}
+                    className="rounded-[6px] text-[#017DB9]"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={!canSubmit || isLoggingInvoice}
+                    className="!bg-[#017DB9] rounded-[6px]"
+                  >
+                    {isLoggingInvoice ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      'Log Invoice'
+                    )}
+                  </Button>
+                </div>
+              </form>
             </div>
           </DialogContent>
         </Dialog>
 
-        {/* Write Off Logic Dialog */}
         <WriteOffLogicDialog
           open={writeOffLogicDialogOpen}
-          onOpenChange={(open) => {
-            // Only close if explicitly set to false (when user clicks "Go back and save")
-            // Don't close if user clicks outside or ESC - let onSave handle it
-            if (!open && !writeOffData) {
-              setWriteOffLogicDialogOpen(false);
-            }
-          }}
+          onOpenChange={setWriteOffLogicDialogOpen}
           clientName={invoiceData.clientName}
           jobName={invoiceData.jobName || ''}
-          timeLogs={getTimeLogsForWriteOff()}
-          totalAmount={fetchedInvoice?.totalLogAmount || 0}
-          writeOffBalance={wipAmount !== null ? wipAmount - parseFloat(logInvoiceData.invoiceAmount || '0') : 0}
+          timeLogs={formattedLogs}
+          totalAmount={formattedLogs.reduce((sum, log) => sum + log.amount, 0)}
+          writeOffBalance={remainingBalance}
           invoiceNo={logInvoiceData.invoiceNumber}
           invoiceDate={logInvoiceData.invoiceDate}
           onSave={(data) => {
-            // Store write-off data for later use when clicking "Log Invoice"
             setWriteOffData(data);
-            // Close the write-off dialog and return to Log Invoice Only dialog
             setWriteOffLogicDialogOpen(false);
-            toast.success('Write-off data saved. You can now click "Log Invoice" to complete the process.');
+            toast.success('Write-off data saved. You can now log the invoice.');
           }}
         />
       </>
@@ -622,6 +682,8 @@ export const InvoicePreviewDialog = ({
     const payload = {
       date: (invoiceData.date || new Date().toISOString()).split('T')[0],
       clientId: (invoiceData as any).clientId,
+      jobId: (invoiceData as any).jobId,
+      scope: (invoiceData as any).scope,
       netAmount: Number(invoiceData.amount || 0),
       vatPercentage: Number(vatRate || 0),
       vatAmount: Number((invoiceData.amount || 0) * (vatRate / 100)),
@@ -634,11 +696,13 @@ export const InvoicePreviewDialog = ({
     } as any;
 
     try {
-      const resp: any = await createInvoice(payload).unwrap();
+      const resp: any = await generateInvoice(payload).unwrap();
+      toast.success('Invoice generated successfully');
       onInvoiceCreate?.(resp?.data || payload);
       onClose();
-    } catch (e) {
+    } catch (e: any) {
       console.error('Failed to create invoice', e);
+      toast.error(e?.data?.message || 'Failed to generate invoice');
     }
   };
 
@@ -750,49 +814,11 @@ export const InvoicePreviewDialog = ({
             <FileText className="h-4 w-4 mr-2" />
             Preview PDF
           </Button>
-          <Button onClick={handleCreateInvoice} disabled={isCreating}>
+          <Button onClick={handleCreateInvoice} disabled={isGeneratingInvoice}>
             Generate Invoice
           </Button>
         </DialogFooter>
       </DialogContent>
-
-
-      {/* WIP Balance Dialog */}
-      <Dialog open={wipBalanceDialogOpen} onOpenChange={setWipBalanceDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>WIP Balance</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 mt-4">
-            <div className="space-y-3 p-4 bg-gray-50 rounded-lg">
-              <div className="flex justify-between text-sm">
-                <span className="font-medium">WIP Balance Amount:</span>
-                <span className="font-bold text-lg">
-                  {formatCurrency(totalAmount - parseFloat(logInvoiceData.invoiceAmount || '0'))}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm text-gray-600">
-                <span>Client:</span>
-                <span>{invoiceData.clientName}</span>
-              </div>
-              {invoiceData.jobName && (
-                <div className="flex justify-between text-sm text-gray-600">
-                  <span>Job:</span>
-                  <span>{invoiceData.jobName}</span>
-                </div>
-              )}
-            </div>
-            <div className="text-sm text-gray-600 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              This balance has been moved to the Write Off Log.
-            </div>
-            <div className="flex justify-end space-x-2 pt-4">
-              <Button onClick={() => setWipBalanceDialogOpen(false)}>
-                Close
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </Dialog>
   );
 };
