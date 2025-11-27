@@ -796,7 +796,7 @@ const AllTimeLogsTab = () => {
         <Card className="h-full">
           <CardContent className="p-4">
             <div className="text-2xl font-bold !text-[#381980]">
-              {totalHours.toFixed(1)}
+              {formatHoursToHHMMSS(totalHours)}
             </div>
             <p className="text-sm text-muted-foreground">Total Hours</p>
           </CardContent>
@@ -833,7 +833,7 @@ const AllTimeLogsTab = () => {
 
       {/* View Switcher */}
       <div className="flex  items-center justify-between">
-        <div className="flex items-center gap-3 mt-4 border border-[#381980] w-max p-[6px] rounded-sm pl-4">
+          <div className="flex items-center gap-3 mt-4 border border-[#381980] w-max p-[6px] rounded-sm pl-4">
           <p className='text-[#381980] font-semibold text-[14px]'>Group by:</p>
           <div className="flex gap-2">
             <Button
@@ -853,37 +853,37 @@ const AllTimeLogsTab = () => {
               Client Name
             </Button>
             <Button
-              variant={viewMode === 'teamMembers' ? 'default' : 'outline'}
-              onClick={() => setViewMode('teamMembers')}
-              className='rounded-sm bg-[#E7E5F2] h-7 text-[#381980ac]'
-              size="sm"
-            >
-              Team Name
-            </Button>
-            <Button
-              variant={viewMode === 'jobTypes' ? 'default' : 'outline'}
-              onClick={() => setViewMode('jobTypes')}
-              className='rounded-sm bg-[#E7E5F2] h-7 text-[#381980ac]'
-              size="sm"
-            >
-              Job Types
-            </Button>
-            <Button
-              variant={viewMode === 'jobNames' ? 'default' : 'outline'}
-              onClick={() => setViewMode('jobNames')}
-              className='rounded-sm bg-[#E7E5F2] h-7 text-[#381980ac]'
-              size="sm"
-            >
-              Job Name
-            </Button>
-            <Button
-              variant={viewMode === 'category' ? 'default' : 'outline'}
-              onClick={() => setViewMode('category')}
-              className='rounded-sm bg-[#E7E5F2] h-7 text-[#381980ac]'
-              size="sm"
-            >
-              Time Purpose
-            </Button>
+                variant={viewMode === 'jobTypes' ? 'default' : 'outline'}
+                onClick={() => setViewMode('jobTypes')}
+                className='rounded-sm bg-[#E7E5F2] h-7 text-[#381980ac]'
+                size="sm"
+              >
+                Job Type
+              </Button>
+              <Button
+                variant={viewMode === 'teamMembers' ? 'default' : 'outline'}
+                onClick={() => setViewMode('teamMembers')}
+                className='rounded-sm bg-[#E7E5F2] h-7 text-[#381980ac]'
+                size="sm"
+              >
+                Team Name
+              </Button>
+              <Button
+                variant={viewMode === 'jobNames' ? 'default' : 'outline'}
+                onClick={() => setViewMode('jobNames')}
+                className='rounded-sm bg-[#E7E5F2] h-7 text-[#381980ac]'
+                size="sm"
+              >
+                Job Name
+              </Button>
+              <Button
+                variant={viewMode === 'category' ? 'default' : 'outline'}
+                onClick={() => setViewMode('category')}
+                className='rounded-sm bg-[#E7E5F2] h-7 text-[#381980ac]'
+                size="sm"
+              >
+                Time Purpose
+              </Button>
           </div>
 
         </div>
@@ -1059,7 +1059,7 @@ const AllTimeLogsTab = () => {
             <Popover>
               <PopoverTrigger asChild>
                 <button className={`w-24 h-10 ${purposeFilterActive ? 'bg-gray-200 border-black' : 'bg-white border-input'} text-[#381980] font-semibold rounded-md border px-3 flex items-center justify-between`}>
-                  <span className="truncate text-[14px]">Purpose</span>
+                  <span className="truncate text-[14px]">Time Purpose</span>
                   <ChevronDown className="w-4 h-4" />
                 </button>
               </PopoverTrigger>
@@ -1566,7 +1566,7 @@ const AllTimeLogsTab = () => {
                                         );
                                         break;
                                       case 'description':
-                                        cellContent = log.description;
+                                        cellContent = log.description || 'N/A';
                                         break;
                                       case 'timePurpose':
                                         cellContent = (
@@ -1683,7 +1683,7 @@ const AllTimeLogsTab = () => {
                                         );
                                         break;
                                       case 'description':
-                                        cellContent = log.description;
+                                        cellContent = log.description || 'N/A';
                                         break;
                                       case 'timePurpose':
                                         cellContent = (

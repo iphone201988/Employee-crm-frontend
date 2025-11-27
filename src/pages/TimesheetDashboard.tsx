@@ -469,12 +469,11 @@ export function TimesheetDashboard() {
       const department = t?.user?.departmentId ? (departmentMap[t.user.departmentId] || '') : '';
       const capacitySec = Number(t?.totalCapacity || 0);
       const loggedSec = Number(t?.totalLogged || 0);
-      const varianceSec = Math.max(0, capacitySec - loggedSec);
+      const varianceSec = loggedSec - capacitySec;
+      const isAutoApproved = /auto\s*approved/i.test(t?.submissionStatus || '');
       const status = normalizeSubmissionStatus(t?.submissionStatus);
       const raw = t?.submissionStatus || '';
-      const displayStatus = /auto\s*approved/i.test(raw)
-        ? 'Auto Approved'
-        : /approved/i.test(raw)
+      const displayStatus = /approved/i.test(raw)
           ? 'Approved'
           : /review/i.test(raw)
             ? 'For Review'
@@ -499,6 +498,9 @@ export function TimesheetDashboard() {
         varianceSec,
         status,
         displayStatus,
+        approvalType: status === 'approved'
+          ? (isAutoApproved ? 'Auto' : 'Manual')
+          : '-',
         notes: Number(t?.notesCount || (Array.isArray(t?.notes) ? t.notes.length : 0)),
         notesData: Array.isArray(t?.notes) ? t.notes : [],
         submitted: submittedDisplay,
@@ -517,14 +519,12 @@ export function TimesheetDashboard() {
     const approved = apiSummary?.approved ?? tableData.filter(i => i.status === 'approved').length;
     const review = apiSummary?.forReview ?? tableData.filter(i => i.status === 'review').length;
     const rejected = apiSummary?.rejected ?? tableData.filter(i => i.status === 'rejected').length;
-    const autoApproved = apiSummary?.autoApproved ?? tableData.filter(i => /auto approved/i.test(i.displayStatus || '')).length;
     const notSubmitted = apiSummary?.draft ?? tableData.filter(i => i.status === 'not-submitted').length;
     return {
       total,
       approved,
       review,
       rejected,
-      autoApproved,
       allTimesheets: total,
       notSubmitted
     } as const;
@@ -819,14 +819,6 @@ export function TimesheetDashboard() {
         <Card className="h-full">
           <CardContent className="p-4">
             <div className="text-2xl font-bold !text-[#381980]">
-              {statusCounts.autoApproved}
-            </div>
-            <p className="text-sm text-muted-foreground">Auto-Approved</p>
-          </CardContent>
-        </Card>
-        <Card className="h-full">
-          <CardContent className="p-4">
-            <div className="text-2xl font-bold !text-[#381980]">
               {statusCounts.approved}
             </div>
             <p className="text-sm text-muted-foreground">Approved</p>
@@ -877,48 +869,33 @@ export function TimesheetDashboard() {
           >
             Not Submitted
           </button> */}
-          {autoApproveTimesheets && (
-            <button
-              onClick={() => setActiveFilter("autoApproved")}
-              className={`px-4 py-2 text-sm font-medium transition-colors  ${activeFilter === "autoApproved"
-                ? 'bg-[#381980] text-white'
-                : 'bg-transparent text-[#71717A] '
-                }`}
-            >
-              Auto-Approve ({statusCounts.autoApproved || 0})
-            </button>
-          )}
-          {!autoApproveTimesheets && (
-            <>
-              <button
-                onClick={() => setActiveFilter("review")}
-                className={`px-4 py-2 text-sm font-medium transition-colors  ${activeFilter === "review"
-                  ? 'bg-[#381980] text-white'
-                  : 'bg-transparent text-[#71717A] '
-                  }`}
-              >
-                For Review ({statusCounts.review || 0})
-              </button>
-              <button
-                onClick={() => setActiveFilter("rejected")}
-                className={`px-4 py-2 text-sm font-medium transition-colors  ${activeFilter === "rejected"
-                  ? 'bg-[#381980] text-white'
-                  : 'bg-transparent text-[#71717A] '
-                  }`}
-              >
-                Rejected ({statusCounts.rejected || 0})
-              </button>
-              <button
-                onClick={() => setActiveFilter("approved")}
-                className={`px-4 py-2 text-sm font-medium transition-colors  ${activeFilter === "approved"
-                  ? 'bg-[#381980] text-white rounded-r-full'
-                  : 'bg-transparent text-[#71717A] '
-                  }`}
-              >
-                Approved ({statusCounts.approved || 0})
-              </button>
-            </>
-          )}
+          <button
+            onClick={() => setActiveFilter("review")}
+            className={`px-4 py-2 text-sm font-medium transition-colors  ${activeFilter === "review"
+              ? 'bg-[#381980] text-white'
+              : 'bg-transparent text-[#71717A] '
+              }`}
+          >
+            For Review ({statusCounts.review || 0})
+          </button>
+          <button
+            onClick={() => setActiveFilter("rejected")}
+            className={`px-4 py-2 text-sm font-medium transition-colors  ${activeFilter === "rejected"
+              ? 'bg-[#381980] text-white'
+              : 'bg-transparent text-[#71717A] '
+              }`}
+          >
+            Rejected ({statusCounts.rejected || 0})
+          </button>
+          <button
+            onClick={() => setActiveFilter("approved")}
+            className={`px-4 py-2 text-sm font-medium transition-colors  ${activeFilter === "approved"
+              ? 'bg-[#381980] text-white rounded-r-full'
+              : 'bg-transparent text-[#71717A] '
+              }`}
+          >
+            Approved ({statusCounts.approved || 0})
+          </button>
         </div>
       </div>
     </div>}
@@ -1125,7 +1102,8 @@ export function TimesheetDashboard() {
                       {getSortIcon('variance')}
                     </button>
                   </TableHead>
-                  <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">STATUS</TableHead>
+          <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">STATUS</TableHead>
+          <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">APPROVAL TYPE</TableHead>
                   <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">NOTES</TableHead>
                   <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">
                     <button className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleSort('submitted')}>
@@ -1177,9 +1155,16 @@ export function TimesheetDashboard() {
                     <TableCell className="p-4 text-sm text-foreground">{formatSeconds(item.loggedSec)}</TableCell>
                     <TableCell className="p-4 text-sm text-foreground">{formatVariance(item.varianceSec)}</TableCell>
                     <TableCell className="p-4">
-                      <StatusBadge status={item.status}>
-                        {item.displayStatus}
-                      </StatusBadge>
+                      {item.status === 'not-submitted' ? (
+                        <span className="text-sm text-muted-foreground">—</span>
+                      ) : (
+                        <StatusBadge status={item.status}>
+                          {item.displayStatus}
+                        </StatusBadge>
+                      )}
+                    </TableCell>
+                    <TableCell className="p-4 text-sm text-muted-foreground">
+                      {item.approvalType || '-'}
                     </TableCell>
                     <TableCell className="p-4 text-sm text-muted-foreground">
                       <div className="flex w-full justify-left">
@@ -1209,7 +1194,7 @@ export function TimesheetDashboard() {
                           <span className="hidden sm:inline">View Timesheet</span>
                           <span className="sm:hidden">View</span>
                         </Button>
-                        {item.status === "not-submitted" && <Button variant="outline" size="sm" className="text-xs">Remind</Button>}
+                        {/* {item.status === "not-submitted" && <Button variant="outline" size="sm" className="text-xs">Remind</Button>} */}
                       </div>
                     </TableCell>
                   </TableRow>

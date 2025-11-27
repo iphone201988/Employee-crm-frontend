@@ -37,6 +37,7 @@ interface TimeLogsBreakdownDialogProps {
   timeLogs: TimeLogEntry[];
   totalAmount: number;
   importedWipBalance?: number;
+  importedWipDate?: string | null;
   openBalanceSections?: OpenBalanceSection[];
 }
 
@@ -70,6 +71,7 @@ const TimeLogsBreakdownDialog = ({
   timeLogs,
   totalAmount,
   importedWipBalance = 0,
+  importedWipDate = null,
   openBalanceSections = []
 }: TimeLogsBreakdownDialogProps) => {
   const [expandedMembers, setExpandedMembers] = useState<Set<string>>(new Set());
@@ -339,7 +341,7 @@ const TimeLogsBreakdownDialog = ({
                 <tbody>
                   <tr className="bg-blue-50 border-t-2 border-blue-200">
                     <td className="p-3 font-bold text-blue-900">Imported WIP</td>
-                    <td className="p-3 text-center">-</td>
+                    <td className="p-3 text-center">{formatDateString(importedWipDate || undefined) || '-'}</td>
                     <td className="p-3 text-center">-</td>
                     <td className="p-3 text-center">-</td>
                     <td className="p-3 text-center font-bold text-blue-900">{formatCurrency(importedWipBalance)}</td>

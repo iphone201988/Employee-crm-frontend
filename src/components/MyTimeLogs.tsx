@@ -491,7 +491,6 @@ const MyTimeLogs = () => {
 
     return grouped;
   }, [filteredTimeLogs, viewMode]);
-  console.log("grouped============fdgdfgdfg", groupedLogs);
 
   // Calculate totals
   const totalHours = apiSummary?.totalHours ? (apiSummary.totalHours / 3600) : filteredTimeLogs.reduce((sum, log) => sum + log.hours, 0);
@@ -809,7 +808,7 @@ const MyTimeLogs = () => {
         <Card className="h-full">
           <CardContent className="p-4">
             <div className="text-2xl font-bold !text-[#381980]">
-              {totalHours.toFixed(1)}
+              {formatHoursToHHMMSS(totalHours)}
             </div>
             <p className="text-sm text-muted-foreground">Total Hours</p>
           </CardContent>
@@ -865,20 +864,20 @@ const MyTimeLogs = () => {
               Client Name
             </Button>
             <Button
+              variant={viewMode === 'jobTypes' ? 'default' : 'outline'}
+              onClick={() => setViewMode('jobTypes')}
+              className='rounded-sm bg-[#E7E5F2] h-7 text-[#381980ac]'
+              size="sm"
+            >
+              Job Type
+            </Button>
+            <Button
               variant={viewMode === 'teamMembers' ? 'default' : 'outline'}
               onClick={() => setViewMode('teamMembers')}
               className='rounded-sm bg-[#E7E5F2] h-7 text-[#381980ac]'
               size="sm"
             >
               Team Name
-            </Button>
-            <Button
-              variant={viewMode === 'jobTypes' ? 'default' : 'outline'}
-              onClick={() => setViewMode('jobTypes')}
-              className='rounded-sm bg-[#E7E5F2] h-7 text-[#381980ac]'
-              size="sm"
-            >
-              Job Types
             </Button>
             <Button
               variant={viewMode === 'jobNames' ? 'default' : 'outline'}
@@ -894,7 +893,7 @@ const MyTimeLogs = () => {
               className='rounded-sm bg-[#E7E5F2] h-7 text-[#381980ac]'
               size="sm"
             >
-              Time purpose
+              Time Purpose
             </Button>
           </div>
 
@@ -1032,7 +1031,7 @@ const MyTimeLogs = () => {
             <Popover>
               <PopoverTrigger asChild>
                 <button className={`w-24 h-10 ${purposeFilterActive ? 'bg-gray-200 border-black' : 'bg-white border-input'} text-[#381980] font-semibold rounded-md border px-3 flex items-center justify-between`}>
-                  <span className="truncate text-[14px]">Purpose</span>
+                  <span className="truncate text-[14px]">Time Purpose</span>
                   <ChevronDown className="w-4 h-4" />
                 </button>
               </PopoverTrigger>
@@ -1529,7 +1528,7 @@ const MyTimeLogs = () => {
                                       );
                                       break;
                                       case 'description':
-                                        cellContent = log.description;
+                                        cellContent = log.description || 'N/A';
                                         break;
                                     case 'timePurpose':
                                       cellContent = (
@@ -1642,7 +1641,7 @@ const MyTimeLogs = () => {
                                       );
                                       break;
                                     case 'description':
-                                      cellContent = log.description;
+                                      cellContent = log.description || 'N/A';
                                       break;
                                     case 'timePurpose':
                                       cellContent = (

@@ -13,6 +13,7 @@ export interface TimeEntry {
   clientId: string;
   timesheetId: string;
   jobId: string;
+  jobTypeId?: string;
   companyId: string;
   createdAt: string;
   description: string;
@@ -68,6 +69,7 @@ export interface DropdownOptionals {
   jobCategories: Array<{
     _id: string;
     name: string;
+    rate: number | null; // null means use default billableRate
   }>;
   timeCategories: Array<{
     _id: string;

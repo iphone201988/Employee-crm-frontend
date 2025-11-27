@@ -119,6 +119,7 @@ export const convertTimeEntriesToRows = (
   timeEntries: TimeEntry[],
   clients: Array<{ _id: string; name: string; clientRef: string }>,
   jobs: Array<{ _id: string; name: string; clientId: string }>,
+  jobTypes: Array<{ _id: string; name: string; rate?: number | null }>,
   jobCategories: Array<{ _id: string; name: string }>
 ): Array<{
   id: string;
@@ -127,6 +128,8 @@ export const convertTimeEntriesToRows = (
   clientId: string;
   job: string;
   jobId: string;
+  jobType: string;
+  jobTypeId: string;
   category: string;
   description: string;
   billable: boolean;
@@ -144,6 +147,15 @@ export const convertTimeEntriesToRows = (
   return timeEntries.map((entry) => {
     const client = clients.find(c => c._id === entry.clientId);
     const job = jobs.find(j => j._id === entry.jobId);
+    
+    // Get jobTypeId from entry or from first log
+    const jobTypeIdFromEntry = entry.jobTypeId;
+    const jobTypeIdFromLogs = entry.logs && entry.logs.length > 0 && (entry.logs[0] as any).jobTypeId 
+      ? (entry.logs[0] as any).jobTypeId 
+      : undefined;
+    const jobTypeId = jobTypeIdFromEntry || jobTypeIdFromLogs;
+    
+    const jobType = jobTypeId ? jobTypes.find(jt => jt._id === jobTypeId) : undefined;
     const category = jobCategories.find(c => c._id === entry.timeCategoryId);
     
     // Initialize hours for each day
@@ -174,6 +186,18 @@ export const convertTimeEntriesToRows = (
       }
     });
     
+    // Determine the rate: use entry rate if available, otherwise use jobType rate, otherwise use 0
+    let displayRate = '';
+    if (entry.isbillable) {
+      if (entry.rate !== undefined && entry.rate !== null) {
+        displayRate = entry.rate.toFixed(2);
+      } else if (jobType?.rate !== null && jobType?.rate !== undefined) {
+        displayRate = jobType.rate.toFixed(2);
+      } else {
+        displayRate = '0.00';
+      }
+    }
+    
     return {
       id: entry._id,
       ref: client?.clientRef || 'N/A',
@@ -181,10 +205,12 @@ export const convertTimeEntriesToRows = (
       clientId: entry.clientId,
       job: job?.name || 'Unknown Job',
       jobId: entry.jobId,
+      jobType: jobType?.name || '',
+      jobTypeId: jobTypeId || '',
       category: category?.name || 'Unknown Category',
       description: entry.description || '',
       billable: entry.isbillable,
-      rate: entry.isbillable ? (entry.rate?.toFixed(2) || '0.00') : '',
+      rate: displayRate,
       hours,
     };
   });
@@ -253,6 +279,8 @@ export const convertRowsToTimeEntries = (
     clientId: string;
     job: string;
     jobId: string;
+    jobType: string;
+    jobTypeId: string;
     category: string;
     description: string;
     billable: boolean;
@@ -269,6 +297,7 @@ export const convertRowsToTimeEntries = (
   }>,
   clients: Array<{ _id: string; name: string }>,
   jobs: Array<{ _id: string; name: string }>,
+  jobTypes: Array<{ _id: string; name: string; rate?: number | null }>,
   jobCategories: Array<{ _id: string; name: string }>,
   weekStart: string,
   defaultRate = 0
@@ -276,6 +305,7 @@ export const convertRowsToTimeEntries = (
   _id?: string;
   clientId: string;
   jobId: string;
+  jobTypeId?: string;
   timeCategoryId: string;
   description: string;
   isbillable: boolean;
@@ -283,6 +313,7 @@ export const convertRowsToTimeEntries = (
   logs: Array<{
     date: string;
     duration: number;
+    jobTypeId?: string;
   }>;
 }> => {
   const weekStartDate = new Date(weekStart);
@@ -291,9 +322,10 @@ export const convertRowsToTimeEntries = (
     // Use the stored IDs if available, otherwise fallback to name lookup
     const client = clients.find(c => c._id === row.clientId) || clients.find(c => c.name === row.client);
     const job = jobs.find(j => j._id === row.jobId) || jobs.find(j => j.name === row.job);
+    const jobType = jobTypes.find(jt => jt._id === row.jobTypeId) || jobTypes.find(jt => jt.name === row.jobType);
     const category = jobCategories.find(c => c.name === row.category);
     
-    const logs: Array<{ date: string; duration: number }> = [];
+    const logs: Array<{ date: string; duration: number; jobTypeId?: string }> = [];
     const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
     
     days.forEach((day, index) => {
@@ -304,17 +336,29 @@ export const convertRowsToTimeEntries = (
         logs.push({
           date: logDate.toISOString(),
           duration: hoursToSeconds(hours), // Convert hours to seconds
+          jobTypeId: jobType?._id || row.jobTypeId || undefined,
         });
       }
     });
     
-    const parsedRate = parseFloat(row.rate ?? '');
-    const normalizedRate = !isNaN(parsedRate) ? parsedRate : defaultRate;
+    // Calculate rate: prefer row.rate if set, otherwise use jobType rate, otherwise use defaultRate
+    let normalizedRate = defaultRate;
+    if (row.billable) {
+      const parsedRate = parseFloat(row.rate ?? '');
+      if (!isNaN(parsedRate) && parsedRate > 0) {
+        normalizedRate = parsedRate;
+      } else if (jobType?.rate !== null && jobType?.rate !== undefined) {
+        normalizedRate = jobType.rate;
+      } else {
+        normalizedRate = defaultRate;
+      }
+    }
 
     return {
       _id: row.id.startsWith('temp-') ? undefined : row.id,
       clientId: client?._id || '',
       jobId: job?._id || '',
+      jobTypeId: jobType?._id || row.jobTypeId || undefined,
       timeCategoryId: category?._id || '',
       description: row.description,
       isbillable: row.billable,

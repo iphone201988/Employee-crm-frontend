@@ -340,7 +340,7 @@ export const InvoicePreviewDialog = ({
     return (
       <>
         <Dialog open={logInvoiceDialogOpen} onOpenChange={handleDialogClose}>
-          <DialogContent className="max-w-xl h-[80vh] !rounded-none p-0 border-none for-close">
+          <DialogContent className="max-w-2xl h-[80vh] !rounded-none p-0 border-none for-close">
             <button 
               onClick={() => handleDialogClose(false)}
               className="bg-[#381980] text-white absolute right-[-35px] top-0 p-[6px] rounded-full max-sm:hidden"
@@ -360,7 +360,7 @@ export const InvoicePreviewDialog = ({
                   <h3 className="text-lg font-semibold text-gray-800">Invoice Information</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="border rounded-lg p-4 bg-muted/30">
-                      <p className="text-sm text-muted-foreground">Client</p>
+                      <p className="text-sm text-muted-foreground">Client Name</p>
                       <p className="text-lg font-semibold">{invoiceData.clientName}</p>
                       {invoiceData.jobName && (
                         <p className="text-sm text-muted-foreground mt-1">Job: {invoiceData.jobName}</p>
@@ -369,39 +369,11 @@ export const InvoicePreviewDialog = ({
                     <div className="border rounded-lg p-4 bg-muted/30">
                       <p className="text-sm text-muted-foreground">WIP Amount</p>
                       <p className="text-lg font-semibold">{formatCurrency(wipAmountNumber)}</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {formattedLogs.length > 0 
-                          ? `Based on current selection (${formattedLogs.length} time logs)`
-                          : hasOpenBalances 
-                            ? 'Based on open balances and/or imported WIP'
-                            : 'Based on imported WIP'}
-                      </p>
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="border rounded-lg p-4 bg-muted/30">
-                  <p className="text-sm text-muted-foreground">Client</p>
-                  <p className="text-lg font-semibold">{invoiceData.clientName}</p>
-                  {invoiceData.jobName && (
-                    <p className="text-sm text-muted-foreground mt-1">Job: {invoiceData.jobName}</p>
-                  )}
-                </div>
-                <div className="border rounded-lg p-4 bg-muted/30">
-                  <p className="text-sm text-muted-foreground">WIP Amount</p>
-                  <p className="text-lg font-semibold">{formatCurrency(wipAmountNumber)}</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {formattedLogs.length > 0 
-                      ? `Based on current selection (${formattedLogs.length} time logs)`
-                      : hasOpenBalances 
-                        ? 'Based on open balances and/or imported WIP'
-                        : 'Based on imported WIP'}
-                  </p>
-                </div>
-              </div>
-
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <InputComponent
-                      label="Invoice Number *"
+                      label="Invoice No."
                       id="invoiceNumber"
                       value={logInvoiceData.invoiceNumber}
                       onChange={(value) => setLogInvoiceData(prev => ({ ...prev, invoiceNumber: value as string }))}
@@ -409,7 +381,7 @@ export const InvoicePreviewDialog = ({
                       required
                     />
                     <InputComponent
-                      label="Invoice Date *"
+                      label="Invoice Date"
                       id="invoiceDate"
                       type="date"
                       value={logInvoiceData.invoiceDate}
@@ -423,7 +395,7 @@ export const InvoicePreviewDialog = ({
                   <h3 className="text-lg font-semibold text-gray-800">Amount Details</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <InputComponent
-                      label="Net Amount *"
+                      label="Net Amount"
                       id="netAmount"
                       type="number"
                       value={logInvoiceData.netAmount}
@@ -439,6 +411,8 @@ export const InvoicePreviewDialog = ({
                       onChange={(value) => setLogInvoiceData(prev => ({ ...prev, vatPercentage: value as string }))}
                       placeholder="23"
                     />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="vatAmount" className="text-sm font-medium">VAT Amount</Label>
                       <Input
@@ -461,7 +435,7 @@ export const InvoicePreviewDialog = ({
                 </div>
 
                 <div className="space-y-4 px-[20px]">
-                  <h3 className="text-lg font-semibold text-gray-800">Attachment</h3>
+                  <h3 className="text-lg font-semibold text-gray-800">Attach Invoice</h3>
                   <div className="space-y-2">
                     <Input
                       type="file"
@@ -493,44 +467,17 @@ export const InvoicePreviewDialog = ({
                 </div>
 
                 <div className="space-y-4 px-[20px]">
-                  <h3 className="text-lg font-semibold text-gray-800">Time Logs ({formattedLogs.length})</h3>
-                  <div className="space-y-2">
+                  <h3 className="text-lg font-semibold text-gray-800">WIP Summary</h3>
+                  <div className="p-4 border rounded bg-muted/30 space-y-2 text-sm">
                     {isFetchingTimeLogs && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Loading time logs...
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" /> Updating WIP data...
                       </div>
                     )}
-                    {formattedLogs.length === 0 ? (
-                      <div className="p-4 border rounded text-sm text-muted-foreground">
-                        {hasOpenBalances || hasWipAmount 
-                          ? 'No time logs available, but open balances and/or imported WIP can still be invoiced.'
-                          : 'No pending time logs found for this invoice.'}
-                      </div>
-                    ) : (
-                      <div className="max-h-64 overflow-y-auto border rounded">
-                        <table className="w-full text-sm">
-                          <thead className="bg-muted/50">
-                            <tr>
-                              <th className="text-left p-2">Date</th>
-                              <th className="text-left p-2">Team Member</th>
-                              <th className="text-right p-2">Hours</th>
-                              <th className="text-right p-2">Amount</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {formattedLogs.map((log) => (
-                              <tr key={log.id} className="border-t">
-                                <td className="p-2">{formatDate(log.date)}</td>
-                                <td className="p-2">{log.teamMember}</td>
-                                <td className="p-2 text-right">{log.hours.toFixed(2)}</td>
-                                <td className="p-2 text-right">{formatCurrency(log.amount)}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
+                    <div className="flex justify-between">
+                      <span>Total WIP</span>
+                      <span className="font-semibold">{formatCurrency(wipAmountNumber)}</span>
+                    </div>
                   </div>
                 </div>
 
@@ -538,8 +485,8 @@ export const InvoicePreviewDialog = ({
                   <h3 className="text-lg font-semibold text-gray-800">Write Off Summary</h3>
                   <div className="p-4 border rounded bg-muted/30 space-y-3">
                     <div className="flex justify-between text-sm">
-                      <span className="font-medium">Invoice Amount</span>
-                      <span className="font-semibold">{formatCurrency(grossAmountNumber)}</span>
+                      <span className="font-medium">Net Amount</span>
+                      <span className="font-semibold">{formatCurrency(netAmountNumber)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="font-medium">Balance to Write Off</span>

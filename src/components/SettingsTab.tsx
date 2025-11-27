@@ -18,6 +18,57 @@ import { usePermissionTabs } from '@/hooks/usePermissionTabs';
 import { useImportClientsMutation } from '@/store/clientApi';
 import * as XLSX from 'xlsx';
 
+const formatExcelDateValue = (value: any): string => {
+  if (value === undefined || value === null || value === '') {
+    return '-';
+  }
+
+  const excelSerialToDate = (serial: number) => {
+    const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+    const ms = serial * 86400000;
+    return new Date(excelEpoch.getTime() + ms);
+  };
+
+  let date: Date | null = null;
+
+  if (value instanceof Date) {
+    date = value;
+  } else if (typeof value === 'number' && !isNaN(value)) {
+    date = excelSerialToDate(value);
+  } else if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return '-';
+    }
+
+    const match = trimmed.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+    if (match) {
+      const day = parseInt(match[1], 10);
+      const month = parseInt(match[2], 10) - 1;
+      let year = parseInt(match[3], 10);
+      if (year < 100) {
+        year += year >= 70 ? 1900 : 2000;
+      }
+      date = new Date(Date.UTC(year, month, day));
+    } else {
+      const parsed = new Date(trimmed);
+      if (!isNaN(parsed.getTime())) {
+        date = parsed;
+      }
+    }
+  }
+
+  if (!date || isNaN(date.getTime())) {
+    return '-';
+  }
+
+  return date.toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+};
+
 
 
 interface SettingsTabProps {
@@ -576,6 +627,7 @@ const SettingsTab = ({
                             <TableHead>Client Ref</TableHead>
                             <TableHead>Business Type</TableHead>
                             <TableHead>Tax Number</TableHead>
+                            <TableHead>Onboarded Date</TableHead>
                             <TableHead>Status</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -587,6 +639,13 @@ const SettingsTab = ({
                               <TableCell>{row['CLIENT REF.'] || row['CLIENT REF'] || '-'}</TableCell>
                               <TableCell>{row['BUSINESS TYPE'] || '-'}</TableCell>
                               <TableCell>{row['TAX/PPS NO.'] || row['TAX/PPS NO'] || '-'}</TableCell>
+                              <TableCell>
+                                {formatExcelDateValue(
+                                  row['ONBOARDED DATE'] ??
+                                  row['ONBOARDING DATE'] ??
+                                  row['ONBOARD DATE']
+                                )}
+                              </TableCell>
                               <TableCell>{row['CLIENT STATUS'] || 'Current'}</TableCell>
                             </TableRow>
                           ))}

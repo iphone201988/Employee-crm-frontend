@@ -79,7 +79,7 @@ export const wipApi = createApi({
         return { url: `/wip/aged-debtors${qs ? `?${qs}` : ''}` };
       },
     }),
-    addWipOpenBalance: builder.mutation<any, { type: 'client' | 'job'; amount: number; clientId?: string; jobId?: string }>({
+    addWipOpenBalance: builder.mutation<any, { type: 'client' | 'job'; amount: number; clientId?: string; jobId?: string; date?: string }>({
       query: (payload) => ({
         url: '/wip/open-balance',
         method: 'POST',

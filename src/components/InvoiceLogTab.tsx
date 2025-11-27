@@ -39,6 +39,16 @@ interface InvoiceLogTabProps {
   invoiceEntries: InvoiceEntry[];
 }
 
+const formatDateDMY = (value: string | Date) => {
+  const date = new Date(value);
+  if (isNaN(date.getTime())) return '-';
+  return date.toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+};
+
 const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceEntry | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -915,8 +925,8 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
                         Balance {getSortIcon('balance')}
                       </Button>
                     </TableHead>
-                    <TableHead className="border-r p-3 font-medium text-foreground h-12 !text-[#381980] text-[12px]">Invoice Age</TableHead>
-                    <TableHead className="border-r p-3 font-medium text-foreground h-12 !text-[#381980] text-[12px]">Time Logs</TableHead>
+                    {/* <TableHead className="border-r p-3 font-medium text-foreground h-12 !text-[#381980] text-[12px]">Invoice Age</TableHead>
+                    <TableHead className="border-r p-3 font-medium text-foreground h-12 !text-[#381980] text-[12px]">Time Logs</TableHead> */}
                     <TableHead className="border-r p-3 font-medium text-foreground h-12 !text-[#381980] text-[12px]">Actions</TableHead>
                     <TableHead className="p-3 font-medium text-foreground h-12">
                       <Button
@@ -930,64 +940,73 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredEntries.map((entry) => (
-                    <TableRow key={entry.id}>
-                      <TableCell className="font-medium border-r">{entry.invoiceNumber}</TableCell>
-                      <TableCell className="border-r">{formatDate(entry.invoiceDate)}</TableCell>
-                      <TableCell className="border-r">{(entry as any).clientRef || '-'}</TableCell>
-                      <TableCell className="border-r">
-                        <ClientNameLink 
-                        className='text-[#71717a] underline-text'
-                          clientName={entry.clientName}
-                          ciientId={(entry as any)?._raw?.clientId || (entry as any)?._raw?.client?._id}
-                        />
-                      </TableCell>
-                      <TableCell className="border-r">{formatCurrency(((entry as any)._raw?.netAmount) ?? (entry.invoiceTotal))}</TableCell>
-                      <TableCell className="border-r">{formatCurrency(((entry as any)._raw?.vatAmount) ?? 0)}</TableCell>
-                      <TableCell className="border-r">{formatCurrency(entry.invoiceTotal)}</TableCell>
-                      <TableCell className="border-r">
-                        <span className={`font-medium ${entry.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                          {formatCurrency(entry.balance)}
-                        </span>
-                      </TableCell>
-                      <TableCell className="border-r text-sm text-muted-foreground">
-                        {getInvoiceAge(entry.invoiceDate)}
-                      </TableCell>
-                      <TableCell className="border-r text-center">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleTimeLogsClick(entry)}
-                          className="text-blue-600 hover:text-blue-800 font-medium"
-                        >
-                          {entry.timeLogCount || 0}
-                        </Button>
-                      </TableCell>
-                      <TableCell className="border-r">
-                        <div className="flex items-center gap-2">
+                  {filteredEntries.map((entry) => {
+                    const rawEntry = (entry as any)?._raw;
+                    const isLogOnlyInvoice = rawEntry?.source === 'manual';
+                    const statusValue = rawEntry?.status === 'partPaid'
+                      ? 'part paid'
+                      : rawEntry?.status || entry.status;
+                    return (
+                      <TableRow key={entry.id}>
+                        <TableCell className="font-medium border-r">{entry.invoiceNumber}</TableCell>
+                        <TableCell className="border-r">{formatDateDMY(entry.invoiceDate)}</TableCell>
+                        <TableCell className="border-r">{(entry as any).clientRef || '-'}</TableCell>
+                        <TableCell className="border-r">
+                          <ClientNameLink 
+                          className='text-[#71717a] underline-text'
+                            clientName={entry.clientName}
+                            ciientId={rawEntry?.clientId || rawEntry?.client?._id}
+                          />
+                        </TableCell>
+                        <TableCell className="border-r">{formatCurrency(rawEntry?.netAmount ?? entry.invoiceTotal)}</TableCell>
+                        <TableCell className="border-r">{formatCurrency(rawEntry?.vatAmount ?? 0)}</TableCell>
+                        <TableCell className="border-r">{formatCurrency(entry.invoiceTotal)}</TableCell>
+                        <TableCell className="border-r">
+                          <span className={`font-medium ${entry.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                            {formatCurrency(entry.balance)}
+                          </span>
+                        </TableCell>
+                        {/* <TableCell className="border-r text-sm text-muted-foreground">
+                          {getInvoiceAge(entry.invoiceDate)}
+                        </TableCell>
+                        <TableCell className="border-r text-center">
                           <Button
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
-                            onClick={() => handleViewInvoice(entry)}
-                            className="text-xs"
+                            onClick={() => handleTimeLogsClick(entry)}
+                            className="text-blue-600 hover:text-blue-800 font-medium"
                           >
-                            View Invoice
+                            {entry.timeLogCount || 0}
                           </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handlePaymentLog(entry)}
-                            className="text-xs"
-                          >
-                            Invoice Log
-                          </Button>
-                        </div>
-                      </TableCell>
-                      <TableCell className="p-4 text-left">
-                        {getStatusBadge((((displayEntries.find(e => e.id === entry.id) as any)?._raw?.status) === 'partPaid') ? 'part paid' : (((displayEntries.find(e => e.id === entry.id) as any)?._raw?.status) || entry.status))}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                        </TableCell> */}
+                        <TableCell className="border-r">
+                          <div className="flex items-center gap-2">
+                            {!isLogOnlyInvoice && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleViewInvoice(entry)}
+                                className="text-xs"
+                              >
+                                View Invoice
+                              </Button>
+                            )}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handlePaymentLog(entry)}
+                              className="text-xs"
+                            >
+                              Invoice Log
+                            </Button>
+                          </div>
+                        </TableCell>
+                        <TableCell className="p-4 text-left">
+                          {getStatusBadge(statusValue as any)}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -1063,7 +1082,7 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
                                 {log.action === 'generated' ? 'Invoice Generated' : (log.action === 'partialPayment' || log.action === 'payment') ? 'Part Payment Received' : 'Payment Completed'}
                               </div>
                               <div className="text-sm text-muted-foreground">
-                                {formatDate(log.date)}
+                                {formatDateDMY(log.date)}
                               </div>
                             </div>
                             <div className="flex justify-between items-center">
@@ -1079,17 +1098,17 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 border-t pt-6">
+              <div className="space-y-6 border-t pt-6">
                 <div className="space-y-3">
                   <Label className="text-base font-semibold">Log Payment</Label>
-                  <div className="flex flex-col gap-2">
+                  <div className="flex flex-col sm:flex-row gap-3">
                     <Button
                       onClick={() => {
                         setPaymentAmount(selectedInvoiceForTimeline.balance.toString());
                         setSelectedInvoiceForPayment(selectedInvoiceForTimeline);
                         setIsPartPaymentOpen(true);
                       }}
-                      className="w-full"
+                      className="w-full sm:flex-1"
                       disabled={selectedInvoiceForTimeline.status === 'paid'}
                     >
                       Log Full Payment
@@ -1101,7 +1120,7 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
                         setSelectedInvoiceForPayment(selectedInvoiceForTimeline);
                         setIsPartPaymentOpen(true);
                       }}
-                      className="w-full"
+                      className="w-full sm:flex-1"
                       disabled={selectedInvoiceForTimeline.status === 'paid'}
                     >
                       Log Part Payment
@@ -1111,44 +1130,44 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
 
                 <div className="space-y-3">
                   <Label className="text-base font-semibold">Update Status</Label>
-                  <div className="flex flex-col gap-2">
-                    <Select disabled={selectedInvoiceForTimeline.status === 'paid'} value={statusToUpdate || undefined} onValueChange={(val) => setStatusToUpdate((val === 'part paid' ? 'partPaid' : (val as any)))}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="issued">Issued</SelectItem>
-                        <SelectItem value="part paid">Part Paid</SelectItem>
-                        <SelectItem value="paid">Paid</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      variant="outline"
-                      className="w-full"
-                      disabled={selectedInvoiceForTimeline.status === 'paid' || !statusToUpdate || isUpdatingStatus}
-                      onClick={async () => {
-                        if (!statusToUpdate || !selectedInvoiceForTimeline) return;
-                        const invoiceId = (displayEntries.find(e => e.id === selectedInvoiceForTimeline.id) as any)?._raw?._id || selectedInvoiceForTimeline.id;
-                        try {
-                          await updateInvoiceStatus({ invoiceId, status: statusToUpdate }).unwrap();
-                        } catch (e) {
-                          console.error('Failed to update invoice status', e);
-                        }
-                      }}
-                    >
-                      Update Status
-                    </Button>
-                  </div>
+                  <Select
+                    disabled={selectedInvoiceForTimeline.status === 'paid'}
+                    value={statusToUpdate ? (statusToUpdate === 'partPaid' ? 'part paid' : statusToUpdate) : undefined}
+                    onValueChange={(val) => setStatusToUpdate((val === 'part paid' ? 'partPaid' : (val as any)))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="issued">Issued</SelectItem>
+                      <SelectItem value="part paid">Part Paid</SelectItem>
+                      <SelectItem value="paid">Paid</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
-              {/* Close button at bottom-right */}
-              <div className="flex justify-end pt-4">
+              {/* Action buttons */}
+              <div className="flex justify-end pt-4 gap-2">
                 <Button
                   variant="outline"
                   onClick={() => setIsStatusTimelineOpen(false)}
                 >
-                  Close
+                  Cancel
+                </Button>
+                <Button
+                  onClick={async () => {
+                    if (!statusToUpdate || !selectedInvoiceForTimeline) return;
+                    const invoiceId = (displayEntries.find(e => e.id === selectedInvoiceForTimeline.id) as any)?._raw?._id || selectedInvoiceForTimeline.id;
+                    try {
+                      await updateInvoiceStatus({ invoiceId, status: statusToUpdate }).unwrap();
+                    } catch (e) {
+                      console.error('Failed to update invoice status', e);
+                    }
+                  }}
+                  disabled={selectedInvoiceForTimeline.status === 'paid' || !statusToUpdate || isUpdatingStatus}
+                >
+                  Submit
                 </Button>
               </div>
 
@@ -1245,7 +1264,7 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
                   <TableBody>
                     {(((displayEntries.find(e => e.id === selectedInvoiceForTimeLogs.id) as any)?._raw?.timeLogs) || []).map((log: any) => (
                       <TableRow key={log._id}>
-                        <TableCell>{formatDate(log.date)}</TableCell>
+                        <TableCell>{formatDateDMY(log.date)}</TableCell>
                         <TableCell>{log.user?.name || '-'}</TableCell>
                         <TableCell>{log.client?.name || '-'}</TableCell>
                         <TableCell>{log.job?.name || '-'}</TableCell>

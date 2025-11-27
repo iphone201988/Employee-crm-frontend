@@ -266,46 +266,16 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
     setWipTableData(wipData);
   }, [wipData]);
 
-  const handleAddWIPBalance = async (clientId: string, amount: number, jobId?: string) => {
+  const handleAddWIPBalance = async (clientId: string, amount: number, jobId?: string, entryDate?: string) => {
     try {
       const payload: any = jobId
         ? { type: 'job', amount, jobId }
         : { type: 'client', amount, clientId };
+      if (entryDate) {
+        payload.date = entryDate;
+      }
       await addWipOpenBalance(payload).unwrap();
       if (onWipMutated) onWipMutated();
-
-      setWipTableData(prevData =>
-        prevData.map(client => {
-          if (client.id === clientId) {
-            if (jobId) {
-              // Update job WIP and recalculate client total
-              const updatedJobs = client.jobs.map(job =>
-                job.id === jobId
-                  ? { ...job, wipAmount: job.wipAmount + amount }
-                  : job
-              );
-
-              // Recalculate client WIP balance from all jobs
-              const totalJobsWIP = updatedJobs.reduce((sum, job) => sum + job.wipAmount, 0);
-
-              return {
-                ...client,
-                jobs: updatedJobs,
-                clientWipBalance: totalJobsWIP + ((client as any).clientWipBalance || 0) - client.jobs.reduce((sum, job) => sum + job.wipAmount, 0)
-              } as any;
-            } else {
-              // For client-level, increase client WIP balance
-              const currentBalance = (client as any).clientWipBalance || 0;
-              return {
-                ...client,
-                clientWipBalance: currentBalance + amount
-              } as any;
-            }
-          }
-          return client;
-        })
-      );
-
       toast.success('WIP balance added successfully');
     } catch (e) {
       console.error('Failed to add WIP balance', e);
@@ -486,7 +456,7 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
                       Expenses {getSortIcon('expenses')}
                     </Button>
                   </th>
-                  <th className="text-center p-4 font-medium text-[12px] text-[hsl(var(--table-header))]">
+                  {/* <th className="text-center p-4 font-medium text-[12px] text-[hsl(var(--table-header))]">
                     <Button
                       variant="ghost"
                       onClick={() => handleSort('lastInvoiced')}
@@ -494,7 +464,7 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
                     >
                       Last Invoiced {getSortIcon('lastInvoiced')}
                     </Button>
-                  </th>
+                  </th> */}
                   <th className="text-center p-4 font-medium text-[12px] text-[hsl(var(--table-header))]">Invoice Level</th>
                   <th className="text-left p-4 font-medium text-[12px] text-[hsl(var(--table-header))]">WIP Target</th>
                   <th className="text-center p-4 font-medium text-[12px] text-[hsl(var(--table-header))]">WIP Target Met</th>
@@ -578,6 +548,7 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
                                 timeLogs,
                                 totalAmount,
                                 importedWipBalance,
+                                importedWipDate: (client as any).importedWipDate,
                                 openBalanceSections,
                               });
                               setShowTimeLogsDialog(true);
@@ -603,7 +574,7 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
                                 clientName: client.clientName,
                                 wipBalance: client.jobs.reduce((sum, job) => sum + job.wipAmount, 0),
                                 clientId: client.id,
-                                onAddBalance: (amount: number) => handleAddWIPBalance(client.id, amount)
+                                onAddBalance: (amount: number, date?: string) => handleAddWIPBalance(client.id, amount, undefined, date)
                               });
                               setShowWIPBalanceDialog(true);
                             }}
@@ -633,7 +604,7 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
                           })()}
                         </button>
                       </td>
-                      <td className="p-4 text-center">{formatLastInvoiced(client.lastInvoiced, client.daysSinceLastInvoice)}</td>
+                      {/* <td className="p-4 text-center">{formatLastInvoiced(client.lastInvoiced, client.daysSinceLastInvoice)}</td> */}
                       <td className="p-4 text-center">
                         <div className="inline-flex items-center justify-center">
                           <button
@@ -840,26 +811,6 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
                             >
                               {formatCurrency(job.wipAmount)}
                             </button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-6 w-6 p-0 rounded-full"
-                              onClick={() => {
-                                setWIPBalanceData({
-                                  clientName: client.clientName,
-                                  jobName: job.jobName,
-                                  wipBalance: job.wipAmount,
-                                  clientId: client.id,
-                                  jobId: job.id,
-                                  jobStartDate: (job as any).startDate,
-                                  jobEndDate: (job as any).endDate,
-                                  onAddBalance: (amount: number) => handleAddWIPBalance(client.id, amount, job.id)
-                                });
-                                setShowWIPBalanceDialog(true);
-                              }}
-                            >
-                              +
-                            </Button>
                           </div>
                         </td>
                         <td className="p-4 text-center text-sm">
@@ -994,10 +945,10 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
           jobName={wipBalanceData.jobName}
           jobStartDate={wipBalanceData.jobStartDate}
           jobEndDate={wipBalanceData.jobEndDate}
-          onAddBalance={wipBalanceData.onAddBalance || ((amount) => {
+          onAddBalance={wipBalanceData.onAddBalance || ((amount, entryDate) => {
             const clientId = wipTableData.find(c => c.clientName === wipBalanceData.clientName)?.id;
             if (clientId) {
-              handleAddWIPBalance(clientId, amount);
+              handleAddWIPBalance(clientId, amount, undefined, entryDate);
             }
             setShowWIPBalanceDialog(false);
             setWIPBalanceData(null);
@@ -1023,6 +974,7 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
           timeLogs={selectedTimeLogsData.timeLogs}
           totalAmount={selectedTimeLogsData.totalAmount}
           importedWipBalance={selectedTimeLogsData.importedWipBalance || 0}
+          importedWipDate={selectedTimeLogsData.importedWipDate}
           openBalanceSections={selectedTimeLogsData.openBalanceSections || []}
         />
       )}

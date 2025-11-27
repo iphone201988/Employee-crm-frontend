@@ -54,6 +54,7 @@ export interface WIPClient {
   clientWipBalance?: number;
   wipBreakdown?: any[];
   importedWipBalance?: number;
+  importedWipDate?: string | null;
   clientTargetMet?: string;
   clientTargetOverall?: string;
 }

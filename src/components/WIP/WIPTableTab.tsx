@@ -77,9 +77,10 @@ const WIPTableTab = ({ onInvoiceCreate, onWriteOff }: WIPTableTabProps) => {
         return sum + jobTotal;
       }, 0);
       const totalClientWIP = clientWIPBalance + jobsTotalWIP + importedWipBalance;
-      const backendClientWipBalance =
-        client.clientTotalWipAmount !== undefined
-          ? Number(client.clientTotalWipAmount || 0)
+      const backendClientWipBalance = client.clientTotalWipAmount;
+      const finalClientWipBalance =
+        typeof backendClientWipBalance === 'number'
+          ? Math.max(Number(backendClientWipBalance || 0), totalClientWIP)
           : totalClientWIP;
       
       const clientOpenBalances = mapOpenBalances(client.clientWipOpenBalance);
@@ -148,9 +149,10 @@ const WIPTableTab = ({ onInvoiceCreate, onWriteOff }: WIPTableTabProps) => {
             endDate: job.endDate || null,
           };
         }),
-        clientWipBalance: backendClientWipBalance,
+        clientWipBalance: finalClientWipBalance,
         wipBreakdown: client.wipBreakdown || [],
-        importedWipBalance: importedWipBalance
+        importedWipBalance: importedWipBalance,
+        importedWipDate: client.importedWipDate || null
       } as WIPClient;
     });
   }, [wipResp]);

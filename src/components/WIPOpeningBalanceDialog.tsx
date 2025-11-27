@@ -9,7 +9,7 @@ interface WIPOpeningBalanceDialogProps {
   onClose: () => void;
   clientName: string;
   currentWIPBalance: number;
-  onAddBalance: (amount: number) => void;
+  onAddBalance: (amount: number, entryDate?: string) => void;
   jobName?: string;
   jobStartDate?: string | null;
   jobEndDate?: string | null;
@@ -26,18 +26,21 @@ const WIPOpeningBalanceDialog = ({
   jobEndDate
 }: WIPOpeningBalanceDialogProps) => {
   const [amount, setAmount] = useState('');
+  const [entryDate, setEntryDate] = useState('');
 
   const handleSubmit = () => {
     const amountValue = parseFloat(amount);
     if (!isNaN(amountValue)) {
-      onAddBalance(amountValue);
+      onAddBalance(amountValue, entryDate || undefined);
       setAmount('');
+      setEntryDate('');
       onClose();
     }
   };
 
   const handleClose = () => {
     setAmount('');
+    setEntryDate('');
     onClose();
   };
 
@@ -84,6 +87,16 @@ const WIPOpeningBalanceDialog = ({
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="Enter WIP opening balance"
+              className="mt-1"
+            />
+          </div>
+          <div>
+            <Label htmlFor="wip-date" className="text-sm font-medium">Effective Date</Label>
+            <Input
+              id="wip-date"
+              type="date"
+              value={entryDate}
+              onChange={(e) => setEntryDate(e.target.value)}
               className="mt-1"
             />
           </div>
