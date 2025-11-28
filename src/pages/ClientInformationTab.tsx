@@ -26,6 +26,7 @@ import { useLazyGetTabAccessQuery } from '@/store/authApi';
 import Avatars from '@/components/Avatars';
 import { useDeleteClientMutation } from '@/store/clientApi';
 import { toast } from 'sonner';
+import { formatDateToDMY, normalizeOptionalText, parseDateValue } from '@/utils/clientFieldUtils';
 const tabs = [
   {
     id: 'clientList',
@@ -192,16 +193,16 @@ const ClientInformationTab = () => {
       clientManagerId: (clientInfo as any).clientManagerId || '',
       clientManager: (clientInfo as any).clientManager || '',
       address: clientInfo.address,
-      email: clientInfo.email,
-      emailNote: clientInfo.emailNote,
-      phone: clientInfo.phone,
-      phoneNote: clientInfo.phoneNote,
-      onboardedDate: clientInfo.onboardedDate ? new Date(clientInfo.onboardedDate) : undefined,
+      email: normalizeOptionalText(clientInfo.email),
+      emailNote: normalizeOptionalText(clientInfo.emailNote),
+      phone: normalizeOptionalText(clientInfo.phone),
+      phoneNote: normalizeOptionalText(clientInfo.phoneNote),
+      onboardedDate: parseDateValue(clientInfo.onboardedDate),
       amlCompliant: clientInfo.amlCompliant,
       audit: clientInfo.audit,
       clientStatus: clientInfo.clientStatus || 'Current',
       yearEnd: clientInfo.yearEnd || '',
-      arDate: clientInfo.arDate ? new Date(clientInfo.arDate) : undefined,
+      arDate: parseDateValue(clientInfo.arDate),
     };
   };
 
@@ -218,14 +219,14 @@ const ClientInformationTab = () => {
       clientManagerId: (clientInfo as any).clientManagerId || '',
       clientManager: (clientInfo as any).clientManager || '',
       address: clientInfo.address,
-      email: clientInfo.email,
-      phone: clientInfo.phone,
-      onboardedDate: clientInfo.onboardedDate,
+      email: normalizeOptionalText(clientInfo.email),
+      phone: normalizeOptionalText(clientInfo.phone),
+      onboardedDate: parseDateValue(clientInfo.onboardedDate),
       amlCompliant: clientInfo.amlCompliant,
       audit: clientInfo.audit,
       clientStatus: clientInfo.clientStatus || 'Current',
       yearEnd: clientInfo.yearEnd || '',
-      arDate: clientInfo.arDate || undefined,
+      arDate: parseDateValue(clientInfo.arDate),
     };
   };
 
@@ -602,14 +603,7 @@ const ClientInformationTab = () => {
           dataMappers.push((client) => client.phoneNote || '');
           break;
         case 'onboardedDate':
-          dataMappers.push((client) => {
-            if (!client.onboardedDate) return '-';
-            const date = new Date(client.onboardedDate);
-            const month = (date.getMonth() + 1).toString().padStart(2, '0');
-            const day = date.getDate().toString().padStart(2, '0');
-            const year = date.getFullYear();
-            return `${month}/${day}/${year}`;
-          });
+          dataMappers.push((client) => formatDateToDMY(client.onboardedDate));
           break;
         case 'yearEnd':
           dataMappers.push((client) => client.yearEnd || '');
@@ -621,14 +615,7 @@ const ClientInformationTab = () => {
           dataMappers.push((client) => client.amlCompliant ? 'Yes' : '');
           break;
         case 'arDate':
-          dataMappers.push((client) => {
-            if (!client.arDate) return '';
-            const date = new Date(client.arDate);
-            const day = date.getDate().toString().padStart(2, '0');
-            const month = (date.getMonth() + 1).toString().padStart(2, '0');
-            const year = date.getFullYear();
-            return `${day}/${month}/${year}`;
-          });
+          dataMappers.push((client) => client.arDate ? formatDateToDMY(client.arDate, '') : '');
           break;
       }
     });
@@ -1082,7 +1069,10 @@ const ClientInformationTab = () => {
                             cellContent = client.address;
                             break;
                           case 'email':
-                            cellContent = client.email;
+                            {
+                              const emailValue = normalizeOptionalText(client.email);
+                              cellContent = emailValue || 'No Email';
+                            }
                             break;
                           case 'emailNote':
                             cellContent = client.emailNote;
@@ -1094,13 +1084,7 @@ const ClientInformationTab = () => {
                             cellContent = client.phoneNote;
                             break;
                           case 'onboardedDate':
-                            cellContent = client.onboardedDate ? (() => {
-                              const date = new Date(client.onboardedDate);
-                              const month = (date.getMonth() + 1).toString().padStart(2, '0');
-                              const day = date.getDate().toString().padStart(2, '0');
-                              const year = date.getFullYear();
-                              return `${month}/${day}/${year}`;
-                            })() : '-';
+                            cellContent = formatDateToDMY(client.onboardedDate);
                             break;
                           case 'amlCompliant':
                             cellContent = client.amlCompliant ? 'Yes' : '';
@@ -1115,13 +1099,7 @@ const ClientInformationTab = () => {
                             cellContent = client.yearEnd || '-';
                             break;
                           case 'arDate':
-                            cellContent = client.arDate ? (() => {
-                              const date = new Date(client.arDate);
-                              const day = date.getDate().toString().padStart(2, '0');
-                              const month = (date.getMonth() + 1).toString().padStart(2, '0');
-                              const year = date.getFullYear();
-                              return `${day}/${month}/${year}`;
-                            })() : '-';
+                            cellContent = formatDateToDMY(client.arDate);
                             break;
                           default:
                             cellContent = '-';

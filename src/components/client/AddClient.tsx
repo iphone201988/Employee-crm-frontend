@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, X } from "lucide-react";
 import { DateOrNAInput } from '@/components/DateOrNAInput';
+import { normalizeOptionalText, parseDateValue } from '@/utils/clientFieldUtils';
 
 
 
@@ -36,7 +37,9 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
         return Array.isArray(data.teams) ? data.teams : [];
     }, [dropdownOptions]);
 
-    const [formData, setFormData] = useState<ClientData>(() => {
+    const sanitizeContactField = (value?: string) => normalizeOptionalText(value);
+
+    const buildInitialFormData = (): ClientData => {
         if (editMode && clientToEdit) {
             return {
                 clientRef: clientToEdit.clientRef || 'N/A',
@@ -47,16 +50,16 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
                 croLink: clientToEdit.croLink || '',
                 clientManagerId: (clientToEdit as any).clientManagerId || '',
                 address: clientToEdit.address || 'N/A',
-                email: clientToEdit.email || '',
-                emailNote: clientToEdit.emailNote || 'N/A',
-                phone: clientToEdit.phone || 'N/A',
-                phoneNote: clientToEdit.phoneNote || 'N/A',
-                onboardedDate: clientToEdit.onboardedDate ? new Date(clientToEdit.onboardedDate) : new Date(),
+                email: sanitizeContactField(clientToEdit.email),
+                emailNote: sanitizeContactField(clientToEdit.emailNote),
+                phone: sanitizeContactField(clientToEdit.phone),
+                phoneNote: sanitizeContactField(clientToEdit.phoneNote),
+                onboardedDate: parseDateValue(clientToEdit.onboardedDate) || undefined,
                 amlCompliant: clientToEdit.amlCompliant || false,
                 audit: clientToEdit.audit || false,
                 clientStatus: clientToEdit.clientStatus || 'Current',
                 yearEnd: clientToEdit.yearEnd || '',
-                arDate: clientToEdit.arDate ? new Date(clientToEdit.arDate) : undefined,
+                arDate: parseDateValue(clientToEdit.arDate) || undefined,
             };
         }
         return {
@@ -69,48 +72,36 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
             clientManagerId: '',
             address: 'N/A',
             email: '',
-            emailNote: 'N/A',
-            phone: 'N/A',
-            phoneNote: 'N/A',
-            onboardedDate: new Date(),
+            emailNote: '',
+            phone: '',
+            phoneNote: '',
+            onboardedDate: undefined,
             amlCompliant: false,
             audit: false,
             clientStatus: 'Current',
             yearEnd: '',
             arDate: undefined,
         };
-    });
+    };
+
+    const [formData, setFormData] = useState<ClientData>(buildInitialFormData);
 
     const [errors, setErrors] = useState<Partial<Record<keyof ClientData, string>>>({});
 
     // Update form data when clientToEdit changes
     useEffect(() => {
         if (editMode && clientToEdit) {
-            setFormData({
-                clientRef: clientToEdit.clientRef || 'N/A',
-                name: clientToEdit.name || '',
-                businessTypeId: clientToEdit.businessTypeId || '',
-                taxNumber: clientToEdit.taxNumber || '',
-                croNumber: clientToEdit.croNumber || 'N/A',
-                croLink: clientToEdit.croLink || '',
-                clientManagerId: (clientToEdit as any).clientManagerId || '',
-                address: clientToEdit.address || 'N/A',
-                email: clientToEdit.email || '',
-                emailNote: clientToEdit.emailNote || 'N/A',
-                phone: clientToEdit.phone || 'N/A',
-                phoneNote: clientToEdit.phoneNote || 'N/A',
-                onboardedDate: clientToEdit.onboardedDate ? new Date(clientToEdit.onboardedDate) : new Date(),
-                amlCompliant: clientToEdit.amlCompliant || false,
-                audit: clientToEdit.audit || false,
-                clientStatus: clientToEdit.clientStatus || 'Current',
-                yearEnd: clientToEdit.yearEnd || '',
-                arDate: clientToEdit.arDate ? new Date(clientToEdit.arDate) : undefined,
-            });
+            setFormData(buildInitialFormData());
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [editMode, clientToEdit]);
 
-    const handleInputChange = (field: keyof ClientData) => (value: string | boolean | Date) => {
-        setFormData(prev => ({ ...prev, [field]: value }));
+    const handleInputChange = (field: keyof ClientData) => (value: string | boolean | Date | null | undefined) => {
+        let nextValue = value;
+        if ((field === 'onboardedDate' || field === 'arDate') && !value) {
+            nextValue = undefined;
+        }
+        setFormData(prev => ({ ...prev, [field]: nextValue }));
 
         if (errors[field]) {
             setErrors(prev => ({ ...prev, [field]: undefined }));
@@ -137,6 +128,11 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
             // Convert empty values to "N/A" before submission
             // Explicitly exclude contactName and only include valid fields
             const { contactName: _ } = formData as any;
+            const sanitizedEmail = sanitizeContactField(formData.email);
+            const sanitizedEmailNote = sanitizeContactField(formData.emailNote);
+            const sanitizedPhone = sanitizeContactField(formData.phone);
+            const sanitizedPhoneNote = sanitizeContactField(formData.phoneNote);
+
             const processedFormData: any = {
                 clientRef: convertEmptyToNA(formData.clientRef),
                 name: formData.name,
@@ -146,11 +142,11 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
                 croLink: formData.croLink || '',
                 clientManagerId: formData.clientManagerId || undefined,
                 address: convertEmptyToNA(formData.address),
-                email: convertEmptyToNA(formData.email),
-                emailNote: convertEmptyToNA(formData.emailNote),
-                phone: convertEmptyToNA(formData.phone),
-                phoneNote: convertEmptyToNA(formData.phoneNote),
-                onboardedDate: formData.onboardedDate,
+                email: sanitizedEmail || undefined,
+                emailNote: sanitizedEmailNote || undefined,
+                phone: sanitizedPhone || undefined,
+                phoneNote: sanitizedPhoneNote || undefined,
+                onboardedDate: formData.onboardedDate || undefined,
                 amlCompliant: formData.amlCompliant,
                 audit: formData.audit,
                 clientStatus: formData.clientStatus || 'Current',
@@ -186,10 +182,10 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
                 clientManagerId: '',
                 address: 'N/A',
                 email: '',
-                emailNote: 'N/A',
-                phone: 'N/A',
-                phoneNote: 'N/A',
-                onboardedDate: new Date(),
+                emailNote: '',
+                phone: '',
+                phoneNote: '',
+                onboardedDate: undefined,
                 amlCompliant: false,
                 audit: false,
                 clientStatus: 'Current',
@@ -406,14 +402,14 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
                             <DateOrNAInput
                                 label="Onboarded Date (Optional)"
                                 id="onboardedDate"
-                                value={formData.onboardedDate}
+                                value={formData.onboardedDate ?? null}
                                 onChange={(value) => handleInputChange('onboardedDate')(value)}
                                 error={errors.onboardedDate}
                             />
                             <DateOrNAInput
                                 label="AR Date (Optional)"
                                 id="arDate"
-                                value={formData.arDate}
+                                value={formData.arDate ?? null}
                                 onChange={(value) => handleInputChange('arDate')(value)}
                                 error={errors.arDate}
                             />

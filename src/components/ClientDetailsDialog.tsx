@@ -109,6 +109,8 @@ interface ClientData {
   writeOffLogs?: ClientWriteOffLog[];
   notes?: Note[];
   debtorsBalance?: number;
+  wipBalance?: number;
+  importedWipDate?: string | null;
 }
 
 interface DebtorsLogEntryData {
@@ -321,12 +323,14 @@ const ClientDetailsDialog = ({
   const notesCount = Array.isArray(notes) ? notes.length : 0;
   const debtorsLogCount = debtorsEntries.length;
   const wipSummary = useMemo(() => {
-    const totalAmount = jobs.reduce((sum, j) => sum + Number(j.amount || 0), 0);
+    const jobsWipAmount = jobs.reduce((sum, j) => sum + Number(j.amount || 0), 0);
+    const importedWipAmount = Number(clientData?.wipBalance || 0);
+    const totalAmount = jobsWipAmount + importedWipAmount;
     const totalHoursSec = jobs.reduce((sum, j) => sum + Number(j.totalTimeLogHours || 0), 0);
     const jobCount = jobs.length;
-    const avgRate = totalHoursSec > 0 ? (totalAmount / (totalHoursSec / 3600)) : 0;
-    return { totalAmount, totalHoursSec, jobCount, avgRate };
-  }, [jobs]);
+    const avgRate = totalHoursSec > 0 ? (jobsWipAmount / (totalHoursSec / 3600)) : 0;
+    return { totalAmount, jobsWipAmount, importedWipAmount, totalHoursSec, jobCount, avgRate };
+  }, [jobs, clientData?.wipBalance]);
 
   return <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
@@ -853,6 +857,21 @@ const ClientDetailsDialog = ({
                   <p className="text-lg font-semibold text-foreground">{formatCurrency(wipSummary.avgRate)}</p>
                 </div>
               </div>
+              {wipSummary.importedWipAmount > 0 && (
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-blue-900">Imported WIP Balance</p>
+                      <p className="text-xs text-blue-700">
+                        {clientData?.importedWipDate 
+                          ? `Date: ${new Date(clientData.importedWipDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}`
+                          : 'Date: N/A'}
+                      </p>
+                    </div>
+                    <p className="text-lg font-semibold text-blue-900">{formatCurrency(wipSummary.importedWipAmount)}</p>
+                  </div>
+                </div>
+              )}
 
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse text-sm">
@@ -880,7 +899,24 @@ const ClientDetailsDialog = ({
                           <td className="p-4 text-foreground">{formatDate(job.updatedAt)}</td>
                         </tr>
                       ))
-                    ) : (
+                    ) : null}
+                    {wipSummary.importedWipAmount > 0 && (
+                      <tr className="border-b border-blue-200 bg-blue-50 hover:bg-blue-100 transition-colors">
+                        <td className="p-4 font-medium text-blue-900">-</td>
+                        <td className="p-4 font-medium text-blue-900">Imported WIP</td>
+                        <td className="p-4 text-right text-blue-900 font-semibold">{formatCurrency(wipSummary.importedWipAmount)}</td>
+                        <td className="p-4 text-right text-blue-900">-</td>
+                        <td className="p-4 text-blue-900">
+                          <Badge variant="secondary" className="bg-blue-200 text-blue-900">Imported</Badge>
+                        </td>
+                        <td className="p-4 text-blue-900">
+                          {clientData?.importedWipDate 
+                            ? new Date(clientData.importedWipDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                            : '-'}
+                        </td>
+                      </tr>
+                    )}
+                    {(!Array.isArray(jobs) || jobs.length === 0) && wipSummary.importedWipAmount === 0 && (
                       <tr className="border-b"><td className="p-4 text-center" colSpan={6}>No WIP records.</td></tr>
                     )}
                   </tbody>

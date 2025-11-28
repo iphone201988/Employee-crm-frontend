@@ -7,22 +7,19 @@ import { Label } from '@/components/ui/label';
 interface DateOrNAInputProps {
     label: string;
     id: string;
-    value: string | Date | null;
-    onChange: (value: string | Date | null) => void;
+    value: Date | null | undefined;
+    onChange: (value: Date | null | undefined) => void;
     error?: string;
     disabled?: boolean;
 }
 
 // Helper to format date for display and input
-const formatDateForInput = (date: string | Date | null): string => {
-    if (!date || date === 'N/A') return '';
+const formatDateForInput = (date: Date | null | undefined): string => {
+    if (!date) return '';
     try {
-        const d = new Date(date);
-        // Check if date is valid
-        if (isNaN(d.getTime())) return '';
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
     } catch {
         return '';
@@ -52,12 +49,26 @@ export const DateOrNAInput: React.FC<DateOrNAInputProps> = ({
     };
 
     const handleClear = () => {
-        onChange('N/A');
+        onChange(undefined);
         setIsDateInput(false);
     };
     
-    // The value to display in the input field
-    const displayValue = value === 'N/A' ? 'N/A' : formatDateForInput(value);
+    const displayValue = value ? formatDateForInput(value) : '';
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!isDateInput) return;
+        const pickedValue = e.target.value;
+        if (!pickedValue) {
+            onChange(undefined);
+            return;
+        }
+        const parsed = new Date(`${pickedValue}T00:00:00`);
+        if (isNaN(parsed.getTime())) {
+            onChange(undefined);
+            return;
+        }
+        onChange(parsed);
+    };
 
     return (
         <div>
@@ -69,14 +80,15 @@ export const DateOrNAInput: React.FC<DateOrNAInputProps> = ({
                     id={id}
                     type={isDateInput ? 'date' : 'text'}
                     value={isDateInput ? formatDateForInput(value) : displayValue}
-                    onChange={(e) => onChange(e.target.value)}
+                    onChange={handleChange}
                     onFocus={handleFocus}
                     onBlur={handleBlur}
+                    readOnly={!isDateInput}
                     placeholder="Select a date or choose N/A"
                     disabled={disabled}
                     className={error ? 'border-red-500' : ''}
                 />
-                {!isDateInput && value !== 'N/A' && (
+                {!isDateInput && value && (
                      <button
                         type="button"
                         onClick={handleClear}
