@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { MyTimeSheet } from "@/components/TimeDashboard/MyTimeSheet";
 import CustomTabs from "@/components/Tabs";
 import { getCurrentWeekRange, formatSeconds } from "@/utils/timesheetUtils";
-type SortField = 'name' | 'department' | 'capacity' | 'logged' | 'variance' | 'submitted';
+type SortField = 'name' | 'department' | 'weekNumber' | 'capacity' | 'logged' | 'variance' | 'submitted';
 type SortDirection = 'asc' | 'desc' | null;
 import { usePermissionTabs } from "@/hooks/usePermissionTabs";
 import AllTimeLogsTab from "@/components/AllTimeLogsTab";
@@ -652,6 +652,11 @@ export function TimesheetDashboard() {
       aValue = (a as any).varianceSec;
       bValue = (b as any).varianceSec;
     }
+    if (sortField === 'weekNumber') {
+      // Convert week number string to number for proper numeric sorting
+      aValue = a.weekNumber ? parseInt(a.weekNumber, 10) || 0 : 0;
+      bValue = b.weekNumber ? parseInt(b.weekNumber, 10) || 0 : 0;
+    }
     if (sortField === 'submitted') {
       const aDateSource = a.submittedAt || a.updatedAt;
       const bDateSource = b.submittedAt || b.updatedAt;
@@ -814,6 +819,14 @@ export function TimesheetDashboard() {
               {statusCounts.notSubmitted}
             </div>
             <p className="text-sm text-muted-foreground">Not Submitted</p>
+          </CardContent>
+        </Card>
+        <Card className="h-full">
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold !text-[#381980]">
+              {statusCounts.review}
+            </div>
+            <p className="text-sm text-muted-foreground">For Review</p>
           </CardContent>
         </Card>
         <Card className="h-full">
@@ -1083,7 +1096,12 @@ export function TimesheetDashboard() {
                       {getSortIcon('department')}
                     </button>
                   </TableHead>
-                  <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">WEEK NUMBER</TableHead>
+                  <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">
+                    <button className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleSort('weekNumber')}>
+                      WEEK NUMBER
+                      {getSortIcon('weekNumber')}
+                    </button>
+                  </TableHead>
                   <TableHead className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">
                     <button className="flex items-center gap-1 sm:gap-2 hover:text-foreground transition-colors" onClick={() => handleSort('capacity')}>
                       CAPACITY

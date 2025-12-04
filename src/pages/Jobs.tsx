@@ -17,10 +17,10 @@ const tabs = [
     id: 'services',
     label: 'Job Types'
   },
-  {
-    id: 'jobTemplates',
-    label: 'Job Templates'
-  },
+    {
+      id: 'jobTemplates',
+      label: 'Job Templates'
+    },
   {
     id: 'jobBuilder',
     label: 'Job Builder'

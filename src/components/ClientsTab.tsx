@@ -15,6 +15,7 @@ import ClientJobsDialog from './ClientJobsDialog';
 import ClientDetailsDialog from './ClientDetailsDialog';
 import ClientNameLink from '@/components/ClientNameLink';
 import DebtorsBalanceDialog from './DebtorsBalanceDialog';
+import AddDebtorsOpenBalanceDialog from './AddDebtorsOpenBalanceDialog';
 import { useGetClientBreakdownQuery } from '@/store/clientApi';
 
 interface TimeLog {
@@ -79,6 +80,15 @@ const ClientsTab = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
+  
+  // Format hours to HH:MM:SS format (same as time tables)
+  const formatHoursToHHMMSS = (hours: number) => {
+    const totalSeconds = Math.max(0, Math.round((hours || 0) * 3600));
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  };
   const [sortConfig, setSortConfig] = useState<{ key: 'clientRef' | 'name' | 'balance' | 'wipAmount' | 'services' | 'timeLogged' | 'writeOff'; direction: 'asc' | 'desc' } | null>(null);
   const [hideZeroBalances, setHideZeroBalances] = useState(false);
   const [clients, setClients] = useState<Client[]>([]);
@@ -101,6 +111,8 @@ const ClientsTab = () => {
   const [showClientDetailsDialog, setShowClientDetailsDialog] = useState(false);
   const [selectedClientForDetails, setSelectedClientForDetails] = useState<any | null>(null);
   const [showDebtorsDialog, setShowDebtorsDialog] = useState(false);
+  const [showAddDebtorsLogDialog, setShowAddDebtorsLogDialog] = useState(false);
+  const [selectedDebtorsLogClient, setSelectedDebtorsLogClient] = useState<{ id: string; name: string } | null>(null);
   const [selectedDebtorsClient, setSelectedDebtorsClient] = useState<Client | null>(null);
   const [showNotesDialog, setShowNotesDialog] = useState(false);
   const [selectedNotesClient, setSelectedNotesClient] = useState<Client | null>(null);
@@ -253,6 +265,11 @@ const ClientsTab = () => {
     setSearchParams({ tab: 'debtors-log', client: clientId });
   };
 
+  const handleAddDebtorLog = (clientId: string, clientName: string) => {
+    setSelectedDebtorsLogClient({ id: clientId, name: clientName });
+    setShowAddDebtorsLogDialog(true);
+  };
+
   const handleAddJob = () => {
     if (newJob.name && newJob.type && selectedClientId) {
       const updatedClients = allClients.map(client => {
@@ -390,7 +407,7 @@ const ClientsTab = () => {
                       WIP Balance {getSortIcon('wipAmount')}
                     </Button>
                   </th>
-                  <th className="text-right p-3 font-medium text-foreground h-12 border-r text-[12px] !text-[#381980]">Invoices</th>
+                  {/* <th className="text-right p-3 font-medium text-foreground h-12 border-r text-[12px] !text-[#381980]">Invoices</th> */}
                   <th className="text-right p-3 font-medium text-foreground h-12 border-r">
                     <Button
                       variant="ghost"
@@ -400,7 +417,7 @@ const ClientsTab = () => {
                       Write Off € {getSortIcon('writeOff')}
                     </Button>
                   </th>
-                  <th className="text-right p-3 font-medium text-foreground h-12 border-r">
+                  {/* <th className="text-right p-3 font-medium text-foreground h-12 border-r">
                     <Button
                       variant="ghost"
                       onClick={() => handleSort('balance')}
@@ -408,7 +425,7 @@ const ClientsTab = () => {
                     >
                       Balance {getSortIcon('balance')}
                     </Button>
-                  </th>
+                  </th> */}
                   <th className="text-right p-3 font-medium text-foreground h-12 border-r text-[12px] !text-[#381980]">Expenses</th>
                   <th className="text-center p-3 font-medium text-foreground h-12 text-[12px] !text-[#381980]">Actions</th>
                 </tr>
@@ -416,12 +433,12 @@ const ClientsTab = () => {
               <tbody>
                 {isClientsLoading && (
                   <tr>
-                    <td colSpan={11} className="text-center py-6">Loading clients...</td>
+                    <td colSpan={9} className="text-center py-6">Loading clients...</td>
                   </tr>
                 )}
                 {!isClientsLoading && sortedClients.length === 0 && (
                   <tr>
-                    <td colSpan={11} className="text-center py-6">No clients found.</td>
+                    <td colSpan={9} className="text-center py-6">No clients found.</td>
                   </tr>
                 )}
                 {!isClientsLoading && sortedClients.map((client: Client) => (
@@ -447,7 +464,9 @@ const ClientsTab = () => {
                     
                     <td className="p-4 text-center border-r">
                       <span className="font-semibold text-foreground">
-                        {client.jobs.reduce((total, job) => total + job.logged, 0).toFixed(1)}h
+                        <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold text-center inline-block">
+                          {formatHoursToHHMMSS(client.jobs.reduce((total, job) => total + job.logged, 0))}
+                        </div>
                       </span>
                     </td>
                     <td className="p-4 text-center border-r">
@@ -475,11 +494,11 @@ const ClientsTab = () => {
                         {client.wipAmount === 0 ? <Badge variant="outline">N/A</Badge> : formatCurrency(client.wipAmount)}
                       </span>
                     </td>
-                    <td className="p-4 text-right border-r">
+                    {/* <td className="p-4 text-right border-r">
                       <span className="font-semibold text-foreground">
                         {formatCurrency([1250, 850, 1200, 675, 420, 340, 1180, 290, 560, 1320, 890, 1210, 780, 450, 925][effectiveClients.indexOf(client)] || 0)}
                       </span>
-                    </td>
+                    </td> */}
                     <td className="p-4 text-right border-r">
                       <span className="font-semibold text-foreground">
                         {client.writeOffAmount !== undefined && client.writeOffAmount > 0 
@@ -487,11 +506,11 @@ const ClientsTab = () => {
                           : <Badge variant="outline">N/A</Badge>}
                       </span>
                     </td>
-                    <td className="p-4 text-right border-r">
+                    {/* <td className="p-4 text-right border-r">
                       <span className="font-semibold text-foreground">
                         {formatCurrency([890, 670, 1150, 480, 920, 340, 1380, 220, 760, 1020, 540, 850, 410, 290, 1180][effectiveClients.indexOf(client)] || 0)}
                       </span>
-                    </td>
+                    </td> */}
                     <td className="p-4 text-right border-r">
                       <span className="font-semibold text-foreground">
                         {formatCurrency(client.totalExpenses)}
@@ -502,10 +521,10 @@ const ClientsTab = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleViewDebtorsLog(client.id)}
+                          onClick={() => handleAddDebtorLog(client.id, client.name)}
                           className="bg-purple-dark hover:bg-purple-dark/90 text-purple-dark-foreground border-purple-dark hover:border-purple-dark transition-colors h-8 px-2 text-xs"
                         >
-                          View Debtors Log
+                          Add Debtor Log
                         </Button>
                       </div>
                     </td>
@@ -517,12 +536,16 @@ const ClientsTab = () => {
                   <td className="p-4 text-foreground border-r">TOTAL</td>
                   <td className="p-4 border-r"></td>
                   <td className="p-4 text-center text-foreground border-r">{effectiveClients.reduce((acc, c) => acc + c.jobs.length, 0)}</td>
-                  <td className="p-4 text-center text-foreground border-r">{effectiveClients.reduce((total, client) => total + client.jobs.reduce((jobTotal, job) => jobTotal + job.logged, 0), 0).toFixed(1)}h</td>
+                  <td className="p-4 text-center text-foreground border-r">
+                    <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold text-center inline-block">
+                      {formatHoursToHHMMSS(effectiveClients.reduce((total, client) => total + client.jobs.reduce((jobTotal, job) => jobTotal + job.logged, 0), 0))}
+                    </div>
+                  </td>
                   <td className="p-4 text-center text-foreground border-r">-</td>
                   <td className="p-4 text-right text-foreground border-r">{formatCurrency(totalWipAmount)}</td>
-                  <td className="p-4 text-right text-foreground border-r">-</td>
+                  {/* <td className="p-4 text-right text-foreground border-r">-</td> */}
                   <td className="p-4 text-right text-foreground border-r">{formatCurrency(totalWriteOffAmount)}</td>
-                  <td className="p-4 text-right text-foreground border-r">{formatCurrency(totalBalance)}</td>
+                  {/* <td className="p-4 text-right text-foreground border-r">{formatCurrency(totalBalance)}</td> */}
                   <td className="p-4 text-right text-foreground border-r">{formatCurrency(totalExpenses)}</td>
                   <td className="p-4"></td>
                 </tr>
@@ -553,6 +576,7 @@ const ClientsTab = () => {
                 <option value={100}>100 per page</option>
                 <option value={250}>250 per page</option>
                 <option value={500}>500 per page</option>
+                <option value={1000}>1000 per page</option>
               </select>
             </div>
             <div className="text-sm text-gray-500">
@@ -679,6 +703,16 @@ const ClientsTab = () => {
             setShowDebtorsDialog(false);
             setSelectedDebtorsClient(null);
           }}
+        />
+      )}
+
+      {/* Add Debtors Open Balance Dialog */}
+      {selectedDebtorsLogClient && (
+        <AddDebtorsOpenBalanceDialog
+          open={showAddDebtorsLogDialog}
+          onOpenChange={setShowAddDebtorsLogDialog}
+          clientId={selectedDebtorsLogClient.id}
+          clientName={selectedDebtorsLogClient.name}
         />
       )}
 

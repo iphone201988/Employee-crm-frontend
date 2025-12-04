@@ -40,39 +40,47 @@ export const validateBusinessType = (businessTypeId: string): string | null => {
 };
 
 export const validateTaxNumber = (taxNumber: string): string | null => {
-    if (!taxNumber || !taxNumber.trim()) return 'Tax number is required';
+    // TAX/PPS NO is optional, only validate format if provided
+    if (!taxNumber || !taxNumber.trim() || taxNumber.trim() === 'N/A') {
+        return null;
+    }
     if (!/^[a-zA-Z0-9]+$/.test(taxNumber.trim())) return 'Tax number format is invalid.';
     return null;
 };
 
 export const validateCroNumber = (croNumber?: string): string | null => {
-    if (croNumber && croNumber.trim() && !/^[0-9]+$/.test(croNumber.trim())) {
-        return 'CRO number must contain only numbers';
+    // CRO Number is optional, only validate format if provided
+    if (croNumber && croNumber.trim() && croNumber.trim() !== 'N/A' && !/^[a-zA-Z0-9]+$/.test(croNumber.trim())) {
+        return 'CRO number must contain only letters and numbers';
     }
     return null;
 };
 
 export const validateAddress = (address: string): string | null => {
-    if (!address || !address.trim()) return 'Address is required';
-    if (address.trim().length < 10) return 'Please provide a complete address (at least 10 characters)';
+    // Address is optional, no validation needed
     return null;
 };
 
 
 export const validateEmail = (email: string): string | null => {
-    if (!email || !email.trim()) return 'Email address is required';
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return 'Please enter a valid email address';
+    // Email is optional, only validate format if provided
+    if (email && email.trim() && email.trim() !== 'N/A' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+        return 'Please enter a valid email address';
+    }
     return null;
 };
 
 export const validatePhone = (phone: string): string | null => {
-    if (!phone || !phone.trim()) return 'Phone number is required';
-    if (!/^[\+]?[0-9\s\-\(\)]{10,}$/.test(phone.trim())) return 'Please enter a valid phone number';
+    // Phone is optional, only validate format if provided
+    if (phone && phone.trim() && phone.trim() !== 'N/A' && !/^[\+]?[0-9\s\-\(\)]{10,}$/.test(phone.trim())) {
+        return 'Please enter a valid phone number';
+    }
     return null;
 };
 
-export const validateOnboardedDate = (onboardedDate: Date | string): string | null => {
-    if (!onboardedDate) return 'Onboarded date is required';
+export const validateOnboardedDate = (onboardedDate: Date | string | null | undefined): string | null => {
+    // Onboarded Date is optional, only validate if provided
+    if (!onboardedDate) return null;
     const date = new Date(onboardedDate);
     if (isNaN(date.getTime())) return 'Invalid date format';
     if (date > new Date()) return 'Onboarded date cannot be in the future';
@@ -82,15 +90,29 @@ export const validateOnboardedDate = (onboardedDate: Date | string): string | nu
 export const validateClientForm = (formData: Partial<ClientData>): ValidationResult => {
     const errors: Partial<Record<keyof ClientData, string>> = {};
 
-    if (validateClientRef(formData.clientRef || '')) errors.clientRef = validateClientRef(formData.clientRef || '');
+    // Only validate required fields
     if (validateClientName(formData.name || '')) errors.name = validateClientName(formData.name || '');
     if (validateBusinessType(formData.businessTypeId || '')) errors.businessTypeId = validateBusinessType(formData.businessTypeId || '');
-    if (validateTaxNumber(formData.taxNumber || '')) errors.taxNumber = validateTaxNumber(formData.taxNumber || '');
-    if (validateCroNumber(formData.croNumber || '')) errors.croNumber = validateCroNumber(formData.croNumber || '');
-    if (validateAddress(formData.address || '')) errors.address = validateAddress(formData.address || '');
-    if (validateEmail(formData.email || '')) errors.email = validateEmail(formData.email || '');
-    if (validatePhone(formData.phone || '')) errors.phone = validatePhone(formData.phone || '');
-    if (validateOnboardedDate(formData.onboardedDate || '')) errors.onboardedDate = validateOnboardedDate(formData.onboardedDate || '');
+    
+    // Validate optional fields only if they have values
+    const taxNumberError = validateTaxNumber(formData.taxNumber || '');
+    if (taxNumberError) errors.taxNumber = taxNumberError;
+    
+    const croNumberError = validateCroNumber(formData.croNumber || '');
+    if (croNumberError) errors.croNumber = croNumberError;
+    
+    // Address, email, phone are optional - only validate format if provided
+    const addressError = validateAddress(formData.address || '');
+    if (addressError) errors.address = addressError;
+    
+    const emailError = validateEmail(formData.email || '');
+    if (emailError) errors.email = emailError;
+    
+    const phoneError = validatePhone(formData.phone || '');
+    if (phoneError) errors.phone = phoneError;
+    
+    const onboardedDateError = validateOnboardedDate(formData.onboardedDate);
+    if (onboardedDateError) errors.onboardedDate = onboardedDateError;
 
     return {
         isValid: Object.keys(errors).length === 0,

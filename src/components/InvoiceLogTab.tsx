@@ -5,16 +5,18 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatCurrency } from '@/lib/currency';
 import { formatDate } from '@/utils/dateFormat';
-import { Receipt, Paperclip, ChevronLeft, ChevronRight, Plus, Clock, CheckCircle, ArrowUpDown, Eye } from 'lucide-react';
+import { Receipt, ChevronLeft, ChevronRight, Plus, Clock, CheckCircle, ArrowUpDown, Eye, Settings, Trash2 } from 'lucide-react';
 import { InvoicePreviewDialog } from './InvoicePreviewDialog';
 import jsPDF from 'jspdf';
-import { useGetInvoicesQuery, useCreateInvoiceLogMutation, useUpdateInvoiceStatusMutation } from '@/store/wipApi';
+import { useGetInvoicesQuery, useCreateInvoiceLogMutation, useUpdateInvoiceStatusMutation, useDeleteInvoiceMutation } from '@/store/wipApi';
 import { useGetDropdownOptionsQuery } from '@/store/teamApi';
 import ClientNameLink from './ClientNameLink';
+import { toast } from 'sonner';
 
 interface PaymentHistory {
   date: string;
@@ -60,8 +62,10 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
   const [isPartPaymentOpen, setIsPartPaymentOpen] = useState(false);
   const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] = useState<InvoiceEntry | null>(null);
   const [paymentAmount, setPaymentAmount] = useState('');
+  const [confirmFullPayment, setConfirmFullPayment] = useState(false);
   const [createInvoiceLog, { isLoading: isCreatingLog }] = useCreateInvoiceLogMutation();
   const [updateInvoiceStatus, { isLoading: isUpdatingStatus }] = useUpdateInvoiceStatusMutation();
+  const [deleteInvoice, { isLoading: isDeletingInvoice }] = useDeleteInvoiceMutation();
   const [isStatusTimelineOpen, setIsStatusTimelineOpen] = useState(false);
   const [selectedInvoiceForTimeline, setSelectedInvoiceForTimeline] = useState<InvoiceEntry | null>(null);
   const [statusToUpdate, setStatusToUpdate] = useState<'issued' | 'paid' | 'partPaid' | ''>('');
@@ -70,6 +74,9 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
   const [statusFilter, setStatusFilter] = useState('all-statuses');
   const [isTimeLogsOpen, setIsTimeLogsOpen] = useState(false);
   const [selectedInvoiceForTimeLogs, setSelectedInvoiceForTimeLogs] = useState<InvoiceEntry | null>(null);
+  const [actionMenu, setActionMenu] = useState<{ invoiceId: string; x: number; y: number } | null>(null);
+  const [invoiceToDelete, setInvoiceToDelete] = useState<InvoiceEntry | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   // Sample data if no entries provided
   const sampleEntries: InvoiceEntry[] = [
@@ -421,6 +428,12 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
     const amount = parseFloat(paymentAmount);
     if (amount > 0 && selectedInvoiceForPayment && amount <= selectedInvoiceForPayment.balance) {
       const isFull = Math.abs(amount - (selectedInvoiceForPayment.balance || 0)) < 1e-6;
+      
+      // Require confirmation for full payment
+      if (isFull && !confirmFullPayment) {
+        return;
+      }
+      
       const action = isFull ? 'compeleted' : 'partialPayment';
       const invoiceId = (displayEntries.find(e => e.id === selectedInvoiceForPayment.id) as any)?._raw?._id || selectedInvoiceForPayment.id;
       const date = new Date().toISOString().split('T')[0];
@@ -429,6 +442,7 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
         setIsPartPaymentOpen(false);
         setSelectedInvoiceForPayment(null);
         setPaymentAmount('');
+        setConfirmFullPayment(false);
       } catch (e) {
         console.error('Failed to create invoice log', e);
       }
@@ -710,6 +724,31 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
     setIsTimeLogsOpen(true);
   };
 
+  const openActionMenu = (event: React.MouseEvent<HTMLButtonElement>, invoiceId: string) => {
+    event.stopPropagation();
+    const rect = event.currentTarget.getBoundingClientRect();
+    setActionMenu({
+      invoiceId,
+      x: rect.left,
+      y: rect.bottom + 5,
+    });
+  };
+
+  const closeActionMenu = () => setActionMenu(null);
+
+  const confirmDeleteInvoice = async () => {
+    if (!invoiceToDelete) return;
+    try {
+      await deleteInvoice(invoiceToDelete.id).unwrap();
+      toast.success(`Invoice ${invoiceToDelete.invoiceNumber} deleted successfully`);
+      setIsDeleteDialogOpen(false);
+      setInvoiceToDelete(null);
+    } catch (error: any) {
+      console.error('Failed to delete invoice', error);
+      toast.error(error?.data?.message || 'Failed to delete invoice');
+    }
+  };
+
   // Sample time logs data for the selected invoice
   const getTimeLogsForInvoice = (invoiceId: string) => {
     return [
@@ -720,6 +759,9 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
       { id: '5', date: '2024-01-19', teamMember: 'John Smith', client: 'Water Savers Limited', job: 'Client Meeting', jobType: 'Meeting', category: 'meeting', description: 'Quarterly review meeting', hours: 2.0, rate: 120, amount: 240, billable: true, status: 'paid' }
     ];
   };
+
+  const actionMenuInvoiceEntry = actionMenu ? displayEntries.find((entry) => entry.id === actionMenu.invoiceId) || null : null;
+  const actionMenuIsLogOnly = (actionMenuInvoiceEntry as any)?._raw?.source === 'manual';
 
   return (
     <div className="space-y-6">
@@ -927,7 +969,9 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
                     </TableHead>
                     {/* <TableHead className="border-r p-3 font-medium text-foreground h-12 !text-[#381980] text-[12px]">Invoice Age</TableHead>
                     <TableHead className="border-r p-3 font-medium text-foreground h-12 !text-[#381980] text-[12px]">Time Logs</TableHead> */}
-                    <TableHead className="border-r p-3 font-medium text-foreground h-12 !text-[#381980] text-[12px]">Actions</TableHead>
+                    <TableHead className="border-r p-3 font-medium text-center h-12 !text-[#381980] text-[12px]">
+                      Actions
+                    </TableHead>
                     <TableHead className="p-3 font-medium text-foreground h-12">
                       <Button
                         variant="ghost"
@@ -936,6 +980,9 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
                       >
                         Status {getSortIcon('status')}
                       </Button>
+                    </TableHead>
+                    <TableHead className="border-l p-3 font-medium text-center h-12 !text-[#381980] text-[12px]">
+                      {/* Settings / Delete */}
                     </TableHead>
                   </TableRow>
                 </TableHeader>
@@ -966,27 +1013,15 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
                             {formatCurrency(entry.balance)}
                           </span>
                         </TableCell>
-                        {/* <TableCell className="border-r text-sm text-muted-foreground">
-                          {getInvoiceAge(entry.invoiceDate)}
-                        </TableCell>
-                        <TableCell className="border-r text-center">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleTimeLogsClick(entry)}
-                            className="text-blue-600 hover:text-blue-800 font-medium"
-                          >
-                            {entry.timeLogCount || 0}
-                          </Button>
-                        </TableCell> */}
-                        <TableCell className="border-r">
-                          <div className="flex items-center gap-2">
+                        {/* Actions column: View Invoice & Invoice Log buttons */}
+                        <TableCell className="border-r p-3 text-center">
+                          <div className="flex items-center justify-center gap-2">
                             {!isLogOnlyInvoice && (
                               <Button
                                 variant="outline"
                                 size="sm"
+                                className="h-8 px-3 text-[12px]"
                                 onClick={() => handleViewInvoice(entry)}
-                                className="text-xs"
                               >
                                 View Invoice
                               </Button>
@@ -994,15 +1029,28 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
                             <Button
                               variant="outline"
                               size="sm"
+                              className="h-8 px-3 text-[12px]"
                               onClick={() => handlePaymentLog(entry)}
-                              className="text-xs"
                             >
                               Invoice Log
                             </Button>
                           </div>
                         </TableCell>
+                        {/* Status column */}
                         <TableCell className="p-4 text-left">
                           {getStatusBadge(statusValue as any)}
+                        </TableCell>
+                        {/* Final settings column: only delete in popup */}
+                        <TableCell className="border-l p-3 text-center">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-muted-foreground hover:text-[#381980]"
+                            onClick={(event) => openActionMenu(event, entry.id)}
+                            aria-label="More actions"
+                          >
+                            <Settings className="h-4 w-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     );
@@ -1013,6 +1061,25 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
           )}
         </CardContent>
       </Card>
+
+      {actionMenu && <div className="fixed inset-0 z-40" onClick={closeActionMenu} />}
+      {actionMenu && actionMenuInvoiceEntry && (
+        <div
+          className="fixed z-50 bg-white border border-gray-200 rounded-md shadow-lg py-1 min-w-[180px]"
+          style={{ top: actionMenu.y, left: actionMenu.x }}
+        >
+          <button
+            className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 text-red-600 flex items-center gap-2"
+            onClick={() => {
+              setInvoiceToDelete(actionMenuInvoiceEntry);
+              setIsDeleteDialogOpen(true);
+              closeActionMenu();
+            }}
+          >
+            <Trash2 className="h-4 w-4" /> Delete Invoice
+          </button>
+        </div>
+      )}
 
       {/* Invoice Preview Dialog */}
       {selectedInvoice && (
@@ -1064,36 +1131,53 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
                   <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-border"></div>
 
                   <div className="space-y-4">
-                    {(((displayEntries.find(e => e.id === selectedInvoiceForTimeline.id) as any)?._raw?.invoiceLogs) || []).map((log: any, index: number) => (
-                      <div key={index} className="flex items-start gap-3">
-                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-background border-2 border-border flex items-center justify-center relative z-10">
-                          {log.action === 'generated' ? (
-                            <Receipt className="h-4 w-4 text-blue-500" />
-                          ) : (log.action === 'partialPayment' || log.action === 'payment') ? (
-                            <Clock className="h-4 w-4 text-yellow-500" />
-                          ) : (
-                            <CheckCircle className="h-4 w-4 text-green-500" />
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0 pb-4">
-                          <div className="bg-card border rounded-lg p-3">
-                            <div className="flex justify-between items-start mb-1">
-                              <div className="font-medium">
-                                {log.action === 'generated' ? 'Invoice Generated' : (log.action === 'partialPayment' || log.action === 'payment') ? 'Part Payment Received' : 'Payment Completed'}
+                    {(((displayEntries.find(e => e.id === selectedInvoiceForTimeline.id) as any)?._raw?.invoiceLogs) || []).map((log: any, index: number) => {
+                      const isPayment = log.action === 'partialPayment' || log.action === 'payment';
+                      const isGenerated = log.action === 'generated';
+                      const isWriteOff = log.action === 'writeOff';
+
+                      const title =
+                        isGenerated
+                          ? 'Invoice Generated'
+                          : isWriteOff
+                            ? 'Write-off Applied'
+                            : isPayment
+                              ? 'Part Payment Received'
+                              : 'Payment Completed';
+
+                      return (
+                        <div key={index} className="flex items-start gap-3">
+                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-background border-2 border-border flex items-center justify-center relative z-10">
+                            {isGenerated ? (
+                              <Receipt className="h-4 w-4 text-blue-500" />
+                            ) : isWriteOff ? (
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            ) : isPayment ? (
+                              <Clock className="h-4 w-4 text-yellow-500" />
+                            ) : (
+                              <CheckCircle className="h-4 w-4 text-green-500" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0 pb-4">
+                            <div className="bg-card border rounded-lg p-3">
+                              <div className="flex justify-between items-start mb-1">
+                                <div className="font-medium">
+                                  {title}
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  {formatDateDMY(log.date)}
+                                </div>
                               </div>
-                              <div className="text-sm text-muted-foreground">
-                                {formatDateDMY(log.date)}
-                              </div>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <div className="text-lg font-semibold text-primary">
-                                {formatCurrency(log.amount)}
+                              <div className="flex justify-between items-center">
+                                <div className={`text-lg font-semibold ${isWriteOff ? 'text-red-600' : 'text-primary'}`}>
+                                  {formatCurrency(log.amount)}
+                                </div>
                               </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -1106,9 +1190,11 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
                       onClick={() => {
                         setPaymentAmount(selectedInvoiceForTimeline.balance.toString());
                         setSelectedInvoiceForPayment(selectedInvoiceForTimeline);
+                        setConfirmFullPayment(false); // Reset confirmation when opening
                         setIsPartPaymentOpen(true);
                       }}
-                      className="w-full sm:flex-1"
+                      variant="outline"
+                      className="w-full sm:flex-1 border-2 hover:bg-gray-50 hover:border-gray-300 transition-all"
                       disabled={selectedInvoiceForTimeline.status === 'paid'}
                     >
                       Log Full Payment
@@ -1118,14 +1204,18 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
                       onClick={() => {
                         setPaymentAmount('');
                         setSelectedInvoiceForPayment(selectedInvoiceForTimeline);
+                        setConfirmFullPayment(false); // Reset confirmation when opening
                         setIsPartPaymentOpen(true);
                       }}
-                      className="w-full sm:flex-1"
+                      className="w-full sm:flex-1 border-2 hover:bg-gray-50 hover:border-gray-300 transition-all"
                       disabled={selectedInvoiceForTimeline.status === 'paid'}
                     >
                       Log Part Payment
                     </Button>
                   </div>
+                  <p className="text-xs text-muted-foreground text-center mt-2">
+                    Click a button above to open the payment dialog
+                  </p>
                 </div>
 
                 <div className="space-y-3">
@@ -1161,6 +1251,9 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
                     const invoiceId = (displayEntries.find(e => e.id === selectedInvoiceForTimeline.id) as any)?._raw?._id || selectedInvoiceForTimeline.id;
                     try {
                       await updateInvoiceStatus({ invoiceId, status: statusToUpdate }).unwrap();
+                      // Close the Invoice Log popup after successful submit
+                      setIsStatusTimelineOpen(false);
+                      setSelectedInvoiceForTimeline(null);
                     } catch (e) {
                       console.error('Failed to update invoice status', e);
                     }
@@ -1176,48 +1269,142 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
         </DialogContent>
       </Dialog>
 
+      {/* Delete Invoice Confirmation */}
+      <Dialog
+        open={isDeleteDialogOpen}
+        onOpenChange={(open) => {
+          setIsDeleteDialogOpen(open);
+          if (!open) {
+            setInvoiceToDelete(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete Invoice</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Are you sure you want to delete invoice{' '}
+              <span className="font-semibold text-[#381980]">{invoiceToDelete?.invoiceNumber}</span>? This action
+              cannot be undone and will remove all associated logs and payments.
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={confirmDeleteInvoice}
+                disabled={!invoiceToDelete || isDeletingInvoice}
+              >
+                {isDeletingInvoice ? 'Deleting...' : 'Delete'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Part Payment Dialog */}
-      <Dialog open={isPartPaymentOpen} onOpenChange={setIsPartPaymentOpen}>
+      <Dialog open={isPartPaymentOpen} onOpenChange={(open) => {
+        setIsPartPaymentOpen(open);
+        if (!open) {
+          // Reset state when dialog closes
+          setConfirmFullPayment(false);
+          setPaymentAmount('');
+        }
+      }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Log Payment</DialogTitle>
           </DialogHeader>
-          {selectedInvoiceForPayment && (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Outstanding Balance</Label>
-                <div className="p-2 bg-muted rounded font-medium text-red-600">
-                  {formatCurrency(selectedInvoiceForPayment.balance)}
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
+          {selectedInvoiceForPayment && (() => {
+            const paymentAmountNum = parseFloat(paymentAmount) || 0;
+            const isFullPayment = Math.abs(paymentAmountNum - selectedInvoiceForPayment.balance) < 1e-6 && paymentAmountNum > 0;
+            
+            return (
+              <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Payment Amount</Label>
-                  <Input
-                    type="number"
-                    placeholder="0.00"
-                    value={paymentAmount}
-                    onChange={(e) => setPaymentAmount(e.target.value)}
-                    max={selectedInvoiceForPayment.balance}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Remaining Balance</Label>
-                  <div className="p-2 bg-muted rounded border">
-                    €{(selectedInvoiceForPayment.balance - (parseFloat(paymentAmount) || 0)).toFixed(2)}
+                  <Label>Outstanding Balance</Label>
+                  <div className="p-2 bg-muted rounded font-medium text-red-600">
+                    {formatCurrency(selectedInvoiceForPayment.balance)}
                   </div>
                 </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Payment Amount</Label>
+                    <Input
+                      type="number"
+                      placeholder="0.00"
+                      value={paymentAmount}
+                      onChange={(e) => {
+                        setPaymentAmount(e.target.value);
+                        // Reset confirmation when amount changes
+                        setConfirmFullPayment(false);
+                      }}
+                      max={selectedInvoiceForPayment.balance}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Remaining Balance</Label>
+                    <div className="p-2 bg-muted rounded border">
+                      €{(selectedInvoiceForPayment.balance - paymentAmountNum).toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Full Payment Confirmation */}
+                {isFullPayment && (
+                  <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg space-y-3">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 mt-0.5">
+                        <svg className="h-5 w-5 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-yellow-800 mb-2">
+                          Full Payment Confirmation
+                        </p>
+                        <p className="text-sm text-yellow-700 mb-3">
+                          You are about to log a full payment. This will mark the invoice as fully paid. Please confirm to proceed.
+                        </p>
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="confirm-full-payment"
+                            checked={confirmFullPayment}
+                            onCheckedChange={(checked) => setConfirmFullPayment(checked === true)}
+                          />
+                          <Label
+                            htmlFor="confirm-full-payment"
+                            className="text-sm text-yellow-800 cursor-pointer font-medium"
+                          >
+                            I confirm this is a full payment
+                          </Label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="flex justify-end">
+                  <Button
+                    onClick={processPartPayment}
+                    disabled={
+                      !paymentAmount || 
+                      paymentAmountNum <= 0 || 
+                      paymentAmountNum > selectedInvoiceForPayment.balance || 
+                      isCreatingLog ||
+                      (isFullPayment && !confirmFullPayment)
+                    }
+                    className={isFullPayment && !confirmFullPayment ? "opacity-50 cursor-not-allowed" : ""}
+                  >
+                    {isCreatingLog ? 'Processing...' : 'Save & Close'}
+                  </Button>
+                </div>
               </div>
-              <div className="flex justify-end">
-                <Button
-                  onClick={processPartPayment}
-                  disabled={!paymentAmount || parseFloat(paymentAmount) <= 0 || parseFloat(paymentAmount) > selectedInvoiceForPayment.balance || isCreatingLog}
-                >
-                  Save & Close
-                </Button>
-              </div>
-            </div>
-          )}
+            );
+          })()}
         </DialogContent>
       </Dialog>
 
@@ -1309,6 +1496,7 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
                 <option value={100}>100 per page</option>
                 <option value={250}>250 per page</option>
                 <option value={500}>500 per page</option>
+                <option value={1000}>1000 per page</option>
               </select>
             </div>
             <div className="text-sm text-gray-500">

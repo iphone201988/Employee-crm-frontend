@@ -745,6 +745,7 @@ const WriteOffMergedTab = () => {
                   <option value={100}>100 per page</option>
                   <option value={250}>250 per page</option>
                   <option value={500}>500 per page</option>
+                  <option value={1000}>1000 per page</option>
                 </select>
               </div>
               <div className="text-sm text-gray-500">
@@ -793,6 +794,7 @@ const WriteOffMergedTab = () => {
                 <option value={100}>100 per page</option>
                 <option value={250}>250 per page</option>
                 <option value={500}>500 per page</option>
+                <option value={1000}>1000 per page</option>
               </select>
             </div>
             <div className="text-sm text-gray-500">

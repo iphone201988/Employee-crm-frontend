@@ -3,14 +3,24 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from '@/lib/currency';
-import { formatDate } from '@/utils/dateFormat';
 import { Paperclip, X, Edit } from 'lucide-react';
+
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+};
 
 interface Expense {
   id: string;
   description: string;
   submittedBy: string;
+  submitterAvatar?: string;
   amount: number;
   hasAttachment: boolean;
   dateLogged: string;
@@ -20,6 +30,7 @@ interface Expense {
   status?: 'invoiced' | 'not invoiced' | 'paid' | 'not paid';
   client?: string;
   attachments?: string[];
+  vatAmount?: number;
 }
 
 interface ActiveExpensesDialogProps {
@@ -89,165 +100,84 @@ const ActiveExpensesDialog = ({ isOpen, onClose, clientName, expenses: initialEx
         </DialogHeader>
         <div className="space-y-4 max-h-[75vh] overflow-y-auto">
           <div className="overflow-auto">
-          <Table className="table-fixed w-full min-w-[1100px]">
+          <Table className="w-full">
             <TableHeader>
-              <TableRow>
-                <TableHead className="w-28 text-left whitespace-nowrap">Date</TableHead>
-                <TableHead className="w-40 text-left whitespace-nowrap">Submitted By</TableHead>
-                <TableHead className="w-40 text-left whitespace-nowrap">Client</TableHead>
-                <TableHead className="w-[360px] text-left whitespace-nowrap">Description</TableHead>
-                <TableHead className="w-32 text-left whitespace-nowrap">Category</TableHead>
-                <TableHead className="w-24 text-left whitespace-nowrap">Net</TableHead>
-                <TableHead className="w-20 text-left whitespace-nowrap">VAT%</TableHead>
-                <TableHead className="w-24 text-left whitespace-nowrap">VAT</TableHead>
-                <TableHead className="w-24 text-left whitespace-nowrap">Gross</TableHead>
-                <TableHead className="w-32 text-left whitespace-nowrap">Status</TableHead>
-                <TableHead className="w-24 text-center whitespace-nowrap">Receipt</TableHead>
-                {/* <TableHead className="w-24 text-center whitespace-nowrap">Actions</TableHead> */}
+              <TableRow className='!bg-[#edecf4] text-[#381980]'>
+                <TableHead className="w-24 text-left">Date</TableHead>
+                <TableHead className="w-40 text-left">Submitted By</TableHead>
+                <TableHead className="w-40 text-left">Client</TableHead>
+                <TableHead className="w-60 text-left">Description</TableHead>
+                <TableHead className="w-32 text-left">Category</TableHead>
+                <TableHead className="w-20 text-left">Net</TableHead>
+                <TableHead className="w-16 text-left">VAT%</TableHead>
+                <TableHead className="w-20 text-left">VAT</TableHead>
+                <TableHead className="w-20 text-left">Gross</TableHead>
+                <TableHead className="w-32 text-left">Status</TableHead>
+                <TableHead className="w-20 text-left">Receipt</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {expenses.map((expense) => {
-                const vatAmount = expense.amount * (expense.vatPercentage / 100);
-                const getStatusBadge = (status: string) => {
+                const getStatusBadge = (status: 'invoiced' | 'not invoiced' | 'paid' | 'not paid') => {
                   switch (status) {
                     case 'invoiced':
-                      return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">Invoiced</span>;
+                      return <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">Invoiced</Badge>;
                     case 'not invoiced':
-                      return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">Not Invoiced</span>;
+                      return <Badge variant="secondary" className="bg-orange-100 text-orange-800 border-orange-200">Not Invoiced</Badge>;
                     case 'paid':
-                      return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">Paid</span>;
+                      return <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">Paid</Badge>;
                     case 'not paid':
-                      return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">Not Paid</span>;
+                      return <Badge variant="secondary" className="bg-orange-100 text-orange-800 border-orange-200">Not Paid</Badge>;
                     default:
                       return null;
                   }
                 };
 
+                const vatAmount = expense.vatAmount || (expense.amount * (expense.vatPercentage / 100));
+                const netAmount = expense.amount;
+                const grossAmount = expense.totalAmount || (netAmount + vatAmount);
+
                 return (
-                <TableRow key={expense.id} className="h-12">
-                  <TableCell className="text-left whitespace-nowrap">
-                    {editingExpense === expense.id ? (
-                      <Input
-                        type="date"
-                        value={expense.dateLogged.split('T')[0]}
-                        onChange={(e) => updateExpense(expense.id, 'dateLogged', e.target.value + 'T00:00:00.000Z')}
-                        onBlur={() => setEditingExpense(null)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') setEditingExpense(null);
-                        }}
-                        className="w-32"
-                      />
-                    ) : (
-                      <span>{formatDate(expense.dateLogged)}</span>
-                    )}
+                <TableRow key={expense.id}>
+                  <TableCell className="font-medium text-left px-4">{formatDate(expense.dateLogged)}</TableCell>
+                  <TableCell className="text-left px-4">
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-8 w-8 flex-shrink-0">
+                        <AvatarImage 
+                          src={expense.submitterAvatar ? `${import.meta.env.VITE_BACKEND_BASE_URL}${expense.submitterAvatar}` : undefined} 
+                          alt={expense.submittedBy} 
+                        />
+                        <AvatarFallback>{expense.submittedBy.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                      </Avatar>
+                      <span className="truncate">{expense.submittedBy}</span>
+                    </div>
                   </TableCell>
-                  <TableCell className="text-left whitespace-nowrap">
-                    {editingExpense === expense.id ? (
-                      <Input
-                        value={expense.submittedBy}
-                        onChange={(e) => updateExpense(expense.id, 'submittedBy', e.target.value)}
-                        onBlur={() => setEditingExpense(null)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') setEditingExpense(null);
-                        }}
-                        className="w-40"
-                      />
-                    ) : (
-                      <span className="block max-w-[160px] truncate" title={expense.submittedBy}>
-                        {expense.submittedBy}
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-left whitespace-nowrap">
-                    <span className="block max-w-[160px] truncate" title={expense.client || clientName}>
+                  <TableCell className="text-left px-4">
+                    <span className="block truncate" title={expense.client || clientName}>
                       {expense.client || clientName}
                     </span>
                   </TableCell>
+                  <TableCell className="text-left px-4">
+                    <span className="block truncate" title={expense.description}>
+                      {expense.description}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-left px-4">
+                    <span className="truncate block">{expense.category || 'General'}</span>
+                  </TableCell>
+                  <TableCell className="text-left px-4 font-medium">€{netAmount.toFixed(2)}</TableCell>
+                  <TableCell className="text-left px-4">{expense.vatPercentage}%</TableCell>
+                  <TableCell className="text-left px-4 font-medium">€{vatAmount.toFixed(2)}</TableCell>
+                  <TableCell className="text-left px-4 font-medium">€{grossAmount.toFixed(2)}</TableCell>
                   <TableCell className="text-left">
-                    {editingExpense === expense.id ? (
-                      <Input
-                        value={expense.description}
-                        onChange={(e) => updateExpense(expense.id, 'description', e.target.value)}
-                        onBlur={() => setEditingExpense(null)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') setEditingExpense(null);
-                        }}
-                        placeholder="Enter description"
-                        autoFocus
-                      />
-                    ) : (
-                      <span className="block max-w-[340px] truncate" title={expense.description}>
-                        {expense.description || 'Click to edit'}
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-left whitespace-nowrap">
-                    {editingExpense === expense.id ? (
-                      <Input
-                        value={expense.category || 'General'}
-                        onChange={(e) => updateExpense(expense.id, 'category', e.target.value)}
-                        onBlur={() => setEditingExpense(null)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') setEditingExpense(null);
-                        }}
-                        className="w-32"
-                      />
-                    ) : (
-                      <span>{expense.category || 'General'}</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-left whitespace-nowrap">
-                    {editingExpense === expense.id ? (
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={expense.amount}
-                        onChange={(e) => updateExpense(expense.id, 'amount', parseFloat(e.target.value) || 0)}
-                        onBlur={() => setEditingExpense(null)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') setEditingExpense(null);
-                        }}
-                        className="w-24 text-left"
-                      />
-                    ) : (
-                      <span>{formatCurrency(expense.amount)}</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-left whitespace-nowrap">
-                    {editingExpense === expense.id ? (
-                      <Input
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        max="100"
-                        value={expense.vatPercentage}
-                        onChange={(e) => updateExpense(expense.id, 'vatPercentage', parseFloat(e.target.value) || 0)}
-                        onBlur={() => setEditingExpense(null)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') setEditingExpense(null);
-                        }}
-                        className="w-16 text-left"
-                      />
-                    ) : (
-                      <span>{expense.vatPercentage}%</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-left whitespace-nowrap">
-                    <span>{formatCurrency(vatAmount)}</span>
-                  </TableCell>
-                  <TableCell className="text-left whitespace-nowrap">
-                    <span className="font-semibold">{formatCurrency(expense.totalAmount)}</span>
-                  </TableCell>
-                  <TableCell className="text-left whitespace-nowrap">
                     {getStatusBadge(expense.status || 'not invoiced')}
                   </TableCell>
-                  <TableCell className="text-center whitespace-nowrap">
-                  {expense.attachments && expense.attachments.length > 0 ? (
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-6 w-6 p-0 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                  <TableCell className="text-center px-4">
+                    {expense.attachments && expense.attachments.length > 0 ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 text-blue-600 hover:text-blue-800"
                         onClick={() => {
                           setSelectedReceipt(expense.attachments![0]);
                           setReceiptDialogOpen(true);
@@ -257,29 +187,9 @@ const ActiveExpensesDialog = ({ isOpen, onClose, clientName, expenses: initialEx
                         <Paperclip className="h-4 w-4" />
                       </Button>
                     ) : (
-                      <span className="text-muted-foreground">N/A</span>
+                      <div>N/A</div>
                     )}
                   </TableCell>
-                  {/* <TableCell className="text-center whitespace-nowrap">
-                    <div className="flex items-center justify-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setEditingExpense(expense.id)}
-                        className="h-6 w-6 p-0 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
-                      >
-                        <Edit className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeExpense(expense.id)}
-                        className="h-6 w-6 p-0 text-red-600 hover:text-red-800 hover:bg-red-50"
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </TableCell> */}
                 </TableRow>
                 );
               })}

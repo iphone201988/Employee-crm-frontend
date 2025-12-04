@@ -35,7 +35,7 @@ const systemFeatures = {
   'Jobs': {
     features: [
       { key: 'services', label: 'Job Types' },
-      // { key: 'jobTemplates', label: 'Job Templates' },
+      { key: 'jobTemplates', label: 'Job Templates' },
       { key: 'jobBuilder', label: 'Job Builder' },
       { key: 'jobList', label: 'Job List' }
     ]

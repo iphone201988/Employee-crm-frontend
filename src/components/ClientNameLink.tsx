@@ -1,6 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ClientDetailsDialog from './ClientDetailsDialog';
-import {useGetClientQuery} from "@/store/clientApi";
+import { useGetClientQuery } from "@/store/clientApi";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { AlertCircle } from 'lucide-react';
+
 interface ClientNameLinkProps {
   name?: string;
   clientName?: string;
@@ -10,11 +21,47 @@ interface ClientNameLinkProps {
 
 const ClientNameLink = ({ name, clientName, className = "", ciientId }: ClientNameLinkProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const { data: client } = useGetClientQuery(ciientId as string, {
-    skip: !ciientId || !isDialogOpen,
+  const [isDeletedClientDialogOpen, setIsDeletedClientDialogOpen] = useState(false);
+  const [shouldFetchClient, setShouldFetchClient] = useState(false);
+  
+  const { data: client, isLoading: isClientLoading } = useGetClientQuery(ciientId as string, {
+    skip: !ciientId || !shouldFetchClient,
     refetchOnMountOrArgChange: false,
   });
+  
   const displayName = name || clientName;
+  
+  // Check client status when data is loaded
+  useEffect(() => {
+    if (shouldFetchClient && !isClientLoading) {
+      // If client data doesn't exist, treat as deleted
+      if (!client?.data) {
+        setIsDeletedClientDialogOpen(true);
+        setShouldFetchClient(false);
+        return;
+      }
+      
+      const clientStatus = client.data.status;
+      // Check if client is deleted/inactive
+      if (clientStatus === 'inActive' || clientStatus === 'inactive') {
+        setIsDeletedClientDialogOpen(true);
+        setShouldFetchClient(false);
+      } else {
+        // Client is active, open the details dialog
+        setIsDialogOpen(true);
+        setShouldFetchClient(false);
+      }
+    }
+  }, [client, isClientLoading, shouldFetchClient]);
+  
+  const handleClick = () => {
+    if (!ciientId) {
+      // No client ID, can't fetch - just show the name as non-clickable
+      return;
+    }
+    // Trigger client fetch
+    setShouldFetchClient(true);
+  };
 
   if (!displayName) {
     return <span className={className}>N/A</span>;
@@ -240,17 +287,44 @@ const ClientNameLink = ({ name, clientName, className = "", ciientId }: ClientNa
   return (
     <>
       <button
-        onClick={() => setIsDialogOpen(true)}
+        onClick={handleClick}
         className={`text-primary hover:text-primary/80 hover:underline cursor-pointer font-medium text-left underline-text ${className}`}
       >
         {displayName}
       </button>
       
+      {/* Client Details Dialog for active clients */}
       <ClientDetailsDialog
         open={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
+        onOpenChange={(open) => {
+          setIsDialogOpen(open);
+          if (!open) {
+            setShouldFetchClient(false);
+          }
+        }}
         clientData={client?.data}
       />
+      
+      {/* Alert Dialog for deleted/inactive clients */}
+      <AlertDialog open={isDeletedClientDialogOpen} onOpenChange={setIsDeletedClientDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3">
+              <AlertCircle className="h-6 w-6 text-orange-500" />
+              <AlertDialogTitle>Client Deleted</AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="pt-2">
+              This client has been deleted and is no longer active. 
+              The invoice record is preserved for historical purposes and compliance requirements.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setIsDeletedClientDialogOpen(false)}>
+              Understood
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };

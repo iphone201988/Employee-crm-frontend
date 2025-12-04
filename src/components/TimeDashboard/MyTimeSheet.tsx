@@ -61,6 +61,19 @@ interface MyTimeSheetProps {
     userId?: string;
 }
 
+const SUMMARY_STATIC_COLUMNS = 8;
+
+const renderSummaryLabelCells = (label: string, className = '') => {
+    return Array.from({ length: SUMMARY_STATIC_COLUMNS }).map((_, index) => (
+        <td
+            key={`${label}-static-${index}`}
+            className={`px-3 py-2 ${index === SUMMARY_STATIC_COLUMNS - 1 ? `text-sm font-semibold text-right text-[#381980] ${className}` : ''}`}
+        >
+            {index === SUMMARY_STATIC_COLUMNS - 1 ? label : ''}
+        </td>
+    ));
+};
+
 export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesheetId: propTimesheetId, userId: propUserId }: MyTimeSheetProps = {}) => {
     const [searchParams] = useSearchParams();
 
@@ -374,7 +387,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
 
     // Add new row
     const handleAddRow = () => {
-        if (clients.length === 0 || jobs.length === 0 || categories.length === 0 || jobTypes.length === 0) {
+        if (clients.length === 0 || jobs.length === 0  || jobTypes.length === 0) {
             toast.error('Job is not assigned to you yet.');
             return;
         }
@@ -1543,7 +1556,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                         {/* Summary rows */}
                         <tbody className="border-t-2 border-border">
                             <tr className="bg-blue-50">
-                                <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right text-[#381980]">BILLABLE</td>
+                                {renderSummaryLabelCells('BILLABLE')}
                                 {weekDays.slice(1, 6).map((day, index) => (
                                     <td key={day.key} className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap ">
                                         <div className=" bg-[#f8f4fb] border border-[#e4e4e7] rounded-sm px-1 py-1">
@@ -1575,7 +1588,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                     </td>
                             </tr>
                             <tr className="bg-gray-50">
-                                <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right text-[#381980]">NON BILLABLE</td>
+                                {renderSummaryLabelCells('NON BILLABLE')}
                                 {weekDays.slice(1, 6).map((day, index) => (
                                     <td key={day.key} className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap">
                                         <div className=" bg-[#f8f4fb] border border-[#e4e4e7] rounded-sm px-1 py-1">
@@ -1608,7 +1621,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                     </td>
                             </tr>
                             <tr className="bg-blue-50">
-                                <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right text-[#381980]">LOGGED</td>
+                                {renderSummaryLabelCells('LOGGED')}
                                 {weekDays.slice(1, 6).map((day, index) => (
                                     <td key={day.key} className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap">
                                         <div className=" bg-[#f8f4fb] border border-[#e4e4e7] rounded-sm px-1 py-1">
@@ -1641,7 +1654,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                     </td>
                             </tr>
                             <tr className="bg-gray-100">
-                                <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right text-[#381980]">CAPACITY</td>
+                                {renderSummaryLabelCells('CAPACITY')}
                                 {weekDays.slice(1, 6).map((day, index) => (
                                     <td key={day.key} className="px-3 py-2 text-center text-sm font-normal whitespace-nowrap">
                                         <div className=" bg-[#f8f4fb] border border-[#e4e4e7] rounded-sm px-1 py-1">
@@ -1674,7 +1687,7 @@ export const MyTimeSheet = ({ currentWeek: propCurrentWeek, onWeekChange, timesh
                                     </td>
                             </tr>
                             <tr className={isVariancePositive ? "bg-green-50" : "bg-red-50"}>
-                                <td colSpan={7} className="px-3 py-2 text-sm font-normal text-right text-[#381980]">VARIANCE</td>
+                                {renderSummaryLabelCells('VARIANCE', isVariancePositive ? '' : '')}
                                 {weekDays.slice(1, 6).map((day, index) => {
                                     const dayData = dailySummary[day.key as keyof typeof dailySummary];
                                     const dayVariancePositive = dayData.logged > dayData.capacity;

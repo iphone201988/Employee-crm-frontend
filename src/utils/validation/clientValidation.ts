@@ -41,8 +41,8 @@ export const validateTaxNumber = (taxNumber: string): string | null => {
 
 export const validateCroNumber = (croNumber?: string): string | null => {
     // CRO Number is optional, only validate format if provided
-    if (croNumber && croNumber.trim() && croNumber.trim() !== 'N/A' && !/^[0-9]+$/.test(croNumber.trim())) {
-        return 'CRO number must contain only numbers';
+    if (croNumber && croNumber.trim() && croNumber.trim() !== 'N/A' && !/^[a-zA-Z0-9]+$/.test(croNumber.trim())) {
+        return 'CRO number must contain only letters and numbers';
     }
     return null;
 };

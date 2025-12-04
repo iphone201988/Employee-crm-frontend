@@ -12,6 +12,14 @@ import { Loader2, X } from "lucide-react";
 import { DateOrNAInput } from '@/components/DateOrNAInput';
 import { normalizeOptionalText, parseDateValue } from '@/utils/clientFieldUtils';
 
+// Helper function to format date as YYYY-MM-DD (date-only, no time)
+const formatDateOnly = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 
 
 const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, clientToEdit }: IAddClient) => {
@@ -137,7 +145,7 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
                 clientRef: convertEmptyToNA(formData.clientRef),
                 name: formData.name,
                 businessTypeId: formData.businessTypeId,
-                taxNumber: formData.taxNumber,
+                taxNumber: (!formData.taxNumber || formData.taxNumber.trim() === '') ? null : formData.taxNumber,
                 croNumber: convertEmptyToNA(formData.croNumber),
                 croLink: formData.croLink || '',
                 clientManagerId: formData.clientManagerId || undefined,
@@ -146,12 +154,12 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
                 emailNote: sanitizedEmailNote || undefined,
                 phone: sanitizedPhone || undefined,
                 phoneNote: sanitizedPhoneNote || undefined,
-                onboardedDate: formData.onboardedDate || undefined,
+                onboardedDate: formData.onboardedDate instanceof Date ? formatDateOnly(formData.onboardedDate) : (formData.onboardedDate || null),
                 amlCompliant: formData.amlCompliant,
                 audit: formData.audit,
                 clientStatus: formData.clientStatus || 'Current',
                 yearEnd: formData.yearEnd || '',
-                arDate: formData.arDate || undefined,
+                arDate: formData.arDate instanceof Date ? formatDateOnly(formData.arDate) : (formData.arDate || null),
             };
 
             let res;
@@ -481,7 +489,7 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
                                 onChange={handleInputChange('amlCompliant')}
                             />
                             <InputComponent
-                                label="Audit Compliant"
+                                label="In Audit"
                                 id="auditCompliant"
                                 type="checkbox"
                                 value={formData.audit}

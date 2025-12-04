@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Search, Settings, X, RefreshCw, Check, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { formatCurrency } from '@/lib/currency';
 import ClientNameLink from '@/components/ClientNameLink';
@@ -1040,8 +1040,18 @@ const JobsTab = () => {
                                         <TableCell className='px-4'>
                                             <div className="flex -space-x-2">
                                                 {job.teamMembers.map(tm => (
-                                                    <Avatar key={tm._id} className="h-6 w-6 border-2 border-background">
-                                                        <AvatarFallback>{getUserInitials(tm.name)}</AvatarFallback>
+                                                    <Avatar
+                                                        key={tm._id}
+                                                        className="w-7 h-7 sm:w-8 sm:h-8 border-2 border-background rounded-full flex-shrink-0"
+                                                    >
+                                                        <AvatarImage
+                                                            src={tm.avatarUrl ? `${import.meta.env.VITE_BACKEND_BASE_URL}${tm.avatarUrl}` : undefined}
+                                                            className="rounded-full object-cover"
+                                                            alt={tm.name}
+                                                        />
+                                                        <AvatarFallback className="text-[10px] sm:text-xs">
+                                                            {getUserInitials(tm.name)}
+                                                        </AvatarFallback>
                                                     </Avatar>
                                                 ))}
                                             </div>
@@ -1127,6 +1137,7 @@ const JobsTab = () => {
                                 <option value={100}>100 per page</option>
                                 <option value={250}>250 per page</option>
                                 <option value={500}>500 per page</option>
+                                <option value={1000}>1000 per page</option>
                             </select>
                         </div>
 

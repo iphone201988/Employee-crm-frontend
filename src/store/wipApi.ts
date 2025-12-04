@@ -217,10 +217,17 @@ export const wipApi = createApi({
         return { url: `/wip/write-off${qs ? `?${qs}` : ''}` };
       },
     }),
+    deleteInvoice: builder.mutation<any, string>({
+      query: (invoiceId) => ({
+        url: `/wip/invoice/${invoiceId}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Invoices', 'Wip'],
+    }),
   }),
 });
 
-export const { useGetWipQuery, useGetAgedWipQuery, useGetAgedDebtorsQuery, useAddWipOpenBalanceMutation, useAttachWipTargetMutation, useGenerateInvoiceMutation, useLogInvoiceMutation, useGetInvoicesQuery, useUpdateInvoiceStatusMutation, useGetInvoiceByInvoiceNoQuery, useCreateWriteOffMutation, useGetWriteOffDashboardQuery, useGetWriteOffQuery, useGetInvoiceTimeLogsMutation } = wipApi;
+export const { useGetWipQuery, useGetAgedWipQuery, useGetAgedDebtorsQuery, useAddWipOpenBalanceMutation, useAttachWipTargetMutation, useGenerateInvoiceMutation, useLogInvoiceMutation, useGetInvoicesQuery, useUpdateInvoiceStatusMutation, useGetInvoiceByInvoiceNoQuery, useCreateWriteOffMutation, useGetWriteOffDashboardQuery, useGetWriteOffQuery, useGetInvoiceTimeLogsMutation, useDeleteInvoiceMutation } = wipApi;
 export const { useCreateInvoiceLogMutation } = wipApi;
 
 

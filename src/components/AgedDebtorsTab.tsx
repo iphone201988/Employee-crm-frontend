@@ -11,6 +11,11 @@ import ClientNameLink from './ClientNameLink';
 import ClientDetailsDialog from './ClientDetailsDialog';
 import InvoiceTimeLogsDialog from './InvoiceTimeLogsDialog';
 import { useGetAgedDebtorsQuery } from '@/store/wipApi';
+import { useUpdateClientAgingDatesMutation, useGetClientQuery } from '@/store/clientApi';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { toast } from 'sonner';
 
 interface AgedDebtorEntry {
   id: string;
@@ -27,6 +32,8 @@ interface AgedDebtorEntry {
   days120: number;
   days150: number;
   days180: number;
+  hasImportedDebtors?: boolean;
+  isImported?: boolean;
 }
 
 const AgedDebtorsTab = () => {
@@ -36,177 +43,25 @@ const AgedDebtorsTab = () => {
   const [isTimeLogsDialogOpen, setIsTimeLogsDialogOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
-  const { data: agedResp, isLoading } = useGetAgedDebtorsQuery({ page, limit });
+  const { data: agedResp, isLoading, refetch } = useGetAgedDebtorsQuery({ page, limit });
   const apiClients = agedResp?.data?.clients || [];
   const apiSummary = agedResp?.data?.summary || {}; // days30, days60, days90Plus, days150Plus
   const apiTotals = agedResp?.data?.totals || {};
 
-  const [agedDebtors] = useState<AgedDebtorEntry[]>([
-    {
-      id: '1',
-      clientRef: 'WAT-23',
-      client: 'Water Savers Limited',
-      jobCode: 'ACC',
-      jobDescription: 'Accounts',
-      balance: 1250.00,
-      unallocated: 0.00,
-      current: 0.00,
-      days30: 0.00,
-      days60: 0.00,
-      days90: 1250.00,
-      days120: 0.00,
-      days150: 0.00,
-      days180: 0.00
-    },
-    {
-      id: '2',
-      clientRef: 'GRE-25',
-      client: 'Green Gardens Limited',
-      jobCode: 'PTX',
-      jobDescription: 'Personal Tax',
-      balance: 615.00,
-      unallocated: 0.00,
-      current: 0.00,
-      days30: 0.00,
-      days60: 0.00,
-      days90: 615.00,
-      days120: 0.00,
-      days150: 0.00,
-      days180: 0.00
-    },
-    {
-      id: '3',
-      clientRef: 'BRO-24',
-      client: 'Brown Enterprises',
-      jobCode: 'PTX',
-      jobDescription: 'Personal Tax',
-      balance: 615.00,
-      unallocated: 0.00,
-      current: 0.00,
-      days30: 0.00,
-      days60: 0.00,
-      days90: 0.00,
-      days120: 0.00,
-      days150: 307.50,
-      days180: 0.00
-    },
-    {
-      id: '4',
-      clientRef: 'SMI-22',
-      client: 'Smith & Associates',
-      jobCode: 'ACC',
-      jobDescription: 'Accounts',
-      balance: 1885.00,
-      unallocated: 0.00,
-      current: 0.00,
-      days30: 0.00,
-      days60: 0.00,
-      days90: 942.50,
-      days120: 0.00,
-      days150: 0.00,
-      days180: 0.00
-    },
-    {
-      id: '5',
-      clientRef: 'TEC-25',
-      client: 'Tech Solutions Ltd',
-      jobCode: 'ACC',
-      jobDescription: 'Accounts',
-      balance: 2350.00,
-      unallocated: 0.00,
-      current: 1175.00,
-      days30: 1175.00,
-      days60: 0.00,
-      days90: 0.00,
-      days120: 0.00,
-      days150: 0.00,
-      days180: 0.00
-    },
-    {
-      id: '6',
-      clientRef: 'MAR-20',
-      client: 'Marketing Pro',
-      jobCode: 'PTX',
-      jobDescription: 'Personal Tax',
-      balance: 450.00,
-      unallocated: 0.00,
-      current: 0.00,
-      days30: 0.00,
-      days60: 450.00,
-      days90: 0.00,
-      days120: 0.00,
-      days150: 0.00,
-      days180: 0.00
-    },
-    {
-      id: '7',
-      clientRef: 'DIG-24',
-      client: 'Digital Media Co',
-      jobCode: 'CTX',
-      jobDescription: 'Corporation Tax',
-      balance: 3200.00,
-      unallocated: 0.00,
-      current: 0.00,
-      days30: 0.00,
-      days60: 0.00,
-      days90: 0.00,
-      days120: 3200.00,
-      days150: 0.00,
-      days180: 0.00
-    },
-    {
-      id: '8',
-      clientRef: 'RET-23',
-      client: 'Retail Express',
-      jobCode: 'VAT',
-      jobDescription: 'VAT Return',
-      balance: 825.00,
-      unallocated: 0.00,
-      current: 0.00,
-      days30: 0.00,
-      days60: 0.00,
-      days90: 0.00,
-      days120: 0.00,
-      days150: 0.00,
-      days180: 825.00
-    },
-    {
-      id: '9',
-      clientRef: 'CON-25',
-      client: 'Construction Pros',
-      jobCode: 'ACC',
-      jobDescription: 'Accounts',
-      balance: 1680.00,
-      unallocated: 0.00,
-      current: 840.00,
-      days30: 840.00,
-      days60: 0.00,
-      days90: 0.00,
-      days120: 0.00,
-      days150: 0.00,
-      days180: 0.00
-    },
-    {
-      id: '10',
-      clientRef: 'FIN-22',
-      client: 'Finance First',
-      jobCode: 'AUD',
-      jobDescription: 'Audit',
-      balance: 4500.00,
-      unallocated: 0.00,
-      current: 0.00,
-      days30: 0.00,
-      days60: 0.00,
-      days90: 0.00,
-      days120: 0.00,
-      days150: 4500.00,
-      days180: 0.00
-    }
-  ]);
+  const [agedDebtors] = useState<AgedDebtorEntry[]>([]
+  );
 
   const [sortBy, setSortBy] = useState<string>('balance');
   const [filterPeriod, setFilterPeriod] = useState<string>('all');
   const [sortConfig, setSortConfig] = useState<{ key: keyof AgedDebtorEntry; direction: 'asc' | 'desc' } | null>(null);
+
+  const [editClientId, setEditClientId] = useState<string | null>(null);
+  const [editClientName, setEditClientName] = useState('');
+  const [editDebtorsDate, setEditDebtorsDate] = useState('');
+  const [editDebtorsBalance, setEditDebtorsBalance] = useState<string>('');
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [updateClientAgingDates, { isLoading: isUpdatingAging }] = useUpdateClientAgingDatesMutation();
+  const { data: editClientDetails } = useGetClientQuery(editClientId as string, { skip: !editClientId });
 
   const handleClientClick = (clientName: string) => {
     setSelectedClient(clientName);
@@ -325,7 +180,7 @@ const AgedDebtorsTab = () => {
         days90: apiTotals.days90 || 0,
         days120: apiTotals.days120 || 0,
         days150: apiTotals.days150 || 0,
-        days180: apiTotals.days180 || 0,
+        days180: (apiTotals.days180 || 0) + (apiTotals.days180Plus || 0), // Combine 180 and 180+ days
       } as any;
     }
     return agedDebtors.reduce((acc, entry) => ({
@@ -369,12 +224,14 @@ const AgedDebtorsTab = () => {
         balance: c.balance,
         unallocated: 0,
         current: 0,
-        days30: c.days30,
-        days60: c.days60,
-        days90: c.days90,
-        days120: c.days120,
-        days150: c.days150,
-        days180: c.days180,
+        days30: c.days30 || 0,
+        days60: c.days60 || 0,
+        days90: c.days90 || 0,
+        days120: c.days120 || 0,
+        days150: c.days150 || 0,
+        days180: (c.days180 || 0) + (c.days180Plus || 0), // Combine 180 and 180+ days
+        hasImportedDebtors: !!c.hasImportedDebtors,
+        isImported: !!c.isImported,
       } as AgedDebtorEntry));
     }
     return agedDebtors;
@@ -556,6 +413,9 @@ const AgedDebtorsTab = () => {
                       180 Days {getSortIcon('days180')}
                     </Button>
                   </th>
+                  <th className="text-center p-3 font-medium text-foreground h-12 !text-[#381980] text-[12px]">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -572,12 +432,31 @@ const AgedDebtorsTab = () => {
                         </div>
                       </td>
                       <td className="p-3 text-right text-sm">€{entry.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                      <td className="p-3 text-right">{entry.days30 > 0 ? `€${entry.days30.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}</td>
-                      <td className="p-3 text-right">{entry.days60 > 0 ? `€${entry.days60.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}</td>
-                      <td className="p-3 text-right">{entry.days90 > 0 ? `€${entry.days90.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}</td>
-                      <td className="p-3 text-right">{entry.days120 > 0 ? `€${entry.days120.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}</td>
-                      <td className="p-3 text-right">{entry.days150 > 0 ? `€${entry.days150.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}</td>
-                      <td className="p-3 text-right">{entry.days180 > 0 ? `€${entry.days180.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}</td>
+                      <td className="p-3 text-right">{entry.days30 !== 0 ? `€${entry.days30.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}</td>
+                      <td className="p-3 text-right">{entry.days60 !== 0 ? `€${entry.days60.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}</td>
+                      <td className="p-3 text-right">{entry.days90 !== 0 ? `€${entry.days90.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}</td>
+                      <td className="p-3 text-right">{entry.days120 !== 0 ? `€${entry.days120.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}</td>
+                      <td className="p-3 text-right">{entry.days150 !== 0 ? `€${entry.days150.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}</td>
+                      <td className="p-3 text-right">{entry.days180 !== 0 ? `€${entry.days180.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}</td>
+                      <td className="p-3 text-center">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-3 text-[12px]"
+                          disabled={!entry.isImported}
+                          onClick={() => {
+                            if (entry.isImported) {
+                              setEditClientId(entry.id);
+                              setEditClientName(entry.client);
+                              setEditDebtorsDate('');
+                              setEditDebtorsBalance('');
+                              setIsEditDialogOpen(true);
+                            }
+                          }}
+                        >
+                          Edit
+                        </Button>
+                      </td>
                     </tr>
                   );
                 })}
@@ -593,6 +472,7 @@ const AgedDebtorsTab = () => {
                   <td className="p-3 text-right">€{totals.days120.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   <td className="p-3 text-right">€{totals.days150.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   <td className="p-3 text-right">€{totals.days180.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  <td className="p-3" />
                 </tr>
               </tfoot>
             </table>
@@ -619,6 +499,7 @@ const AgedDebtorsTab = () => {
                 <option value={100}>100 per page</option>
                 <option value={250}>250 per page</option>
                 <option value={500}>500 per page</option>
+                <option value={1000}>1000 per page</option>
               </select>
             </div>
             <div className="text-sm text-gray-500">
@@ -656,6 +537,86 @@ const AgedDebtorsTab = () => {
           timeLogs={selectedInvoice.timeLogs}
         />
       )}
+
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Imported Debtors</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-sm font-medium">Client</Label>
+              <div className="text-sm text-muted-foreground">
+                {editClientName || '—'}
+              </div>
+            </div>
+            <div>
+              <Label className="text-sm font-medium">Imported Debtors Balance</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={editDebtorsBalance}
+                onChange={(e) => setEditDebtorsBalance(e.target.value)}
+                placeholder={editClientDetails?.data && 'debtorsBalance' in editClientDetails.data ? ((editClientDetails.data as any).debtorsBalance?.toString() || "0.00") : "0.00"}
+              />
+              {editClientDetails?.data && 'debtorsBalance' in editClientDetails.data && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Current: €{((editClientDetails.data as any).debtorsBalance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              )}
+            </div>
+            <div>
+              <Label className="text-sm font-medium">Imported Debtors Reference Date</Label>
+              <Input
+                type="date"
+                value={editDebtorsDate || (editClientDetails?.data && 'debtorsDate' in editClientDetails.data && (editClientDetails.data as any).debtorsDate ? new Date((editClientDetails.data as any).debtorsDate).toISOString().split('T')[0] : '')}
+                onChange={(e) => setEditDebtorsDate(e.target.value)}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsEditDialogOpen(false);
+                  setEditClientId(null);
+                  setEditClientName('');
+                  setEditDebtorsDate('');
+                  setEditDebtorsBalance('');
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                disabled={!editClientId || (!editDebtorsDate && !editDebtorsBalance) || isUpdatingAging}
+                onClick={async () => {
+                  if (!editClientId) return;
+                  try {
+                    const updatePayload: any = { clientId: editClientId };
+                    if (editDebtorsDate) {
+                      updatePayload.debtorsDate = editDebtorsDate;
+                    }
+                    if (editDebtorsBalance !== '') {
+                      updatePayload.debtorsBalance = parseFloat(editDebtorsBalance) || 0;
+                    }
+                    await updateClientAgingDates(updatePayload).unwrap();
+                    toast.success('Debtors updated successfully');
+                    setIsEditDialogOpen(false);
+                    setEditClientId(null);
+                    setEditClientName('');
+                    setEditDebtorsDate('');
+                    setEditDebtorsBalance('');
+                    refetch();
+                  } catch (error: any) {
+                    toast.error(error?.data?.message || 'Failed to update debtors');
+                  }
+                }}
+              >
+                {isUpdatingAging ? 'Saving...' : 'Save'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

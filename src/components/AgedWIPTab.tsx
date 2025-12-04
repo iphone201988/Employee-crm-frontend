@@ -7,9 +7,12 @@ import { formatCurrency } from '@/lib/currency';
 import { ArrowUpDown, Search } from 'lucide-react';
 import ClientNameLink from './ClientNameLink';
 import ClientDetailsDialog from '@/components/ClientDetailsDialog';
-import { useGetClientQuery } from '@/store/clientApi';
+import { useGetClientQuery, useUpdateClientAgingDatesMutation } from '@/store/clientApi';
 import { useGetAgedWipQuery } from '@/store/wipApi';
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
 
 interface AgedWIPEntry {
   clientId: string;
@@ -22,6 +25,8 @@ interface AgedWIPEntry {
   days120: number;
   days150: number;
   days180Plus: number;
+  hasImportedWip?: boolean;
+  isImported?: boolean;
 }
 
 const AgedWIPTab = () => {
@@ -38,7 +43,7 @@ const AgedWIPTab = () => {
     return () => clearTimeout(handler);
   }, [searchValue]);
 
-  const { data, isLoading } = useGetAgedWipQuery({
+  const { data, isLoading, refetch } = useGetAgedWipQuery({
     page,
     limit,
     search: debouncedSearch || undefined,
@@ -56,11 +61,34 @@ const AgedWIPTab = () => {
     days120: c.days120,
     days150: c.days150,
     days180Plus: c.days180Plus,
+    hasImportedWip: !!c.hasImportedWip,
+    isImported: !!c.isImported,
   }));
 
   const [selectedClientId, setSelectedClientId] = React.useState<string | null>(null);
   const [showClientDetailsDialog, setShowClientDetailsDialog] = React.useState(false);
   const { data: selectedClientData } = useGetClientQuery(selectedClientId as string, { skip: !selectedClientId });
+  const [editClientId, setEditClientId] = useState<string | null>(null);
+  const [editClientName, setEditClientName] = useState('');
+  const [editWipDate, setEditWipDate] = useState('');
+  const [editWipBalance, setEditWipBalance] = useState<string>('');
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [updateClientAgingDates, { isLoading: isUpdatingAging }] = useUpdateClientAgingDatesMutation();
+  const { data: editClientDetails } = useGetClientQuery(editClientId as string, { skip: !editClientId });
+
+  // Populate fields when client details are loaded
+  React.useEffect(() => {
+    if (editClientDetails?.data && isEditDialogOpen) {
+      const clientData = editClientDetails.data as any;
+      if (editWipBalance === '' && 'wipBalance' in clientData && clientData.wipBalance !== undefined) {
+        setEditWipBalance(clientData.wipBalance.toString());
+      }
+      if (editWipDate === '' && 'importedWipDate' in clientData && clientData.importedWipDate) {
+        const dateValue = new Date(clientData.importedWipDate).toISOString().split('T')[0];
+        setEditWipDate(dateValue);
+      }
+    }
+  }, [editClientDetails, isEditDialogOpen, editWipBalance, editWipDate]);
 
   const handleSort = (key: keyof AgedWIPEntry) => {
     setSortConfig(current => {
@@ -269,6 +297,9 @@ const AgedWIPTab = () => {
                       180 Days + {getSortIcon('days180Plus')}
                     </Button>
                   </TableHead>
+                  <TableHead className="font-medium text-center">
+                    Actions
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -290,22 +321,41 @@ const AgedWIPTab = () => {
                       {formatCurrency(entry.wipBalance)}
                     </TableCell>
                     <TableCell className="text-right px-4">
-                      {entry.days30 > 0 ? formatCurrency(entry.days30) : '-'}
+                      {entry.days30 !== 0 ? formatCurrency(entry.days30) : '-'}
                     </TableCell>
                     <TableCell className="text-right px-4">
-                      {entry.days60 > 0 ? formatCurrency(entry.days60) : '-'}
+                      {entry.days60 !== 0 ? formatCurrency(entry.days60) : '-'}
                     </TableCell>
                     <TableCell className="text-right px-4">
-                      {entry.days90 > 0 ? formatCurrency(entry.days90) : '-'}
+                      {entry.days90 !== 0 ? formatCurrency(entry.days90) : '-'}
                     </TableCell>
                     <TableCell className="text-right px-4">
-                      {entry.days120 > 0 ? formatCurrency(entry.days120) : '-'}
+                      {entry.days120 !== 0 ? formatCurrency(entry.days120) : '-'}
                     </TableCell>
                     <TableCell className="text-right px-4">
-                      {entry.days150 > 0 ? formatCurrency(entry.days150) : '-'}
+                      {entry.days150 !== 0 ? formatCurrency(entry.days150) : '-'}
                     </TableCell>
                     <TableCell className="text-right px-4">
-                      {entry.days180Plus > 0 ? formatCurrency(entry.days180Plus) : '-'}
+                      {entry.days180Plus !== 0 ? formatCurrency(entry.days180Plus) : '-'}
+                    </TableCell>
+                    <TableCell className="text-center px-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 px-3 text-[12px]"
+                        disabled={!entry.isImported}
+                        onClick={() => {
+                          if (entry.isImported) {
+                            setEditClientId(entry.clientId);
+                            setEditClientName(entry.clientName);
+                            setEditWipDate('');
+                            setEditWipBalance('');
+                            setIsEditDialogOpen(true);
+                          }
+                        }}
+                      >
+                        Edit
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -348,6 +398,86 @@ const AgedWIPTab = () => {
         />
       )}
 
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Imported WIP</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-sm font-medium">Client</Label>
+              <div className="text-sm text-muted-foreground">
+                {editClientName || '—'}
+              </div>
+            </div>
+            <div>
+              <Label className="text-sm font-medium">Imported WIP Balance</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={editWipBalance || (editClientDetails?.data && 'wipBalance' in editClientDetails.data ? ((editClientDetails.data as any).wipBalance?.toString() || '') : '')}
+                onChange={(e) => setEditWipBalance(e.target.value)}
+                placeholder={editClientDetails?.data && 'wipBalance' in editClientDetails.data ? ((editClientDetails.data as any).wipBalance?.toString() || "0.00") : "0.00"}
+              />
+              {editClientDetails?.data && 'wipBalance' in editClientDetails.data && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Current: {formatCurrency((editClientDetails.data as any).wipBalance || 0)}
+                </p>
+              )}
+            </div>
+            <div>
+              <Label className="text-sm font-medium">Imported WIP Reference Date</Label>
+              <Input
+                type="date"
+                value={editWipDate || (editClientDetails?.data && 'importedWipDate' in editClientDetails.data && (editClientDetails.data as any).importedWipDate ? new Date((editClientDetails.data as any).importedWipDate).toISOString().split('T')[0] : '')}
+                onChange={(e) => setEditWipDate(e.target.value)}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsEditDialogOpen(false);
+                  setEditClientId(null);
+                  setEditClientName('');
+                  setEditWipDate('');
+                  setEditWipBalance('');
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                disabled={!editClientId || (!editWipDate && !editWipBalance) || isUpdatingAging}
+                onClick={async () => {
+                  if (!editClientId) return;
+                  try {
+                    const updatePayload: any = { clientId: editClientId };
+                    if (editWipDate) {
+                      updatePayload.importedWipDate = editWipDate;
+                    }
+                    if (editWipBalance !== '') {
+                      updatePayload.wipBalance = parseFloat(editWipBalance) || 0;
+                    }
+                    await updateClientAgingDates(updatePayload).unwrap();
+                    toast.success('WIP updated successfully');
+                    setIsEditDialogOpen(false);
+                    setEditClientId(null);
+                    setEditClientName('');
+                    setEditWipDate('');
+                    setEditWipBalance('');
+                    refetch();
+                  } catch (error: any) {
+                    toast.error(error?.data?.message || 'Failed to update WIP');
+                  }
+                }}
+              >
+                {isUpdatingAging ? 'Saving...' : 'Save'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {pagination && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
@@ -366,6 +496,7 @@ const AgedWIPTab = () => {
                 <option value={100}>100 per page</option>
                 <option value={250}>250 per page</option>
                 <option value={500}>500 per page</option>
+                <option value={1000}>1000 per page</option>
               </select>
             </div>
             <div className="text-sm text-gray-500">

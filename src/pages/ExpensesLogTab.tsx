@@ -389,8 +389,15 @@ const ExpensesLogTab = () => {
     amount: expense.totalAmount,
     status: expense.status === 'yes' ? (activeTab === 'clientExpenses' ? 'invoiced' : 'paid') : (activeTab === 'clientExpenses' ? 'not invoiced' : 'not paid'),
     invoiceNumber: expense.status === 'yes' ? `INV-${expense._id.slice(-6)}` : undefined,
-    submittedBy: activeTab === 'teamExpenses' ? (expense.user?.name || 'Unknown') : (expense.submittedDetails?.name || 'Unknown'),
-    submitterAvatar: activeTab === 'teamExpenses' ? (expense.user?.avatarUrl ? `${import.meta.env.VITE_BACKEND_BASE_URL}${expense.user.avatarUrl}` : '/lovable-uploads/2a629138-9746-40f3-ad13-33c9c4d4b180.png') : '/lovable-uploads/2a629138-9746-40f3-ad13-33c9c4d4b180.png',
+    submittedBy:
+      activeTab === 'teamExpenses'
+        ? (expense.user?.name || 'Unknown')
+        : (expense.submittedDetails?.name || 'Unknown'),
+    // Store raw avatar path (if any); we will prepend backend URL only when rendering
+    submitterAvatar:
+      activeTab === 'teamExpenses'
+        ? (expense.user?.avatarUrl || '')
+        : (expense.submittedDetails?.avatarUrl || ''),
     attachments: expense.attachments || [],
   }));
 
@@ -753,8 +760,21 @@ const ExpensesLogTab = () => {
                       <TableCell className="text-left px-4">
                         <div className="flex items-center gap-2">
                           <Avatar className="h-8 w-8 flex-shrink-0">
-                            <AvatarImage src={import.meta.env.VITE_BACKEND_BASE_URL + expense.submitterAvatar} alt={expense.submittedBy} />
-                            <AvatarFallback>{expense.submittedBy.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                            <AvatarImage
+                              src={
+                                expense.submitterAvatar
+                                  ? `${import.meta.env.VITE_BACKEND_BASE_URL}${expense.submitterAvatar}`
+                                  : undefined
+                              }
+                              alt={expense.submittedBy}
+                            />
+                            <AvatarFallback>
+                              {expense.submittedBy
+                                .split(' ')
+                                .filter(Boolean)
+                                .map(n => n[0])
+                                .join('')}
+                            </AvatarFallback>
                           </Avatar>
                           <span className="truncate">{expense.submittedBy}</span>
                         </div>

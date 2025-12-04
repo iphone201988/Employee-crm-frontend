@@ -62,7 +62,10 @@ export const DateOrNAInput: React.FC<DateOrNAInputProps> = ({
             onChange(undefined);
             return;
         }
-        const parsed = new Date(`${pickedValue}T00:00:00`);
+        // Parse date string (YYYY-MM-DD) and create Date object in local timezone
+        // This ensures the date selected is the date we want, not shifted by timezone
+        const [year, month, day] = pickedValue.split('-').map(Number);
+        const parsed = new Date(year, month - 1, day);
         if (isNaN(parsed.getTime())) {
             onChange(undefined);
             return;

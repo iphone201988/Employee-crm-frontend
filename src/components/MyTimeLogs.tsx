@@ -107,7 +107,7 @@ const MyTimeLogs = () => {
     hours: true,
     rate: true,
     amount: true,
-    status: true
+    // status: true
   });
 
   // Column order state
@@ -124,7 +124,7 @@ const MyTimeLogs = () => {
     'hours',
     'rate',
     'amount',
-    'status'
+    // 'status'
   ]);
 
   // Drag and drop state
@@ -144,7 +144,7 @@ const MyTimeLogs = () => {
     hours: 'Duration',
     rate: 'Billable Rate',
     amount: 'Amount',
-    status: 'Status'
+    // status: 'Status'
   };
 
 
@@ -683,10 +683,10 @@ const MyTimeLogs = () => {
       headers.push('Amount');
       dataMappers.push((log) => formatCurrency(log.amount));
     }
-    if (visibleColumns.status) {
-      headers.push('Status');
-      dataMappers.push((log) => log.status);
-    }
+    // if (visibleColumns.status) {
+    //   headers.push('Status');
+    //   dataMappers.push((log) => log.status);
+    // }
 
     const tableData = filteredTimeLogs.map(log =>
       dataMappers.map(mapper => mapper(log))
@@ -763,9 +763,9 @@ const MyTimeLogs = () => {
         case 'amount':
       dataMappers.push((log) => formatCurrency(log.amount));
           break;
-        case 'status':
-          dataMappers.push((log) => formatStatusLabel(log.status));
-          break;
+        // case 'status':
+        //   dataMappers.push((log) => formatStatusLabel(log.status));
+        //   break;
       }
     });
 
@@ -1234,7 +1234,7 @@ const MyTimeLogs = () => {
                       <TableHead className="p-3 text-foreground h-12 text-[#381980]"><input type="checkbox" onChange={(e) => toggleSelectAllVisible(e.target.checked, filteredTimeLogs)} /></TableHead>
                       {columnOrder.map((key) => {
                         if (!visibleColumns[key as keyof typeof visibleColumns]) return null;
-                        const sortableFields: SortField[] = ['date', 'clientRef', 'clientName', 'jobName', 'jobType', 'teamMember', 'description', 'timePurpose', 'billable', 'hours', 'rate', 'amount', 'status'];
+                        const sortableFields: SortField[] = ['date', 'clientRef', 'clientName', 'jobName', 'jobType', 'teamMember', 'description', 'timePurpose', 'billable', 'hours', 'rate', 'amount'/*, 'status'*/];
                         const isSortable = sortableFields.includes(key as SortField);
                         return (
                           <TableHead key={key} className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">
@@ -1262,7 +1262,7 @@ const MyTimeLogs = () => {
                       </TableHead>
                       {columnOrder.map((key) => {
                         if (!visibleColumns[key as keyof typeof visibleColumns]) return null;
-                        const sortableFields: SortField[] = ['date', 'clientRef', 'clientName', 'jobName', 'jobType', 'teamMember', 'description', 'timePurpose', 'billable', 'hours', 'rate', 'amount', 'status'];
+                        const sortableFields: SortField[] = ['date', 'clientRef', 'clientName', 'jobName', 'jobType', 'teamMember', 'description', 'timePurpose', 'billable', 'hours', 'rate', 'amount'/*, 'status'*/];
                         const isSortable = sortableFields.includes(key as SortField);
                         return (
                           <TableHead key={key} className="p-3 text-foreground h-12 text-[#381980] whitespace-nowrap">
@@ -1439,9 +1439,9 @@ const MyTimeLogs = () => {
                                 <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold text-center">{formatCurrency(sumAmount)}</div>
                               );
                               break;
-                            case 'status':
-                              cellContent = '';
-                              break;
+                            // case 'status':
+                            //   cellContent = '';
+                            //   break;
                             default:
                               cellContent = '';
                           }
@@ -1557,9 +1557,9 @@ const MyTimeLogs = () => {
                                         <div className="bg-[#F3F4F6] text-[#666666] rounded-[3px] py-[3px] px-[8px] font-semibold text-center">{formatCurrency(log.amount)}</div>
                                       );
                                       break;
-                                    case 'status':
-                                      cellContent = getStatusBadge(log.status);
-                                      break;
+                                    // case 'status':
+                                    //   cellContent = getStatusBadge(log.status);
+                                    //   break;
                                       default:
                                         cellContent = '-';
                                     }

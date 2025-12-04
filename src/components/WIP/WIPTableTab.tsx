@@ -104,7 +104,8 @@ const WIPTableTab = ({ onInvoiceCreate, onWriteOff }: WIPTableTabProps) => {
           ? client.expensesData.map((exp: any) => ({
               id: exp._id,
               description: exp.description || '',
-              submittedBy: exp.submittedBy || '',
+              submittedBy: exp.submittedDetails?.name || exp.user?.name || 'Unknown',
+              submitterAvatar: exp.submittedDetails?.avatarUrl || exp.user?.avatarUrl || '',
               amount: Number(exp.netAmount || 0),
               hasAttachment: Array.isArray(exp.attachments) && exp.attachments.length > 0,
               dateLogged: exp.date,

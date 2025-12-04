@@ -9,7 +9,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowUpDown, Search, FileText, ChevronLeft, ChevronRight, Eye, Edit2, Trash2, Delete, Settings, Download, Move, GripVertical, Paperclip, Check, ChevronDown, RefreshCw } from 'lucide-react';
-import { DashboardCard, DashboardGrid } from "@/components/ui/dashboard-card";
 import { Switch } from "@/components/ui/switch";
 import ClientsTab from '@/components/ClientsTab';
 import ClientDetailsDialog from '@/components/ClientDetailsDialog';
@@ -27,6 +26,8 @@ import Avatars from '@/components/Avatars';
 import { useDeleteClientMutation } from '@/store/clientApi';
 import { toast } from 'sonner';
 import { formatDateToDMY, normalizeOptionalText, parseDateValue } from '@/utils/clientFieldUtils';
+import { useGetAllCategorieasQuery } from '@/store/categoryApi';
+import { useDebounce } from 'use-debounce';
 const tabs = [
   {
     id: 'clientList',
@@ -48,6 +49,7 @@ const ClientInformationTab = () => {
   const [deleteClient, { isLoading: isDeleting }] = useDeleteClientMutation();
   const [clientInfoSortConfig, setClientInfoSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
   const [clientInfoSearch, setClientInfoSearch] = useState('');
+  const [debouncedSearch] = useDebounce(clientInfoSearch, 500);
   const [businessTypeFilter, setBusinessTypeFilter] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
   const [auditFilter, setAuditFilter] = useState<Set<string>>(new Set());
@@ -58,16 +60,18 @@ const ClientInformationTab = () => {
     () => ({
       page,
       limit,
+      search: debouncedSearch || undefined,
       businessTypeIds: Array.from(businessTypeFilter),
       statuses: Array.from(statusFilter),
       audit: Array.from(auditFilter),
       aml: Array.from(amlFilter),
       yearEnds: Array.from(yearEndFilter),
     }),
-    [page, limit, businessTypeFilter, statusFilter, auditFilter, amlFilter, yearEndFilter]
+    [page, limit, debouncedSearch, businessTypeFilter, statusFilter, auditFilter, amlFilter, yearEndFilter]
   );
 
   const { data: clientsData, isLoading, error } = useGetClientsQuery(clientsQueryArgs);
+  const { data: categoriesData } = useGetAllCategorieasQuery("bussiness");
 
   const clientInfo = clientsData?.data?.clients || [];
   const processedClientInfo = useMemo(() => {
@@ -99,7 +103,6 @@ const ClientInformationTab = () => {
     });
   }, [clientInfo]);
 
-  console.log('clientInfo===========', processedClientInfo); 
   const [showClientDetailsDialog, setShowClientDetailsDialog] = useState(false);
   const [showClientServiceLogDialog, setShowClientServiceLogDialog] = useState(false);
   const [selectedClientForDetails, setSelectedClientForDetails] = useState<ClientInfo | null>(null);
@@ -259,15 +262,8 @@ const ClientInformationTab = () => {
   const filteredAndSortedClientInfo = useMemo(() => {
     let filtered = processedClientInfo;
 
-    if (clientInfoSearch) {
-      const searchValue = clientInfoSearch.toLowerCase();
-      filtered = filtered.filter((client: any) =>
-        client.name.toLowerCase().includes(searchValue) ||
-        client.email.toLowerCase().includes(searchValue) ||
-        client.clientRef.toLowerCase().includes(searchValue) ||
-        (client.clientManager && client.clientManager.toLowerCase().includes(searchValue))
-      );
-    }
+    // Backend now handles search for name, clientRef, and email
+    // No client-side search filtering needed - all filtering is done server-side
 
     if (businessTypeFilter.size > 0) {
       filtered = filtered.filter((client: any) => {
@@ -383,20 +379,20 @@ const ClientInformationTab = () => {
       const comparison = strA.localeCompare(strB, undefined, { numeric: true, sensitivity: 'base' });
       return clientInfoSortConfig.direction === 'asc' ? comparison : -comparison;
     });
-  }, [processedClientInfo, clientInfoSearch, businessTypeFilter, statusFilter, auditFilter, amlFilter, yearEndFilter, clientInfoSortConfig]);
+  }, [processedClientInfo, businessTypeFilter, statusFilter, auditFilter, amlFilter, yearEndFilter, clientInfoSortConfig]);
 
   const businessTypeOptions = useMemo(() => {
-    const map = new Map<string, string>();
-    processedClientInfo.forEach((client: any) => {
-      const bt = client.businessTypeId;
-      if (bt && typeof bt === 'object' && bt._id) {
-        map.set(bt._id, bt.name || 'Unknown');
-      } else if (typeof bt === 'string') {
-        map.set(bt, bt);
-      }
-    });
-    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
-  }, [processedClientInfo]);
+    // Use categories data from API (same as AddClient form) to get all business types
+    const businessTypes = categoriesData?.data?.bussiness || [];
+    const mapped = businessTypes.map((bt: any) => ({
+      id: bt._id,
+      name: bt.name || 'Unknown',
+    }));
+    // Sort alphabetically by name (case-insensitive)
+    return mapped.sort((a, b) =>
+      String(a.name || '').toLowerCase().localeCompare(String(b.name || '').toLowerCase())
+    );
+  }, [categoriesData]);
 
   const statusOptions = useMemo(() => {
     const defaults = ['Prospect', 'Current', 'Archived'];
@@ -479,7 +475,7 @@ const ClientInformationTab = () => {
 
   useEffect(() => {
     setPage(1);
-  }, [businessTypeFilter, statusFilter, auditFilter, amlFilter, yearEndFilter]);
+  }, [businessTypeFilter, statusFilter, auditFilter, amlFilter, yearEndFilter, debouncedSearch]);
 
   const totalClientRows = clientsData?.data?.pagination?.totalClients ?? filteredAndSortedClientInfo.length;
 
@@ -897,7 +893,15 @@ const ClientInformationTab = () => {
             </Button>
           </div>
         </div>
-        <Card>
+        <Card className="relative">
+          {isLoading && (
+            <div className="absolute inset-0 bg-white/70 backdrop-blur-sm z-10 flex items-center justify-center rounded-md">
+              <div className="flex flex-col items-center gap-2">
+                <div className="animate-spin rounded-full h-10 w-10 border-4 border-[#381980] border-t-transparent"></div>
+                <span className="text-sm font-medium text-[#381980]">Loading clients...</span>
+              </div>
+            </div>
+          )}
           <CardContent className="p-0">
             <Table>
               <TableHeader>
@@ -933,6 +937,7 @@ const ClientInformationTab = () => {
                           size="sm"
                           onClick={() => handleClientInfoSort(sortKey)}
                           className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit !text-[#381980]"
+                          disabled={isLoading}
                         >
                           {columnDisplayNames[key]}
                           {getSortIcon(sortKey)}
@@ -949,12 +954,13 @@ const ClientInformationTab = () => {
                         onClick={exportToCSV}
                         aria-label="Export CSV"
                         title="Export CSV (current page, visible columns)"
+                        disabled={isLoading}
                       >
                         <Download className="h-3 w-3" color='#381980' />
                       </Button>
                       <Popover>
                         <PopoverTrigger>
-                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0 bg-white rounded-full" aria-label="Show/Hide Columns" title="Show/Hide Columns">
+                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0 bg-white rounded-full" aria-label="Show/Hide Columns" title="Show/Hide Columns" disabled={isLoading}>
                             <Move className="h-3 w-3" color='#381980' />
                           </Button>
                         </PopoverTrigger>
@@ -1000,12 +1006,12 @@ const ClientInformationTab = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {isLoading ? (
+                {isLoading && filteredAndSortedClientInfo.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={columnOrder.filter(k => visibleColumns[k as keyof typeof visibleColumns]).length + 1} className="text-center py-8">
                       <div className="flex items-center justify-center">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                        <span className="ml-2">Loading clients...</span>
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#381980]"></div>
+                        <span className="ml-2 text-[#381980]">Loading clients...</span>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -1023,7 +1029,7 @@ const ClientInformationTab = () => {
                   </TableRow>
                 ) : (
                   filteredAndSortedClientInfo.map((client: any, index) => (
-                    <TableRow key={client._id} className="h-12 whitespace-nowrap">
+                    <TableRow key={client._id} className={`h-12 whitespace-nowrap ${isLoading ? 'opacity-50' : ''}`}>
                       {columnOrder.map((key) => {
                         if (!visibleColumns[key as keyof typeof visibleColumns]) return null;
 
@@ -1116,6 +1122,7 @@ const ClientInformationTab = () => {
                           <button
                             onClick={(e) => handleSettingsClick(e, client._id)}
                             className="p-1 hover:bg-gray-100 rounded"
+                            disabled={isLoading}
                           >
                             <Settings className='text-[#381980]' size={16} />
                           </button>
@@ -1129,82 +1136,111 @@ const ClientInformationTab = () => {
           </CardContent>
         </Card>
 
-        {clientsData?.data?.pagination && (
-          <div className="space-y-4 mt-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600">Show:</span>
-                <select
-                  value={limit}
-                  onChange={(e) => setLimit(Number(e.target.value))}
-                  className="border border-gray-300 rounded px-2 py-1 text-sm"
-                  disabled={isLoading}
-                >
-                  <option value={5}>5 per page</option>
-                  <option value={10}>10 per page</option>
-                  <option value={20}>20 per page</option>
-                  <option value={50}>50 per page</option>
-                </select>
-              </div>
-
-              <div className="text-sm text-gray-500">
-                Showing {((page - 1) * limit) + 1} to {Math.min(page * limit, clientsData.data.pagination.totalClients)} of {clientsData.data.pagination.totalClients} clients
-              </div>
-            </div>
-
-            {clientsData.data.pagination.totalPages > 1 && (
-              <div className="flex justify-center items-center gap-2">
-                <Button
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page === 1 || isLoading}
-                  variant="outline"
-                  size="sm"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  Previous
-                </Button>
-
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: Math.min(5, clientsData.data.pagination.totalPages) }, (_, i) => {
-                    let pageNum;
-                    if (clientsData.data.pagination.totalPages <= 5) {
-                      pageNum = i + 1;
-                    } else if (page <= 3) {
-                      pageNum = i + 1;
-                    } else if (page >= clientsData.data.pagination.totalPages - 2) {
-                      pageNum = clientsData.data.pagination.totalPages - 4 + i;
-                    } else {
-                      pageNum = page - 2 + i;
-                    }
-
-                    return (
-                      <Button
-                        key={pageNum}
-                        onClick={() => setPage(pageNum)}
-                        disabled={isLoading}
-                        variant={page === pageNum ? "default" : "outline"}
-                        size="sm"
-                        className="w-8 h-8 p-0"
-                      >
-                        {pageNum}
-                      </Button>
-                    );
-                  })}
+        {clientsData?.data?.pagination && (() => {
+          const pagination = clientsData.data.pagination;
+          return (
+            <div className="space-y-4 mt-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600">Show:</span>
+                    <select
+                      value={limit}
+                      onChange={(e) => setLimit(Number(e.target.value))}
+                      className="border border-gray-300 rounded px-2 py-1 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={isLoading}
+                    >
+                      <option value={5}>5 per page</option>
+                      <option value={10}>10 per page</option>
+                      <option value={20}>20 per page</option>
+                      <option value={50}>50 per page</option>
+                      <option value={100}>100 per page</option>
+                      <option value={250}>250 per page</option>
+                      <option value={500}>500 per page</option>
+                      <option value={1000}>1000 per page</option>
+                    </select>
+                  </div>
+                  {isLoading && (
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-[#381980]/10 rounded-md border border-[#381980]/20">
+                      <div className="animate-spin rounded-full h-5 w-5 border-3 border-[#381980] border-t-transparent"></div>
+                      <span className="text-sm font-medium text-[#381980]">Loading data...</span>
+                    </div>
+                  )}
                 </div>
 
-                <Button
-                  onClick={() => setPage(p => p + 1)}
-                  disabled={page >= clientsData.data.pagination.totalPages || isLoading}
-                  variant="outline"
-                  size="sm"
-                >
-                  Next
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
+                <div className={`text-sm ${isLoading ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Showing {((page - 1) * limit) + 1} to {Math.min(page * limit, pagination.totalClients)} of {pagination.totalClients} clients
+                </div>
               </div>
-            )}
-          </div>
-        )}
+
+              {pagination.totalPages > 1 && (
+                <div className="flex justify-center items-center gap-2">
+                  <Button
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1 || isLoading}
+                    variant="outline"
+                    size="sm"
+                    className="disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isLoading && page > 1 ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent mr-2"></div>
+                    ) : (
+                      <ChevronLeft className="h-4 w-4" />
+                    )}
+                    Previous
+                  </Button>
+
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                      let pageNum;
+                      if (pagination.totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (page <= 3) {
+                        pageNum = i + 1;
+                      } else if (page >= pagination.totalPages - 2) {
+                        pageNum = pagination.totalPages - 4 + i;
+                      } else {
+                        pageNum = page - 2 + i;
+                      }
+
+                      return (
+                        <Button
+                          key={pageNum}
+                          onClick={() => setPage(pageNum)}
+                          disabled={isLoading}
+                          variant={page === pageNum ? "default" : "outline"}
+                          size="sm"
+                          className={`w-8 h-8 p-0 disabled:opacity-50 disabled:cursor-not-allowed ${page === pageNum && isLoading ? 'relative' : ''}`}
+                        >
+                          {page === pageNum && isLoading ? (
+                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent"></div>
+                          ) : (
+                            pageNum
+                          )}
+                        </Button>
+                      );
+                    })}
+                  </div>
+
+                  <Button
+                    onClick={() => setPage(p => p + 1)}
+                    disabled={page >= pagination.totalPages || isLoading}
+                    variant="outline"
+                    size="sm"
+                    className="disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                    {isLoading && page < pagination.totalPages ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent ml-2"></div>
+                    ) : (
+                      <ChevronRight className="h-4 w-4 ml-0" />
+                    )}
+                  </Button>
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </>)
       }
 

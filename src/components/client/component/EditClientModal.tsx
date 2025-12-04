@@ -104,10 +104,67 @@ const EditClientModal = ({ open, onOpenChange, clientData }: EditClientModalProp
     }
 
     try {
-      const payload = {
+      // Format dates properly for API
+      const payload: any = {
         clientId: editableData._id,
         ...validationData 
       };
+      
+      // Handle empty taxNumber - convert to null or empty string (both allowed by backend)
+      if (payload.taxNumber !== undefined && (!payload.taxNumber || payload.taxNumber.trim() === '')) {
+        payload.taxNumber = null;
+      }
+      
+      // Helper function to format date as YYYY-MM-DD (date-only, no time)
+      const formatDateOnly = (date: Date): string => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
+      
+      // Convert Date objects to date-only strings (YYYY-MM-DD) for onboardedDate and arDate
+      if (payload.onboardedDate instanceof Date) {
+        payload.onboardedDate = formatDateOnly(payload.onboardedDate);
+      } else if (payload.onboardedDate && typeof payload.onboardedDate === 'string') {
+        // If it's already a date string, extract just the date part (YYYY-MM-DD)
+        const dateMatch = payload.onboardedDate.match(/^(\d{4}-\d{2}-\d{2})/);
+        if (dateMatch) {
+          payload.onboardedDate = dateMatch[1];
+        } else {
+          // Try to parse and reformat
+          const date = new Date(payload.onboardedDate);
+          if (!isNaN(date.getTime())) {
+            payload.onboardedDate = formatDateOnly(date);
+          } else {
+            payload.onboardedDate = null;
+          }
+        }
+      } else if (!payload.onboardedDate) {
+        // If not provided, set to null (allowed by backend)
+        payload.onboardedDate = null;
+      }
+      
+      if (payload.arDate instanceof Date) {
+        payload.arDate = formatDateOnly(payload.arDate);
+      } else if (payload.arDate && typeof payload.arDate === 'string') {
+        // If it's already a date string, extract just the date part (YYYY-MM-DD)
+        const dateMatch = payload.arDate.match(/^(\d{4}-\d{2}-\d{2})/);
+        if (dateMatch) {
+          payload.arDate = dateMatch[1];
+        } else {
+          // Try to parse and reformat
+          const date = new Date(payload.arDate);
+          if (!isNaN(date.getTime())) {
+            payload.arDate = formatDateOnly(date);
+          } else {
+            payload.arDate = null;
+          }
+        }
+      } else if (!payload.arDate) {
+        // If not provided, set to null (allowed by backend)
+        payload.arDate = null;
+      }
 
       await updateClient(payload).unwrap();
       toast.success("Client details updated successfully!");
@@ -167,8 +224,8 @@ const EditClientModal = ({ open, onOpenChange, clientData }: EditClientModalProp
                     {errors.clientManagerId && <p className="text-sm text-red-600 mt-1">{errors.clientManagerId}</p>}
                 </div>
 
-                <InputComponent label="TAX/PPS NO" id="taxNumber" value={editableData.taxNumber} onChange={handleInputChange('taxNumber')} error={errors.taxNumber} />
-                <InputComponent label="CRO NO" id="croNumber" value={editableData.croNumber} onChange={handleInputChange('croNumber')} error={errors.croNumber} />
+                <InputComponent label="TAX/PPS NO (Optional)" id="taxNumber" value={editableData.taxNumber} onChange={handleInputChange('taxNumber')} error={errors.taxNumber} />
+                <InputComponent label="CRO NO (Optional)" id="croNumber" value={editableData.croNumber} onChange={handleInputChange('croNumber')} error={errors.croNumber} />
                 <InputComponent label="CRO Link" id="croLink" value={editableData.croLink || ''} onChange={handleInputChange('croLink')} error={errors.croLink} />
                 <div>
                     <Label htmlFor="clientStatus">Client Status</Label>

@@ -3,6 +3,7 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 interface GetClientsRequest {
     page: number;
     limit: number;
+    search?: string;
     businessTypeIds?: string[];
     statuses?: string[];
     audit?: string[];
@@ -42,11 +43,15 @@ export const clientApi = createApi({
             invalidatesTags: ['Client', 'ClientServices'],
         }),
         getClients: builder.query<GetClientsResponse, GetClientsRequest>({
-            query: ({ page, limit, businessTypeIds, statuses, audit, aml, yearEnds }) => {
+            query: ({ page, limit, search, businessTypeIds, statuses, audit, aml, yearEnds }) => {
                 const params = new URLSearchParams({
                     page: String(page),
                     limit: String(limit),
                 });
+
+                if (search && search.trim()) {
+                    params.append('search', search.trim());
+                }
 
                 const appendArrayParam = (key: string, values?: string[]) => {
                     if (values && values.length > 0) {
@@ -113,8 +118,15 @@ export const clientApi = createApi({
                 method: 'PUT',
                 body,
             }),
-            // Invalidate the specific client and the list to trigger a refetch
-            invalidatesTags: (result, error, { clientId }) => ["Client"],
+            invalidatesTags: ['Client'],
+        }),
+        updateClientAgingDates: builder.mutation<any, { clientId: string; importedWipDate?: string | null; debtorsDate?: string | null; wipBalance?: number | null; debtorsBalance?: number | null }>({
+            query: ({ clientId, ...body }) => ({
+                url: `/${clientId}/aging-dates`,
+                method: 'PATCH',
+                body,
+            }),
+            invalidatesTags: ['Client', 'Wip'],
         }),
         getClient: builder.query<GetClientResponse, string>({
             query: (clientId) => ({
@@ -129,6 +141,26 @@ export const clientApi = createApi({
                 method: 'GET',
             }),
             providesTags: (result, error, clientId) => [{ type: 'Client', id: clientId }, { type: 'Client', id: 'DEBTORS_LOG' }],
+        }),
+        createDebtorsOpenBalance: builder.mutation<any, {
+            clientId: string;
+            amount: number;
+            jobId?: string;
+            type?: 'debit' | 'credit' | 'adjustment';
+            date?: string;
+            referenceNumber?: string;
+            notes?: string;
+        }>({
+            query: (body) => ({
+                url: `/${body.clientId}/debtors-open-balance`,
+                method: 'POST',
+                body,
+            }),
+            invalidatesTags: (result, error, { clientId }) => [
+                { type: 'Client', id: clientId },
+                { type: 'Client', id: 'DEBTORS_LOG' },
+                'Wip', // Also invalidate WIP to refresh aged debtors
+            ],
         }),
         deleteClient: builder.mutation<void, string>({
             query: (clientId) => ({
@@ -156,9 +188,11 @@ export const {
     useGetClientServicesQuery,
     useUpdateClientServicesMutation,
     useUpdateClientMutation,
+    useUpdateClientAgingDatesMutation,
     useGetClientQuery,
     useDeleteClientMutation,
     useImportClientsMutation,
-    useGetClientDebtorsLogQuery
+    useGetClientDebtorsLogQuery,
+    useCreateDebtorsOpenBalanceMutation
 } = clientApi;
 
