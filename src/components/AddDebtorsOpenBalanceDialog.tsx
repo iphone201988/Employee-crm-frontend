@@ -55,7 +55,7 @@ const AddDebtorsOpenBalanceDialog = ({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add Debtor Log</DialogTitle>
+          <DialogTitle>Add Debtor Balance</DialogTitle>
         </DialogHeader>
         
         <div className="space-y-4">

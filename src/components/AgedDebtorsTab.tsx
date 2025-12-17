@@ -215,7 +215,12 @@ const AgedDebtorsTab = () => {
 
   const entries = useMemo(() => {
     if (apiClients.length > 0) {
-      return apiClients.map((c: any) => ({
+      // Filter out clients with name "N/A" (safety check, backend should also filter)
+      const filteredClients = apiClients.filter((c: any) => {
+        const clientName = c?.clientName || '';
+        return clientName.trim() !== 'N/A' && clientName.trim() !== '';
+      });
+      return filteredClients.map((c: any) => ({
         id: c.clientId,
         clientRef: c.clientRef,
         client: c.clientName,

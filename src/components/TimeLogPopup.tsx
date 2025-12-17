@@ -447,14 +447,14 @@ const TimeLogPopup = ({ onClose, editingLog }: TimeLogPopupProps) => {
                   <p className="mt-1 text-sm text-red-600">{errors.rate}</p>
                 )}
             </div>
-            <label className="flex flex-col gap-[3px] text-[14px] font-semibold text-[#381980] w-[50%] max-sm:w-full" htmlFor="">
+            {/* <label className="flex flex-col gap-[3px] text-[14px] font-semibold text-[#381980] w-[50%] max-sm:w-full" htmlFor="">
                 Status
                 <div className={`bg-white border border-[#eee] ${billable ? 'text-[#666666]' : 'text-[#9ca3af]'} rounded-sm flex justify-between`}>
                     <button type="button" onClick={() => billable && setStatus('notInvoiced')} disabled={!billable} className={`${status==='notInvoiced' && billable ? 'bg-[#017DB9] text-white' : 'text-[#017DB9]'} px-[12px] py-[8px] text-[12px] text-center w-auto disabled:opacity-50`}>Not Invoiced</button>
                     <button type="button" onClick={() => billable && setStatus('invoiced')} disabled={!billable} className={`${status==='invoiced' && billable ? 'bg-[#017DB9] text-white' : 'text-[#017DB9]'} px-[12px] py-[8px] text-[12px] text-center w-auto disabled:opacity-50`}>Invoiced</button>
                     <button type="button" onClick={() => billable && setStatus('paid')} disabled={!billable} className={`${status==='paid' && billable ? 'bg-[#017DB9] text-white' : 'text-[#017DB9]'} px-[12px] py-[8px] text-[12px] text-center w-auto disabled:opacity-50`}>Paid</button>
                 </div>
-            </label>
+            </label> */}
           </div>
         </div>
         {submitError && (

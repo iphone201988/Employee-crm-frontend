@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Edit, Save, X, Clock, Loader2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency';
 import { useGetClientDebtorsLogQuery, useUpdateClientMutation } from "@/store/clientApi";
@@ -204,20 +205,26 @@ const ClientDetailsDialog = ({
 
   const handleSave = async () => {
     try {
-      const businessTypeIdString = 
+      // Extract businessTypeId - convert object to string or use string value
+      const businessTypeIdString: string | undefined = 
         editableData.businessTypeId && typeof editableData.businessTypeId === 'object'
           ? editableData.businessTypeId._id
-          : editableData.businessTypeId || '';
+          : (typeof editableData.businessTypeId === 'string' ? editableData.businessTypeId : undefined);
 
-      const payload = {
+      // Convert empty strings to null for optional ObjectId fields
+      const clientManagerIdValue = editableData.clientManagerId && typeof editableData.clientManagerId === 'string' && editableData.clientManagerId.trim() !== ''
+        ? editableData.clientManagerId
+        : null;
+
+      // Build payload - only include businessTypeId if it has a value (validation requires string, not null)
+      const payload: any = {
         clientId: editableData._id,
         clientRef: editableData.clientRef,
         name: editableData.name,
-        businessTypeId: businessTypeIdString,
         taxNumber: editableData.taxNumber,
         croNumber: editableData.croNumber,
         croLink: editableData.croLink,
-        clientManagerId: editableData.clientManagerId,
+        clientManagerId: clientManagerIdValue,
         address: editableData.address,
         email: editableData.email,
         phone: editableData.phone,
@@ -228,6 +235,11 @@ const ClientDetailsDialog = ({
         yearEnd: editableData.yearEnd,
         arDate: editableData.arDate,
       };
+
+      // Only include businessTypeId if it has a valid string value
+      if (businessTypeIdString && typeof businessTypeIdString === 'string' && businessTypeIdString.trim() !== '') {
+        payload.businessTypeId = businessTypeIdString;
+      }
 
       await updateClient(payload).unwrap();
       toast.success("Client details updated successfully!");
@@ -275,7 +287,16 @@ const ClientDetailsDialog = ({
   };
 
   const formatDate = (iso?: string) => iso ? new Date(iso).toLocaleDateString('en-GB') : '-';
-  const secondsToHours = (s?: number) => ((Number(s || 0) / 3600).toFixed(1));
+  // Format hours to HH:MM:SS format (same as AllTimeLogs table)
+  const formatHoursToHHMMSS = (hours: number) => {
+    const totalSeconds = Math.max(0, Math.round((hours || 0) * 3600));
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  };
+  // Convert seconds to hours and format as HH:MM:SS
+  const secondsToHoursFormatted = (s?: number) => formatHoursToHHMMSS(Number(s || 0) / 3600);
   const formatStatus = (val?: string) => {
     if (!val) return '-';
     const normalized = val
@@ -516,6 +537,43 @@ const ClientDetailsDialog = ({
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="amlCompliant">AML Compliant</Label>
+                  {isEditing ? (
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="amlCompliant"
+                        checked={editableData?.amlCompliant || false}
+                        onCheckedChange={(checked) => setEditableData(prev => ({ ...prev, amlCompliant: checked as boolean }))}
+                      />
+                      <Label htmlFor="amlCompliant" className="text-sm font-normal cursor-pointer">
+                        {editableData?.amlCompliant ? 'Yes' : 'No'}
+                      </Label>
+                    </div>
+                  ) : (
+                    <div className="p-2 bg-muted rounded">{editableData?.amlCompliant ? 'Yes' : 'No'}</div>
+                  )}
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="audit">In Audit</Label>
+                  {isEditing ? (
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="audit"
+                        checked={editableData?.audit || false}
+                        onCheckedChange={(checked) => setEditableData(prev => ({ ...prev, audit: checked as boolean }))}
+                      />
+                      <Label htmlFor="audit" className="text-sm font-normal cursor-pointer">
+                        {editableData?.audit ? 'Yes' : 'No'}
+                      </Label>
+                    </div>
+                  ) : (
+                    <div className="p-2 bg-muted rounded">{editableData?.audit ? 'Yes' : 'No'}</div>
+                  )}
+                </div>
+              </div>
+
               <Separator />
 
             </CardContent>
@@ -595,7 +653,6 @@ const ClientDetailsDialog = ({
                       <th className="text-right p-2">Rate</th>
                       <th className="text-right p-2">Amount</th>
                       <th className="text-left p-2">Billable</th>
-                      <th className="text-left p-2">Status</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -608,15 +665,14 @@ const ClientDetailsDialog = ({
                           <td className="p-2">{tl.job?.name || '-'}</td>
                           <td className="p-2">{tl.jobCategory?.name || tl.timeLogCategory?.name || '-'}</td>
                           <td className="p-2">{tl.description || ''}</td>
-                          <td className="text-right p-2">{secondsToHours(tl.duration)}</td>
+                          <td className="text-right p-2">{secondsToHoursFormatted(tl.duration)}</td>
                           <td className="text-right p-2">{formatCurrency(Number(tl.rate || 0))}</td>
                           <td className="text-right p-2">{formatCurrency(Number(tl.amount || 0))}</td>
                           <td className="p-2">{tl.billable ? 'Yes' : 'No'}</td>
-                          <td className="p-2">{formatStatus(tl.status)}</td>
                         </tr>
                       ))
                     ) : (
-                      <tr className="border-b"><td className="p-4 text-center" colSpan={11}>No time logs.</td></tr>
+                      <tr className="border-b"><td className="p-4 text-center" colSpan={10}>No time logs.</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -642,7 +698,7 @@ const ClientDetailsDialog = ({
                       <div className="flex flex-wrap gap-6 text-sm mb-4">
                         <span><span className="text-muted-foreground">Job Fee:</span> {formatCurrency(Number(job.jobCost || 0))}</span>
                         <span><span className="text-muted-foreground">WIP Amount:</span> {formatCurrency(Number(job.amount || 0))}</span>
-                        <span><span className="text-muted-foreground">Hours Logged:</span> {secondsToHours(job.totalTimeLogHours)}h</span>
+                        <span><span className="text-muted-foreground">Hours Logged:</span> {secondsToHoursFormatted(job.totalTimeLogHours)}</span>
                         <span><span className="text-muted-foreground">Last Updated:</span> {formatDate(job.updatedAt)}</span>
                       </div>
 
@@ -667,7 +723,7 @@ const ClientDetailsDialog = ({
                                   <td className="p-2">{jtl.user?.name || '-'}</td>
                                   <td className="p-2">{formatStatus(jtl.status)}</td>
                                   <td className="p-2">{jtl.timeLogCategory?.name || '-'}</td>
-                                  <td className="text-right p-2">{secondsToHours(jtl.duration)}</td>
+                                  <td className="text-right p-2">{secondsToHoursFormatted(jtl.duration)}</td>
                                   <td className="text-right p-2">{formatCurrency(Number(jtl.rate || 0))}</td>
                                   <td className="text-right p-2">{formatCurrency(Number(jtl.amount || 0))}</td>
                                 </tr>
@@ -850,7 +906,7 @@ const ClientDetailsDialog = ({
                 </div>
                 <div className="text-center">
                   <p className="text-sm text-muted-foreground">Hours Logged</p>
-                  <p className="text-lg font-semibold text-foreground">{secondsToHours(wipSummary.totalHoursSec)}h</p>
+                  <p className="text-lg font-semibold text-foreground">{secondsToHoursFormatted(wipSummary.totalHoursSec)}</p>
                 </div>
                 <div className="text-center">
                   <p className="text-sm text-muted-foreground">Avg. Rate</p>
@@ -892,7 +948,7 @@ const ClientDetailsDialog = ({
                           <td className="p-4 font-medium text-foreground">-</td>
                           <td className="p-4 font-medium text-foreground">{job.name}</td>
                           <td className="p-4 text-right text-foreground">{formatCurrency(Number(job.amount || 0))}</td>
-                          <td className="p-4 text-right text-foreground">{secondsToHours(job.totalTimeLogHours)}</td>
+                          <td className="p-4 text-right text-foreground">{secondsToHoursFormatted(job.totalTimeLogHours)}</td>
                           <td className="p-4 text-foreground">
                             <Badge variant={job.status === 'inProgress' ? 'default' : 'secondary'}>{formatStatus(job.status)}</Badge>
                           </td>

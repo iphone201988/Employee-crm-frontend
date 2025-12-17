@@ -72,6 +72,8 @@ const WriteOffMergedTab = () => {
     clientName: true,
     jobName: true,
     amount: true,
+    totalInvoiceAmount: true,
+    writeOffPercentage: true,
     by: true,
     reason: true,
     logic: true
@@ -83,6 +85,8 @@ const WriteOffMergedTab = () => {
     'clientName',
     'jobName',
     'amount',
+    'totalInvoiceAmount',
+    'writeOffPercentage',
     'by',
     'reason',
     'logic'
@@ -97,6 +101,8 @@ const WriteOffMergedTab = () => {
     clientName: 'Client Name',
     jobName: 'Job Name',
     amount: 'Write-off Value',
+    totalInvoiceAmount: 'Total Invoice Amount',
+    writeOffPercentage: 'Write-off %',
     by: 'Write-off By',
     reason: 'Write-off Reason',
     logic: 'Write-off Logic'
@@ -143,9 +149,11 @@ const WriteOffMergedTab = () => {
           writeOffOccasions: Array.isArray(item.occasionDetails) ? item.occasionDetails.length : 0,
           totalWriteOffValue: Number(item.totalWriteOffValue || 0),
           noJobsWithWriteOff: Number(item.jobsWithWriteOffCount || (Array.isArray(item.jobsWithWriteOff) ? item.jobsWithWriteOff.length : 0)),
-          totalFees: Number(item.totalFees || 0),
+          totalFees: Number(item.totalInvoiceAmount || item.totalFees || 0), // Use totalInvoiceAmount if available, fallback to totalFees
           writeOffValue: Number(item.totalWriteOffValue || 0),
-          percentageWriteOff: Number(item.writeOffPercentage || 0),
+          percentageWriteOff: (Number(item.totalInvoiceAmount || item.totalFees || 0) + Number(item.totalWriteOffValue || 0)) > 0 
+            ? Number((((item.totalWriteOffValue || 0) / ((item.totalInvoiceAmount || item.totalFees || 0) + (item.totalWriteOffValue || 0))) * 100).toFixed(1))
+            : Number(item.writeOffPercentage || 0),
           jobsWithWriteOff: (item.uniqueJobs || []).map((j: any) => j.name)
         } as WriteOffMergedData;
       }
@@ -156,9 +164,11 @@ const WriteOffMergedTab = () => {
           writeOffOccasions: Array.isArray(item.occasionDetails) ? item.occasionDetails.length : 0,
           totalWriteOffValue: Number(item.totalWriteOffValue || 0),
           noJobsWithWriteOff: Number(item.jobsCount || 0),
-          totalFees: Number(item.totalFees || 0),
+          totalFees: Number(item.totalInvoiceAmount || item.totalFees || 0), // Use totalInvoiceAmount if available, fallback to totalFees
           writeOffValue: Number(item.totalWriteOffValue || 0),
-          percentageWriteOff: Number(item.writeOffPercentage || 0),
+          percentageWriteOff: (Number(item.totalInvoiceAmount || item.totalFees || 0) + Number(item.totalWriteOffValue || 0)) > 0 
+            ? Number((((item.totalWriteOffValue || 0) / ((item.totalInvoiceAmount || item.totalFees || 0) + (item.totalWriteOffValue || 0))) * 100).toFixed(1))
+            : Number(item.writeOffPercentage || 0),
           jobsWithWriteOff: (item.uniqueJobs || []).map((j: any) => j.name)
         } as WriteOffMergedData;
       }
@@ -169,9 +179,11 @@ const WriteOffMergedTab = () => {
           writeOffOccasions: Array.isArray(item.occasionDetails) ? item.occasionDetails.length : 0,
           totalWriteOffValue: Number(item.totalWriteOffValue || 0),
           noJobsWithWriteOff: Number(item.jobsCount || 0),
-          totalFees: Number(item.totalFees || 0),
+          totalFees: Number(item.totalInvoiceAmount || item.totalFees || 0), // Use totalInvoiceAmount if available, fallback to totalFees
           writeOffValue: Number(item.totalWriteOffValue || 0),
-          percentageWriteOff: Number(item.writeOffPercentage || 0),
+          percentageWriteOff: Number(item.totalInvoiceAmount || item.totalFees || 0) > 0 
+            ? Number((((item.totalWriteOffValue || 0) / (item.totalInvoiceAmount || item.totalFees || 1)) * 100).toFixed(1))
+            : Number(item.writeOffPercentage || 0),
           jobsWithWriteOff: (item.uniqueJobs || []).map((j: any) => j.name)
         } as WriteOffMergedData;
       }
@@ -255,7 +267,11 @@ const WriteOffMergedTab = () => {
   const totalWriteOffs = filteredData.reduce((sum, item) => sum + item.totalWriteOffValue, 0);
   const totalOccasions = filteredData.reduce((sum, item) => sum + item.writeOffOccasions, 0);
   const totalJobs = filteredData.reduce((sum, item) => sum + item.noJobsWithWriteOff, 0);
-  const avgPercentage = filteredData.reduce((sum, item) => sum + item.percentageWriteOff, 0) / (filteredData.length || 1);
+  const totalInvoiceAmount = filteredData.reduce((sum, item) => sum + item.totalFees, 0);
+  // Calculate average percentage based on write-off vs (invoice + write-off)
+  const avgPercentage = (totalInvoiceAmount + totalWriteOffs) > 0 
+    ? (totalWriteOffs / (totalInvoiceAmount + totalWriteOffs)) * 100 
+    : filteredData.reduce((sum, item) => sum + item.percentageWriteOff, 0) / (filteredData.length || 1);
   const totalRecordCount = pagination?.total || filteredData.length;
 
   const handleOccasionsClick = (item: WriteOffMergedData) => {
@@ -315,14 +331,25 @@ const WriteOffMergedTab = () => {
         ? item.jobs
         : [];
       const firstJob = jobs.length > 0 ? jobs[0] : null;
-      
+      const writeOffAmount = Number(item.amount || 0);
+      const totalInvoiceAmount = Number(
+        item.totalInvoiceAmount !== undefined
+          ? item.totalInvoiceAmount
+          : item.originalAmount || 0
+      );
+      const computedPct = (writeOffAmount + totalInvoiceAmount) > 0
+        ? (writeOffAmount / (writeOffAmount + totalInvoiceAmount)) * 100
+        : Number(item.writeOffPercentage || 0);
+
       return {
         id: item._id,
         date: item.createdAt ? new Date(item.createdAt).toISOString() : null,
         client: clientDetails?.name || 'N/A',
         clientId: clientDetails?._id || undefined,
         job: firstJob?.name || (Array.isArray(item.jobs) && item.jobs[0] === 'N/A' ? 'N/A' : 'N/A'),
-        amount: Number(item.amount || 0),
+        amount: writeOffAmount,
+        totalInvoiceAmount,
+        writeOffPercentage: computedPct,
         by: item.by || 'N/A',
         reason: item.reason || 'N/A',
         logic: item.logic === 'proportionally' ? 'Proportionally' : item.logic === 'manually' ? 'Manually' : item.logic || 'N/A'
@@ -393,6 +420,12 @@ const WriteOffMergedTab = () => {
           break;
         case 'amount':
           dataMappers.push((entry) => formatCurrency(entry.amount));
+          break;
+        case 'totalInvoiceAmount':
+          dataMappers.push((entry) => formatCurrency(entry.totalInvoiceAmount ?? 0));
+          break;
+        case 'writeOffPercentage':
+          dataMappers.push((entry) => `${(entry.writeOffPercentage ?? 0).toFixed(1)}%`);
           break;
         case 'by':
           dataMappers.push((entry) => entry.by || 'N/A');
@@ -673,6 +706,12 @@ const WriteOffMergedTab = () => {
                             case 'amount':
                               cellContent = <span className="font-medium text-red-600">{formatCurrency(entry.amount)}</span>;
                               break;
+            case 'totalInvoiceAmount':
+              cellContent = <span className="font-medium">{formatCurrency(entry.totalInvoiceAmount ?? 0)}</span>;
+              break;
+            case 'writeOffPercentage':
+              cellContent = <span className="font-medium">{(entry.writeOffPercentage ?? 0).toFixed(1)}%</span>;
+              break;
                             case 'by':
                               cellContent = entry.by;
                               break;
@@ -869,7 +908,7 @@ const WriteOffMergedTab = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <Button
+          {/* <Button
             size="sm"
             variant={activeFilter === 'clients' ? 'default' : 'outline'}
             onClick={() => setActiveFilter('clients')}
@@ -900,7 +939,7 @@ const WriteOffMergedTab = () => {
             className="px-3 py-1 h-8 text-sm rounded-sm"
           >
             Team
-          </Button>
+          </Button> */}
         </div>
 
         {/* Row Count + Log Button */}
@@ -1015,7 +1054,7 @@ const WriteOffMergedTab = () => {
                       onClick={() => handleSort('totalFees')}
                       className="h-8 px-1 font-medium justify-start text-[12px] hover:bg-transparent hover:text-inherit"
                     >
-                      Total Job Fees
+                      Total Invoice Amount
                       {getSortIcon('totalFees')}
                     </Button>
                   </TableHead>

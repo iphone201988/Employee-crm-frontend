@@ -11,6 +11,7 @@ export interface WIPJob {
   id: string;
   jobName: string;
   jobStatus: 'active' | 'completed' | 'on-hold';
+  originalStatus?: 'queued' | 'awaitingRecords' | 'inProgress' | 'withClient' | 'forApproval' | 'completed'; // Original backend status
   hoursLogged: number;
   wipAmount: number;
   invoicedToDate: number;
@@ -52,6 +53,7 @@ export interface WIPClient {
   clientWipOpenBalanceIds?: string[];
   clientOpenBalances?: WipOpenBalance[];
   clientWipBalance?: number;
+  clientTotalWipAmount?: number;
   wipBreakdown?: any[];
   importedWipBalance?: number;
   importedWipDate?: string | null;

@@ -8,8 +8,10 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ChevronDown, ChevronRight, ExpandIcon, Printer, Mail } from 'lucide-react';
+import { ChevronDown, ChevronRight, ExpandIcon, Printer, Mail, X } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency';
+import { useDeleteWipOpenBalanceMutation } from '@/store/wipApi';
+import { toast } from 'sonner';
 
 interface TimeLogEntry {
   id: string;
@@ -39,6 +41,8 @@ interface TimeLogsBreakdownDialogProps {
   importedWipBalance?: number;
   importedWipDate?: string | null;
   openBalanceSections?: OpenBalanceSection[];
+  onDeleteOpenBalance?: () => void; // Callback to refresh WIP data after deletion
+  onDeleteImportedWip?: () => void;
 }
 
 interface OpenBalanceItem {
@@ -72,11 +76,15 @@ const TimeLogsBreakdownDialog = ({
   totalAmount,
   importedWipBalance = 0,
   importedWipDate = null,
-  openBalanceSections = []
+  openBalanceSections = [],
+  onDeleteOpenBalance,
+  onDeleteImportedWip
 }: TimeLogsBreakdownDialogProps) => {
   const [expandedMembers, setExpandedMembers] = useState<Set<string>>(new Set());
   const [showEmailInput, setShowEmailInput] = useState(false);
   const [emailAddress, setEmailAddress] = useState('');
+  const [deletedOpenBalanceIds, setDeletedOpenBalanceIds] = useState<Set<string>>(new Set());
+  const [deleteWipOpenBalance, { isLoading: isDeleting }] = useDeleteWipOpenBalanceMutation();
 
   // Derive date range from provided timeLogs for job breakdown title
   const dateRange = timeLogs.length > 0 ? timeLogs.reduce((acc, log) => {
@@ -121,15 +129,45 @@ const TimeLogsBreakdownDialog = ({
     return acc;
   }, {} as Record<string, TeamMemberGroup>);
 
+  // Filter out deleted open balances
+  const filteredOpenBalanceSections = openBalanceSections.map(section => ({
+    ...section,
+    items: (section.items || []).filter(item => !deletedOpenBalanceIds.has(item.id))
+  }));
+
   // Calculate totals including imported WIP
   const timeLogsTotal = timeLogs.reduce((sum, log) => sum + log.amount, 0);
   const timeLogsTotalHours = timeLogs.reduce((sum, log) => sum + log.hours, 0);
-  const openBalanceTotal = openBalanceSections
+  const openBalanceTotal = filteredOpenBalanceSections
     .flatMap(section => section.items || [])
     .reduce((sum, item) => sum + Number(item.amount || 0), 0);
   const computedTotalAmount = timeLogsTotal + importedWipBalance + openBalanceTotal;
   const finalTotalAmount = typeof totalAmount === 'number' ? totalAmount : computedTotalAmount;
-  const hasOpenBalanceSections = openBalanceSections.some(section => (section.items || []).length > 0);
+  const hasOpenBalanceSections = filteredOpenBalanceSections.some(section => (section.items || []).length > 0);
+
+  const handleDeleteOpenBalance = async (item: OpenBalanceItem) => {
+    // Support both id and _id fields
+    const openBalanceId = item.id || (item as any)._id;
+    if (!openBalanceId) {
+      toast.error('Invalid open balance ID');
+      return;
+    }
+
+    try {
+      await deleteWipOpenBalance(openBalanceId).unwrap();
+      // Mark as deleted in local state using the ID we used for the request
+      setDeletedOpenBalanceIds(prev => new Set(prev).add(item.id || openBalanceId));
+      toast.success('Open balance deleted successfully');
+      
+      // Refresh WIP data if callback provided
+      if (onDeleteOpenBalance) {
+        onDeleteOpenBalance();
+      }
+    } catch (error: any) {
+      console.error('Failed to delete open balance', error);
+      toast.error(error?.data?.message || 'Failed to delete open balance');
+    }
+  };
 
   const toggleMember = (memberName: string) => {
     setExpandedMembers(prev => {
@@ -337,31 +375,61 @@ const TimeLogsBreakdownDialog = ({
                   </React.Fragment>
                 ))}
               </tbody>
-              {importedWipBalance > 0 && (
+              {importedWipBalance !== 0 && (
                 <tbody>
                   <tr className="bg-blue-50 border-t-2 border-blue-200">
                     <td className="p-3 font-bold text-blue-900">Imported WIP</td>
                     <td className="p-3 text-center">{formatDateString(importedWipDate || undefined) || '-'}</td>
                     <td className="p-3 text-center">-</td>
                     <td className="p-3 text-center">-</td>
-                    <td className="p-3 text-center font-bold text-blue-900">{formatCurrency(importedWipBalance)}</td>
+                    <td className="p-3 text-center font-bold text-blue-900">
+                      <div className="flex items-center justify-center gap-2">
+                        <span>{formatCurrency(importedWipBalance)}</span>
+                        {onDeleteImportedWip && (
+                          <button
+                            onClick={onDeleteImportedWip}
+                            className="print-hidden text-red-500 hover:text-red-700 hover:bg-red-50 rounded p-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Delete imported WIP"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 </tbody>
               )}
-              {hasOpenBalanceSections && openBalanceSections.map((section, sectionIdx) => (
+              {hasOpenBalanceSections && filteredOpenBalanceSections.map((section, sectionIdx) => (
                 <tbody key={`${section.title}-${sectionIdx}`}>
                   <tr className="bg-purple-50 border-t-2 border-purple-200">
                     <td className="p-3 font-bold text-purple-900" colSpan={5}>{section.title}</td>
                   </tr>
-                  {(section.items || []).map((item) => (
-                    <tr key={item.id} className="bg-background border-l-4 border-l-purple-200">
-                      <td className="p-3 pl-12 text-sm font-semibold text-purple-900">{formatCurrency(item.amount)}</td>
-                      <td className="p-3 text-center text-sm text-muted-foreground">{formatDateString(item.createdAt) || '-'}</td>
-                      <td className="p-3 text-center text-sm text-muted-foreground">-</td>
-                      <td className="p-3 text-center text-sm text-muted-foreground">{formatStatus(item.status)}</td>
-                      <td className="p-3 text-center text-sm font-semibold text-purple-900">{formatCurrency(item.amount)}</td>
-                    </tr>
-                  ))}
+                  {(section.items || []).map((item) => {
+                    const canDelete = item.status === 'notInvoiced' || !item.status;
+                    return (
+                      <tr key={item.id} className="bg-background border-l-4 border-l-purple-200">
+                        <td className="p-3 pl-12 text-sm font-semibold text-purple-900">
+                          <div className="flex items-center gap-2">
+                            <span>{formatCurrency(item.amount)}</span>
+                            {canDelete && (
+                              <button
+                                onClick={() => handleDeleteOpenBalance(item)}
+                                disabled={isDeleting}
+                                className="print-hidden text-red-500 hover:text-red-700 hover:bg-red-50 rounded p-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Delete open balance"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                        <td className="p-3 text-center text-sm text-muted-foreground">{formatDateString(item.createdAt) || '-'}</td>
+                        <td className="p-3 text-center text-sm text-muted-foreground">-</td>
+                        <td className="p-3 text-center text-sm text-muted-foreground">{formatStatus(item.status)}</td>
+                        <td className="p-3 text-center text-sm font-semibold text-purple-900">{formatCurrency(item.amount)}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               ))}
               <tfoot className="bg-muted/30 border-t-2 print-total">
@@ -387,7 +455,7 @@ const TimeLogsBreakdownDialog = ({
             <div style={{ fontSize: '18px', fontWeight: 'bold' }}>
               Total Hours: {formatHoursToHHMMSS(timeLogsTotalHours)}
             </div>
-            {importedWipBalance > 0 && (
+            {importedWipBalance !== 0 && (
               <div style={{ fontSize: '16px', fontWeight: 'normal', color: '#1e40af' }}>
                 Imported WIP: {formatCurrency(importedWipBalance)}
               </div>

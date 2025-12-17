@@ -17,6 +17,7 @@ import ClientNameLink from '@/components/ClientNameLink';
 import DebtorsBalanceDialog from './DebtorsBalanceDialog';
 import AddDebtorsOpenBalanceDialog from './AddDebtorsOpenBalanceDialog';
 import { useGetClientBreakdownQuery } from '@/store/clientApi';
+import { useGetWipQuery } from '@/store/wipApi';
 
 interface TimeLog {
   id: string;
@@ -134,6 +135,8 @@ const ClientsTab = () => {
   ];
 
   const { data: breakdownResp, isFetching: isClientsLoading } = useGetClientBreakdownQuery({ page, limit });
+  // Fetch WIP data to get accurate client WIP totals (includes job/client open balances/imported WIP)
+  const { data: wipResp } = useGetWipQuery({ limit: 5000 });
   const allClientsApi: Client[] = useMemo(() => {
     const list = breakdownResp?.data?.clients || [];
     return list.map((c: any) => ({
@@ -181,7 +184,29 @@ const ClientsTab = () => {
    
   ];
 
-  const effectiveClients: Client[] = sourceClients.length > 0 ? sourceClients : allClients;
+  // Build a quick lookup from WIP API to get the accurate WIP amount per client
+  const wipMap = useMemo(() => {
+    const wipList = wipResp?.data || [];
+    const map = new Map<string, number>();
+    wipList.forEach((c: any) => {
+      const id = c.clientId || c._id || c.id;
+      const wipTotal =
+        c.clientTotalWipAmount ??
+        c.clientWipBalance ??
+        c.clientWipTotalOpenBalance ??
+        0;
+      if (id) {
+        map.set(String(id), Number(wipTotal || 0));
+      }
+    });
+    return map;
+  }, [wipResp?.data]);
+
+  // Override wipAmount with the accurate total from WIP API when available
+  const effectiveClients: Client[] = (sourceClients.length > 0 ? sourceClients : allClients).map((c) => ({
+    ...c,
+    wipAmount: wipMap.get(c.id) ?? c.wipAmount
+  }));
 
   // Calculate VAT amounts
   const calculateVATAmount = (amount: number, hasVAT: boolean, vatRate: number) => {
@@ -524,7 +549,7 @@ const ClientsTab = () => {
                           onClick={() => handleAddDebtorLog(client.id, client.name)}
                           className="bg-purple-dark hover:bg-purple-dark/90 text-purple-dark-foreground border-purple-dark hover:border-purple-dark transition-colors h-8 px-2 text-xs"
                         >
-                          Add Debtor Log
+                          Debtor Balance
                         </Button>
                       </div>
                     </td>

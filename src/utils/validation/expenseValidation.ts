@@ -52,10 +52,10 @@ export const validateTeamId = (teamId: string): string | null => {
 };
 
 export const validateDescription = (description: string): string | null => {
+  // Description is optional; allow empty
   if (!description || description.trim() === '') {
-    return 'Description is required';
+    return null;
   }
-  
   if (description.trim().length < 3) {
     return 'Description must be at least 3 characters long';
   }

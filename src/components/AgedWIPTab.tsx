@@ -50,20 +50,26 @@ const AgedWIPTab = () => {
   });
   const [sortConfig, setSortConfig] = useState<{ key: keyof AgedWIPEntry; direction: 'asc' | 'desc' } | null>(null);
 
-  const agedWIPData: AgedWIPEntry[] = (data?.data?.clients || []).map((c: any) => ({
-    clientId: c.clientId,
-    clientRef: c.clientRef,
-    clientName: c.clientName,
-    wipBalance: c.wipBalance,
-    days30: c.days30,
-    days60: c.days60,
-    days90: c.days90,
-    days120: c.days120,
-    days150: c.days150,
-    days180Plus: c.days180Plus,
-    hasImportedWip: !!c.hasImportedWip,
-    isImported: !!c.isImported,
-  }));
+  // Filter out clients with name "N/A" (safety check, backend should also filter)
+  const agedWIPData: AgedWIPEntry[] = (data?.data?.clients || [])
+    .filter((c: any) => {
+      const clientName = c?.clientName || '';
+      return clientName.trim() !== 'N/A' && clientName.trim() !== '';
+    })
+    .map((c: any) => ({
+      clientId: c.clientId,
+      clientRef: c.clientRef,
+      clientName: c.clientName,
+      wipBalance: c.wipBalance,
+      days30: c.days30,
+      days60: c.days60,
+      days90: c.days90,
+      days120: c.days120,
+      days150: c.days150,
+      days180Plus: c.days180Plus,
+      hasImportedWip: !!c.hasImportedWip,
+      isImported: !!c.isImported,
+    }));
 
   const [selectedClientId, setSelectedClientId] = React.useState<string | null>(null);
   const [showClientDetailsDialog, setShowClientDetailsDialog] = React.useState(false);
@@ -125,23 +131,40 @@ const AgedWIPTab = () => {
     });
   }, [agedWIPData, sortConfig]);
 
-  const totals = data?.data?.summary ? {
-    wipBalance: data.data.summary.totalWIPBalance,
-    days30: data.data.summary.current0_30Days,
-    days60: data.data.summary.days31_60,
-    days90: 0,
-    days120: 0,
-    days150: 0,
-    days180Plus: data.data.summary.days60Plus,
-  } : {
-    wipBalance: 0,
-    days30: 0,
-    days60: 0,
-    days90: 0,
-    days120: 0,
-    days150: 0,
-    days180Plus: 0,
-  };
+  // Calculate totals from filtered data (excluding N/A clients) to ensure consistency
+  // Backend summary should already exclude N/A clients, but we calculate from filtered data as fallback
+  const totals = useMemo(() => {
+    if (data?.data?.summary) {
+      // Use backend summary (which should already exclude N/A clients)
+      return {
+        wipBalance: data.data.summary.totalWIPBalance || 0,
+        days30: data.data.summary.current0_30Days || 0,
+        days60: data.data.summary.days31_60 || 0,
+        days90: 0, // Backend doesn't provide this breakdown
+        days120: 0, // Backend doesn't provide this breakdown
+        days150: 0, // Backend doesn't provide this breakdown
+        days180Plus: data.data.summary.days60Plus || 0,
+      };
+    }
+    // Fallback: calculate from filtered data (excluding N/A clients)
+    return agedWIPData.reduce((acc, client) => ({
+      wipBalance: acc.wipBalance + (client.wipBalance || 0),
+      days30: acc.days30 + (client.days30 || 0),
+      days60: acc.days60 + (client.days60 || 0),
+      days90: acc.days90 + (client.days90 || 0),
+      days120: acc.days120 + (client.days120 || 0),
+      days150: acc.days150 + (client.days150 || 0),
+      days180Plus: acc.days180Plus + (client.days180Plus || 0),
+    }), {
+      wipBalance: 0,
+      days30: 0,
+      days60: 0,
+      days90: 0,
+      days120: 0,
+      days150: 0,
+      days180Plus: 0,
+    });
+  }, [data?.data?.summary, agedWIPData]);
 
   const pagination = data?.data?.pagination;
   useEffect(() => {
@@ -383,6 +406,7 @@ const AgedWIPTab = () => {
                   <TableCell className="text-right font-bold px-4">
                     {formatCurrency(totals.days180Plus)}
                   </TableCell>
+                  <TableCell className="text-center font-bold px-4"></TableCell>
                 </TableRow>
               </TableBody>
             </Table>

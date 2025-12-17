@@ -87,6 +87,21 @@ export const wipApi = createApi({
       }),
       invalidatesTags: ['Wip'],
     }),
+    deleteWipOpenBalance: builder.mutation<any, string>({
+      query: (openBalanceId) => ({
+        url: `/wip/open-balance/${openBalanceId}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Wip'],
+    }),
+
+    deleteImportedWipBalance: builder.mutation<any, string>({
+      query: (clientId) => ({
+        url: `/wip/imported-wip/${clientId}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Wip'],
+    }),
     attachWipTarget: builder.mutation<any, { type: 'client' | 'job'; wipTargetId: string; clientId?: string; jobId?: string }>({
       query: (payload) => ({
         url: '/wip/attach-wip-target',
@@ -227,7 +242,25 @@ export const wipApi = createApi({
   }),
 });
 
-export const { useGetWipQuery, useGetAgedWipQuery, useGetAgedDebtorsQuery, useAddWipOpenBalanceMutation, useAttachWipTargetMutation, useGenerateInvoiceMutation, useLogInvoiceMutation, useGetInvoicesQuery, useUpdateInvoiceStatusMutation, useGetInvoiceByInvoiceNoQuery, useCreateWriteOffMutation, useGetWriteOffDashboardQuery, useGetWriteOffQuery, useGetInvoiceTimeLogsMutation, useDeleteInvoiceMutation } = wipApi;
+export const {
+  useGetWipQuery,
+  useGetAgedWipQuery,
+  useGetAgedDebtorsQuery,
+  useAddWipOpenBalanceMutation,
+  useDeleteWipOpenBalanceMutation,
+  useDeleteImportedWipBalanceMutation,
+  useAttachWipTargetMutation,
+  useGenerateInvoiceMutation,
+  useLogInvoiceMutation,
+  useGetInvoicesQuery,
+  useUpdateInvoiceStatusMutation,
+  useGetInvoiceByInvoiceNoQuery,
+  useCreateWriteOffMutation,
+  useGetWriteOffDashboardQuery,
+  useGetWriteOffQuery,
+  useGetInvoiceTimeLogsMutation,
+  useDeleteInvoiceMutation
+} = wipApi;
 export const { useCreateInvoiceLogMutation } = wipApi;
 
 

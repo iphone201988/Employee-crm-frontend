@@ -51,6 +51,11 @@ const WIPTableTab = ({ onInvoiceCreate, onWriteOff }: WIPTableTabProps) => {
 
   const wipData: WIPClient[] = useMemo(() => {
     const raw = wipResp?.data || [];
+    // Filter out clients with name "N/A" (safety check, backend should also filter)
+    const filteredRaw = raw.filter((client: any) => {
+      const clientName = client?.name || '';
+      return clientName.trim() !== 'N/A' && clientName.trim() !== '';
+    });
     const mapOpenBalances = (balances: any[]): { id: string; amount: number; type?: string; status?: string; createdAt?: string; jobId?: string }[] => {
       if (!Array.isArray(balances)) return [];
       return balances.map((ob: any) => ({
@@ -62,7 +67,7 @@ const WIPTableTab = ({ onInvoiceCreate, onWriteOff }: WIPTableTabProps) => {
         jobId: ob.jobId ? String(ob.jobId) : undefined,
       }));
     };
-    return raw.map((client: any) => {
+    return filteredRaw.map((client: any) => {
       const triggerAmount = client?.clientWipTraget?.amount;
       const clientTargetMet = client?.clientTargetMet || '0';
       const clientTargetOverall = client?.clientTargetMetCombined || clientTargetMet;
@@ -78,6 +83,11 @@ const WIPTableTab = ({ onInvoiceCreate, onWriteOff }: WIPTableTabProps) => {
       }, 0);
       const totalClientWIP = clientWIPBalance + jobsTotalWIP + importedWipBalance;
       const backendClientWipBalance = client.clientTotalWipAmount;
+      // Use backend's clientTotalWipAmount if available, otherwise calculate it
+      // The backend calculation is: sum(jobs.jobTotalWipAmount) + clientWipTotalOpenBalance + importedWipBalance
+      const finalClientTotalWipAmount = typeof backendClientWipBalance === 'number' && backendClientWipBalance > 0
+        ? backendClientWipBalance
+        : totalClientWIP;
       const finalClientWipBalance =
         typeof backendClientWipBalance === 'number'
           ? Math.max(Number(backendClientWipBalance || 0), totalClientWIP)
@@ -119,6 +129,8 @@ const WIPTableTab = ({ onInvoiceCreate, onWriteOff }: WIPTableTabProps) => {
           : [],
         jobs: (client.jobs || []).map((job: any) => {
           const status = job.status === 'completed' ? 'completed' : job.status === 'inProgress' ? 'active' : 'on-hold';
+          // Store original backend status for status updates
+          const originalStatus = job.status || 'queued';
           // For each job: wipAmount + wipTotalOpenBalance
           const jobTotal = job.jobTotalWipAmount !== undefined
             ? Number(job.jobTotalWipAmount || 0)
@@ -130,6 +142,7 @@ const WIPTableTab = ({ onInvoiceCreate, onWriteOff }: WIPTableTabProps) => {
             id: job._id,
             jobName: job.name,
             jobStatus: status,
+            originalStatus: originalStatus, // Store original backend status
             hoursLogged: (job.wipDuration || 0) / 3600,
             wipAmount: jobTotal,
             invoicedToDate: 0,
@@ -151,6 +164,7 @@ const WIPTableTab = ({ onInvoiceCreate, onWriteOff }: WIPTableTabProps) => {
           };
         }),
         clientWipBalance: finalClientWipBalance,
+        clientTotalWipAmount: finalClientTotalWipAmount,
         wipBreakdown: client.wipBreakdown || [],
         importedWipBalance: importedWipBalance,
         importedWipDate: client.importedWipDate || null
@@ -202,25 +216,45 @@ const WIPTableTab = ({ onInvoiceCreate, onWriteOff }: WIPTableTabProps) => {
     }
   };
 
+  // Access summary from response - RTK Query returns the response directly
   const apiSummary = (wipResp as any)?.summary || {};
+  
+  // Debug: Log summary to understand the structure
+  // console.log('API Summary:', apiSummary);
+  // console.log('Filtered WIP Data:', filteredWipData.map(c => ({ 
+  //   name: c.clientName, 
+  //   targetMet: c.clientTargetMet, 
+  //   totalWip: c.clientTotalWipAmount 
+  // })));
+
   const totalClients = typeof apiSummary.totalClients === 'number' ? apiSummary.totalClients : filteredWipData.length;
   const totalJobs = typeof apiSummary.totalJobs === 'number' ? apiSummary.totalJobs : filteredWipData.reduce((sum, client) => sum + client.jobs.length, 0);
   const totalWIP = typeof apiSummary.totalWipAmount === 'number'
     ? apiSummary.totalWipAmount
     : filteredWipData.reduce((sum, client) => sum + Number(client.clientWipBalance || 0), 0);
 
-  const readyToInvoiceAmount = typeof apiSummary.totalInvoicedAmount === 'number'
-    ? apiSummary.totalInvoicedAmount
-    : filteredWipData.reduce((sum, client) => {
-        const clientMet = (client as any).clientTargetOverall === '2' || (client as any).clientTargetMet === '2';
-        const jobMet = client.jobs.some(job => job.targetMetStatus === '2');
-        return clientMet || jobMet ? sum + Number(client.clientWipBalance || 0) : sum;
-      }, 0);
+  // Calculate "Ready to Invoice" based on clientTargetMet === '2' (client-level only, matching table logic)
+  // IMPORTANT: Always calculate from filteredWipData to ensure consistency with what's displayed in the table
+  // This ensures N/A clients are excluded and the calculation matches the visible data
+  // Use clientTotalWipAmount (not clientWipBalance) to match backend calculation logic
+  const readyToInvoiceAmount = filteredWipData.reduce((sum, client) => {
+    // Check client-level target met status
+    const clientTargetMet = String(client.clientTargetMet || '0');
+    // Only count clients where target is met (status === '2')
+    // This matches the backend logic: sum clientTotalWipAmount where clientTargetMet === '2'
+    if (clientTargetMet === '2' || Number(clientTargetMet) === 2) {
+      // Use clientTotalWipAmount to match backend calculation exactly
+      const amount = Number(client.clientTotalWipAmount || 0);
+      return sum + amount;
+    }
+    return sum;
+  }, 0);
 
   const readyToInvoice = filteredWipData.filter(client => {
-    const clientMet = (client as any).clientTargetOverall === '2' || (client as any).clientTargetMet === '2';
-    const jobMet = client.jobs.some(job => job.targetMetStatus === '2');
-    return clientMet || jobMet;
+    // Check client-level target met status
+    const clientTargetMet = String(client.clientTargetMet || '0');
+    // Only count clients where target is met (status === '2')
+    return clientTargetMet === '2' || Number(clientTargetMet) === 2;
   }).length;
 
   return (

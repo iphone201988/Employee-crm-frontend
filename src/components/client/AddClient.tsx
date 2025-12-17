@@ -239,7 +239,7 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
                         <h3 className="text-lg font-semibold text-gray-800">Basic Information</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <InputComponent
-                                label="Client Reference (Optional)"
+                                label="Client Reference"
                                 id="clientRef"
                                 value={formData.clientRef}
                                 onChange={handleInputChange('clientRef')}
@@ -344,7 +344,7 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
                             </div>
 
                             <InputComponent
-                                label="TAX/PPS NO (Optional)"
+                                label="TAX/PPS NO"
                                 id="taxNumber"
                                 value={formData.taxNumber}
                                 onChange={handleInputChange('taxNumber')}
@@ -352,7 +352,7 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
                                 error={errors.taxNumber}
                             />
                             <InputComponent
-                                label="CRO NO (Optional)"
+                                label="CRO NO"
                                 id="croNumber"
                                 value={formData.croNumber}
                                 onChange={handleInputChange('croNumber')}
@@ -360,7 +360,7 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
                                 error={errors.croNumber}
                             />
                             <InputComponent
-                                label="CRO Link (Optional)"
+                                label="CRO Link"
                                 id="croLink"
                                 value={formData.croLink || ''}
                                 onChange={handleInputChange('croLink')}
@@ -387,7 +387,7 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
                                 )}
                             </div>
                             <div>
-                                <Label htmlFor="yearEnd">Year End (Optional)</Label>
+                            <Label htmlFor="yearEnd">Year End</Label>
                                 <Select
                                     value={formData.yearEnd || ''}
                                     onValueChange={handleInputChange('yearEnd')}
@@ -408,14 +408,14 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
                                 )}
                             </div>
                             <DateOrNAInput
-                                label="Onboarded Date (Optional)"
+                                label="Onboarded Date"
                                 id="onboardedDate"
                                 value={formData.onboardedDate ?? null}
                                 onChange={(value) => handleInputChange('onboardedDate')(value)}
                                 error={errors.onboardedDate}
                             />
                             <DateOrNAInput
-                                label="AR Date (Optional)"
+                                label="AR Date"
                                 id="arDate"
                                 value={formData.arDate ?? null}
                                 onChange={(value) => handleInputChange('arDate')(value)}
@@ -428,7 +428,7 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
                     <div className="space-y-4 px-[20px]">
                         <h3 className="text-lg font-semibold text-gray-800">Address</h3>
                         <InputComponent
-                            label="Address (Optional)"
+                            label="Address"
                             id="address"
                             type="textarea"
                             value={formData.address}
@@ -443,7 +443,7 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
                         <h3 className="text-lg font-semibold text-gray-800">Contact Information</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <InputComponent
-                                label="Email (Optional)"
+                                label="Email"
                                 id="email"
                                 type="email"
                                 value={formData.email}
@@ -452,14 +452,14 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
                                 error={errors.email}
                             />
                             <InputComponent
-                                label="Email Note (Optional)"
+                                label="Email Note"
                                 id="emailNote"
                                 value={formData.emailNote}
                                 onChange={handleInputChange('emailNote')}
                                 placeholder="Additional email notes or leave as N/A"
                             />
                             <InputComponent
-                                label="Phone (Optional)"
+                                label="Phone"
                                 id="phone"
                                 type="tel"
                                 value={formData.phone}
@@ -468,7 +468,7 @@ const AddClient = ({ dialogOpen, setDialogOpen, onClientAdd, editMode = false, c
                                 error={errors.phone}
                             />
                             <InputComponent
-                                label="Phone Note (Optional)"
+                                label="Phone Note"
                                 id="phoneNote"
                                 value={formData.phoneNote}
                                 onChange={handleInputChange('phoneNote')}

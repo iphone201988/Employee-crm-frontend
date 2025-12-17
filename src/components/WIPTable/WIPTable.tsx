@@ -14,11 +14,14 @@ import { InvoicePreviewDialog } from '@/components/InvoicePreviewDialog';
 import WIPOpeningBalanceDialog from '@/components/WIPOpeningBalanceDialog';
 import { useGetDropdownOptionsQuery } from '@/store/teamApi';
 import { useAddWipOpenBalanceMutation, useAttachWipTargetMutation } from '@/store/wipApi';
+import { useDeleteImportedWipBalanceMutation } from '@/store/wipApi';
 import { toast } from 'sonner';
 import ClientDetailsDialog from '@/components/ClientDetailsDialog';
 import { useGetClientQuery } from '@/store/clientApi';
 import { Label } from "@/components/ui/label";
 import { JobDetailsDialog } from '@/components/JobDetailsDialog';
+import { useUpdateJobMutation } from '@/store/jobApi';
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface WIPTableProps {
   wipData: WIPClient[];
@@ -44,11 +47,11 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
     // Values: '0' = no target, '1' = target not met, '2' = target met
     const rawStatus = client.clientTargetMet ?? '0';
     const status = String(rawStatus || '0');
-    
+
     return {
       status,
       hasTarget: status !== '0' && status !== 'null' && status !== 'undefined',
-      // Status '2' means target is met (WIP > target amount)
+      // Status '2' means target is met (WIP >= target amount)
       // Status '1' means target exists but not met
       // Status '0' means no target set
       met: status === '2' || Number(status) === 2
@@ -59,7 +62,7 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
     // Get status and normalize to string for consistent comparison
     const rawStatus = job.targetMetStatus ?? (job.triggerMet ? '2' : '0');
     const status = String(rawStatus || '0');
-    
+
     return {
       status,
       hasTarget: status !== '0' && status !== 'null' && status !== 'undefined',
@@ -81,6 +84,13 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
   const [openLogInvoiceOnly, setOpenLogInvoiceOnly] = useState(false);
   const [addWipOpenBalance] = useAddWipOpenBalanceMutation();
   const [attachWipTarget] = useAttachWipTargetMutation();
+  const [deleteImportedWipBalance] = useDeleteImportedWipBalanceMutation();
+  const [updateJob] = useUpdateJobMutation();
+
+  // Job completion dialog state
+  const [showJobCompletionDialog, setShowJobCompletionDialog] = useState(false);
+  const [jobsToComplete, setJobsToComplete] = useState<Array<{ id: string; name: string; selected: boolean }>>([]);
+  const [isUpdatingJobStatus, setIsUpdatingJobStatus] = useState(false);
 
   // Client details dialog state
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
@@ -105,8 +115,8 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
   }, [wipTargetsResp?.data?.wipTargetAmount]);
 
   // Get the first (lowest) value as default
-  const defaultWipTargetValue = wipTargetAmountOptions.length > 0 
-    ? wipTargetAmountOptions[0].value 
+  const defaultWipTargetValue = wipTargetAmountOptions.length > 0
+    ? wipTargetAmountOptions[0].value
     : 'threshold-1000'; // Fallback if no options available
 
   const resolveWipTargetId = (triggerValue: string) => {
@@ -116,7 +126,7 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
     const found = (wipTargetsResp?.data?.wipTargetAmount || []).find((it: any) => Number(it.amount) === amountNum);
     return found?._id;
   };
-  
+
   // Helper function to format combined last invoiced info
   const formatLastInvoiced = (date: string | null, daysSince: number | null) => {
     if (!date) return 'Never';
@@ -126,7 +136,7 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
     }
     return formattedDate;
   };
-  
+
   const getWarningIcon = (job: any) => {
     const jobFee = Number(job.jobFee || 0);
     if (jobFee <= 0) return null;
@@ -135,7 +145,7 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
       <AlertTriangle className="h-4 w-4  text-red-500 ml-1 " />
     ) : null;
   };
-  
+
   const handleInvoiceNow = (client: any, job?: any) => {
     // Build itemized team breakdown for invoice (deduped for client-level)
     const buildMembersBreakdown = () => {
@@ -246,15 +256,62 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
     if (onInvoiceCreate) {
       onInvoiceCreate(invoice);
     }
-    
+
     // Calculate WIP balance after invoice
     const totalWIP = selectedInvoiceData?.amount || 0;
     const invoicedAmount = invoice.amount;
     const wipBalance = totalWIP - invoicedAmount;
-    
+
     setShowInvoiceDialog(false);
-    
-    if (wipBalance > 0) {
+
+    // Check if we need to show job completion dialog
+    const scope = selectedInvoiceData?.scope; // 'job' or 'client'
+    const jobId = selectedInvoiceData?.jobId;
+    const clientId = selectedInvoiceData?.clientId;
+
+    // Find the client from wipData to get jobs
+    const client = wipData.find(c => c.id === clientId);
+
+    if (scope === 'job' && jobId) {
+      // Single job invoice - show dialog for that job
+      const job = client?.jobs.find(j => j.id === jobId);
+      const originalStatus = (job as any)?.originalStatus || 'queued';
+      if (job && originalStatus !== 'completed') {
+        setJobsToComplete([{ id: job.id, name: job.jobName, selected: false }]);
+        setShowJobCompletionDialog(true);
+      } else if (wipBalance > 0) {
+        setWIPBalanceData({
+          clientName: selectedInvoiceData?.clientName,
+          wipBalance: wipBalance,
+          invoiceNumber: invoice.invoiceNumber
+        });
+        setShowWIPBalanceDialog(true);
+      } else {
+        setSelectedInvoiceData(null);
+      }
+    } else if (scope === 'client' && client) {
+      // Client-level invoice - show dialog for all jobs that aren't completed
+      const incompleteJobs = client.jobs
+        .filter(job => {
+          const originalStatus = (job as any)?.originalStatus || 'queued';
+          return originalStatus !== 'completed';
+        })
+        .map(job => ({ id: job.id, name: job.jobName, selected: false }));
+
+      if (incompleteJobs.length > 0) {
+        setJobsToComplete(incompleteJobs);
+        setShowJobCompletionDialog(true);
+      } else if (wipBalance > 0) {
+        setWIPBalanceData({
+          clientName: selectedInvoiceData?.clientName,
+          wipBalance: wipBalance,
+          invoiceNumber: invoice.invoiceNumber
+        });
+        setShowWIPBalanceDialog(true);
+      } else {
+        setSelectedInvoiceData(null);
+      }
+    } else if (wipBalance > 0) {
       setWIPBalanceData({
         clientName: selectedInvoiceData?.clientName,
         wipBalance: wipBalance,
@@ -264,6 +321,105 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
     } else {
       setSelectedInvoiceData(null);
     }
+  };
+
+  const handleJobCompletionConfirm = async () => {
+    const selectedJobs = jobsToComplete.filter(j => j.selected);
+    if (selectedJobs.length === 0) {
+      // No jobs selected, just close dialog
+      setShowJobCompletionDialog(false);
+      setJobsToComplete([]);
+
+      // Check if we need to show WIP balance dialog
+      const totalWIP = selectedInvoiceData?.amount || 0;
+      const invoicedAmount = selectedInvoiceData?.wipAmount || 0;
+      const wipBalance = totalWIP - invoicedAmount;
+
+      if (wipBalance > 0) {
+        setWIPBalanceData({
+          clientName: selectedInvoiceData?.clientName,
+          wipBalance: wipBalance,
+          invoiceNumber: selectedInvoiceData?.invoiceNumber
+        });
+        setShowWIPBalanceDialog(true);
+      } else {
+        setSelectedInvoiceData(null);
+      }
+      return;
+    }
+
+    setIsUpdatingJobStatus(true);
+    try {
+      // Update all selected jobs to completed
+      await Promise.all(
+        selectedJobs.map(job =>
+          updateJob({
+            jobId: job.id,
+            jobData: { status: 'completed' }
+          }).unwrap()
+        )
+      );
+
+      toast.success(`${selectedJobs.length} job(s) marked as completed`);
+
+      // Refresh WIP data
+      if (onWipMutated) {
+        onWipMutated();
+      }
+
+      setShowJobCompletionDialog(false);
+      setJobsToComplete([]);
+
+      // Check if we need to show WIP balance dialog
+      const totalWIP = selectedInvoiceData?.amount || 0;
+      const invoicedAmount = selectedInvoiceData?.wipAmount || 0;
+      const wipBalance = totalWIP - invoicedAmount;
+
+      if (wipBalance > 0) {
+        setWIPBalanceData({
+          clientName: selectedInvoiceData?.clientName,
+          wipBalance: wipBalance,
+          invoiceNumber: selectedInvoiceData?.invoiceNumber
+        });
+        setShowWIPBalanceDialog(true);
+      } else {
+        setSelectedInvoiceData(null);
+      }
+    } catch (error: any) {
+      console.error('Failed to update job status', error);
+      toast.error(error?.data?.message || 'Failed to update job status');
+    } finally {
+      setIsUpdatingJobStatus(false);
+    }
+  };
+
+  const handleJobCompletionCancel = () => {
+    setShowJobCompletionDialog(false);
+    setJobsToComplete([]);
+
+    // Check if we need to show WIP balance dialog
+    const totalWIP = selectedInvoiceData?.amount || 0;
+    const invoicedAmount = selectedInvoiceData?.wipAmount || 0;
+    const wipBalance = totalWIP - invoicedAmount;
+
+    if (wipBalance > 0) {
+      setWIPBalanceData({
+        clientName: selectedInvoiceData?.clientName,
+        wipBalance: wipBalance,
+        invoiceNumber: selectedInvoiceData?.invoiceNumber
+      });
+      setShowWIPBalanceDialog(true);
+    } else {
+      setSelectedInvoiceData(null);
+    }
+  };
+
+  const toggleJobSelection = (jobId: string) => {
+    setJobsToComplete(prev =>
+      prev.map(job =>
+        job.id === jobId ? { ...job, selected: !job.selected } : job
+      )
+    );
   };
 
   const handleCloseDialog = () => {
@@ -281,6 +437,24 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
     console.log(`Transferring ${formatCurrency(amount)} from ${fromClient} to ${toClient}`);
     setShowTransferDialog(false);
     setTransferData(null);
+  };
+
+  const handleDeleteImportedWip = async (clientId: string) => {
+    try {
+      await deleteImportedWipBalance(clientId).unwrap();
+      toast.success('Imported WIP removed successfully');
+      setShowTimeLogsDialog(false);
+      if (onWipMutated) {
+        onWipMutated();
+      }
+      // Optionally re-open to show refreshed data
+      setTimeout(() => {
+        setSelectedTimeLogsData(null);
+      }, 150);
+    } catch (error: any) {
+      console.error('Failed to delete imported WIP', error);
+      toast.error(error?.data?.message || 'Failed to delete imported WIP');
+    }
   };
 
   const [wipTableData, setWipTableData] = useState<WIPClient[]>(wipData);
@@ -342,31 +516,48 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
     }
     return <ArrowUpDown className={`ml-1 !h-3 !w-3 ${sortConfig.direction === 'desc' ? 'rotate-180' : ''}`} />;
   };
-  
+
   // Filter data based on filters
   const filteredWipData = wipTableData.filter(client => {
     // Manual review filter
     if (showManualReviewOnly) {
-      const hasManualReviewJobs = client.jobs.some(job => job.trigger === 'manual-review');
+      const hasManualReviewJobs = client.jobs
+        .filter((job) => {
+          // Exclude completed jobs from manual review filter
+          const originalStatus = (job as any).originalStatus || 'queued';
+          return originalStatus !== 'completed';
+        })
+        .some(job => job.trigger === 'manual-review');
       if (!hasManualReviewJobs) return false;
     }
-    
+
     // Warning jobs filter
     if (showWarningJobsOnly) {
-      const hasWarningJobs = client.jobs.some(job => {
-        const jobFee = Number(job.jobFee || 0);
-        if (jobFee <= 0) return false;
-        const wipPercentage = (job.wipAmount / jobFee) * 100;
-        return wipPercentage >= warningPercentage;
-      });
+      const hasWarningJobs = client.jobs
+        .filter((job) => {
+          // Exclude completed jobs from warning filter
+          const originalStatus = (job as any).originalStatus || 'queued';
+          return originalStatus !== 'completed';
+        })
+        .some(job => {
+          const jobFee = Number(job.jobFee || 0);
+          if (jobFee <= 0) return false;
+          const wipPercentage = (job.wipAmount / jobFee) * 100;
+          return wipPercentage >= warningPercentage;
+        });
       if (!hasWarningJobs) return false;
     }
-    
+
     if (targetMetFilter === 'all') return true;
-    
+
     // For filtering, use clientTargetMet from backend (client status) and job statuses
+    // Exclude completed jobs from target met filtering
     const clientStatus = getClientTargetStatus(client);
-    const jobStatuses = client.jobs.map(getJobTargetStatus);
+    const activeJobs = client.jobs.filter((job) => {
+      const originalStatus = (job as any).originalStatus || 'queued';
+      return originalStatus !== 'completed';
+    });
+    const jobStatuses = activeJobs.map(getJobTargetStatus);
     const hasTarget = clientStatus.hasTarget || jobStatuses.some(s => s.hasTarget);
     const met = clientStatus.met || jobStatuses.some(s => s.met);
 
@@ -398,8 +589,15 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
           bValue = b.clientName;
           break;
         case 'jobs':
-          aValue = a.jobs.length;
-          bValue = b.jobs.length;
+          // Exclude completed jobs from count for sorting
+          aValue = a.jobs.filter((job) => {
+            const originalStatus = (job as any).originalStatus || 'queued';
+            return originalStatus !== 'completed';
+          }).length;
+          bValue = b.jobs.filter((job) => {
+            const originalStatus = (job as any).originalStatus || 'queued';
+            return originalStatus !== 'completed';
+          }).length;
           break;
         case 'wipBalance':
           aValue = (a as any).clientWipBalance || 0;
@@ -430,9 +628,13 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
   }, [filteredWipData, sortConfig]);
 
   // Get trigger options based on invoice level (already sorted numerically)
-  const getClientTriggerOptions = () => wipTargetAmountOptions;
+  const getClientTriggerOptions = () => [
+    { value: 'none', label: '- Select -' }, // Option to clear/remove WIP target
+    ...wipTargetAmountOptions
+  ];
 
   const getJobTriggerOptions = () => [
+    { value: 'none', label: '- Select -' }, // Option to clear/remove WIP target
     // { value: 'job-closed', label: 'Job Closed' },
     ...wipTargetAmountOptions
   ];
@@ -462,6 +664,7 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
                       Jobs {getSortIcon('jobs')}
                     </Button>
                   </th>
+                  <th className="text-center p-4 font-medium text-[12px] text-[hsl(var(--table-header))]">JOB STATUS</th>
                   <th className="text-left p-4 font-medium text-[12px] text-[hsl(var(--table-header))]">
                     <Button
                       variant="ghost"
@@ -501,34 +704,41 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
                     {/* Client Row */}
                     <tr className="border-b hover:bg-muted/50 bg-muted/20 h-14">
                       <td className="p-4">
-                         <div className="flex items-center gap-2">
-                           <button
-                             onClick={() => onToggleClient(client.id)}
-                             className="flex items-center gap-1 hover:text-primary"
-                           >
-                             {expandedClients.has(client.id) ? (
-                               <ChevronDown className="h-4 w-4" />
-                             ) : (
-                               <ChevronRight className="h-4 w-4" />
-                             )}
-                           </button>
-                           <div className="font-semibold">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => onToggleClient(client.id)}
+                            className="flex items-center gap-1 hover:text-primary"
+                          >
+                            {expandedClients.has(client.id) ? (
+                              <ChevronDown className="h-4 w-4" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4" />
+                            )}
+                          </button>
+                          <div className="font-semibold">
                             <span
                               className="cursor-pointer text-blue-600 hover:text-blue-800 hover:underline"
                               onClick={() => { setSelectedClientId(client.id); setShowClientDetailsDialog(true); }}
                             >
                               {client.clientName}
                             </span>
-                           </div>
-                         </div>
-                        </td>
-                        <td className="p-4 text-center">
-                          <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                            {client.jobs.length}
-                          </Badge>
-                        </td>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-4 text-center">
+                        <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                          {client.jobs.filter((job) => {
+                            // Exclude completed jobs from count
+                            const originalStatus = (job as any).originalStatus || 'queued';
+                            return originalStatus !== 'completed';
+                          }).length}
+                        </Badge>
+                      </td>
+                      <td className="p-4 text-center">
+                        <span className="text-sm text-muted-foreground">-</span>
+                      </td>
                       <td className="p-4 text-left">
-                         <div className="flex items-center justify-center gap-2">
+                        <div className="flex items-center justify-start gap-2">
                           <button
                             onClick={() => {
                               // Map API wipBreakdown to dialog timeLogs
@@ -569,6 +779,7 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
                                 : timeLogsTotal + importedWipBalance + clientOpenBalanceTotal;
                               setSelectedTimeLogsData({
                                 clientName: client.clientName,
+                                clientId: client.id,
                                 timeLogs,
                                 totalAmount,
                                 importedWipBalance,
@@ -578,9 +789,9 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
                               setShowTimeLogsDialog(true);
                             }}
                             className={`inline-flex items-center px-2 py-1 rounded-full text-sm font-semibold cursor-pointer hover:opacity-80 ${(invoiceLevel[client.id] || 'client') === 'client'
-                                ? 'bg-green-100 text-green-800' 
-                                : 'bg-blue-100 text-blue-800'
-                            }`}
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-blue-100 text-blue-800'
+                              }`}
                           >
                             {formatCurrency((client as any).clientWipBalance || 0)}
                           </button>
@@ -589,33 +800,33 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
                             const totalJobFee = client.jobs.reduce((sum, job) => sum + job.jobFee, 0);
                             return null; // Remove warning icon from client row
                           })()}
-                           <Button
-                             size="sm"
-                             variant="outline"
-                             className="h-6 w-6 p-0 rounded-full"
-                              onClick={() => {
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-6 w-6 p-0 rounded-full"
+                            onClick={() => {
                               // Calculate total WIP balance including imported WIP and open balances
                               const clientWipBalance = typeof (client as any).clientWipBalance === 'number'
                                 ? (client as any).clientWipBalance
                                 : (() => {
-                                    const timeLogsTotal = client.jobs.reduce((sum, job) => sum + job.wipAmount, 0);
-                                    const importedWipBalance = Number((client as any).importedWipBalance || 0);
-                                    const clientOpenBalances = Array.isArray((client as any).clientOpenBalances) ? (client as any).clientOpenBalances : [];
-                                    const clientOpenBalanceTotal = clientOpenBalances.reduce((sum: number, ob: any) => sum + Number(ob.amount || 0), 0);
-                                    return timeLogsTotal + importedWipBalance + clientOpenBalanceTotal;
-                                  })();
-                                setWIPBalanceData({
-                                  clientName: client.clientName,
+                                  const timeLogsTotal = client.jobs.reduce((sum, job) => sum + job.wipAmount, 0);
+                                  const importedWipBalance = Number((client as any).importedWipBalance || 0);
+                                  const clientOpenBalances = Array.isArray((client as any).clientOpenBalances) ? (client as any).clientOpenBalances : [];
+                                  const clientOpenBalanceTotal = clientOpenBalances.reduce((sum: number, ob: any) => sum + Number(ob.amount || 0), 0);
+                                  return timeLogsTotal + importedWipBalance + clientOpenBalanceTotal;
+                                })();
+                              setWIPBalanceData({
+                                clientName: client.clientName,
                                 wipBalance: clientWipBalance,
-                                  clientId: client.id,
+                                clientId: client.id,
                                 onAddBalance: (amount: number, date?: string) => handleAddWIPBalance(client.id, amount, undefined, date)
-                                });
-                                setShowWIPBalanceDialog(true);
-                              }}
-                           >
-                              +
-                            </Button>
-                         </div>
+                              });
+                              setShowWIPBalanceDialog(true);
+                            }}
+                          >
+                            +
+                          </Button>
+                        </div>
                       </td>
                       <td className="p-4 text-center">
                         <button
@@ -627,8 +838,8 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
                             setShowActiveExpensesDialog(true);
                           }}
                           className={`inline-flex items-center px-2 py-1 rounded-full text-sm font-semibold cursor-pointer hover:opacity-80 ${client.activeExpenses.reduce((sum, exp) => sum + exp.amount, 0) > 0
-                              ? 'bg-orange-100 text-orange-800'
-                              : 'bg-gray-100 text-gray-500'
+                            ? 'bg-orange-100 text-orange-800'
+                            : 'bg-gray-100 text-gray-500'
                             }`}
                         >
                           {(() => {
@@ -638,7 +849,7 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
                         </button>
                       </td>
                       {/* <td className="p-4 text-center">{formatLastInvoiced(client.lastInvoiced, client.daysSinceLastInvoice)}</td> */}
-                       <td className="p-4 text-center">
+                      <td className="p-4 text-center">
                         <div className="inline-flex items-center justify-center">
                           <button
                             onClick={() =>
@@ -650,17 +861,17 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
                                 : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'
                               }
         rounded-l-full`}
-                           >
-                             Client
+                          >
+                            Client
                           </button>
 
                           <button
-                              onClick={() => {
-                                setInvoiceLevel(prev => ({ ...prev, [client.id]: 'job' }));
-                                if (!expandedClients.has(client.id)) {
-                                  onToggleClient(client.id);
-                                }
-                              }}
+                            onClick={() => {
+                              setInvoiceLevel(prev => ({ ...prev, [client.id]: 'job' }));
+                              if (!expandedClients.has(client.id)) {
+                                onToggleClient(client.id);
+                              }
+                            }}
                             className={`px-3 py-1.5 h-7 text-xs font-medium border transition-colors
         ${(invoiceLevel[client.id] || 'client') === 'job'
                                 ? 'bg-[#5f46b9] text-white border-[#5f46b9]'
@@ -670,15 +881,33 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
                           >
                             Job
                           </button>
-                         </div>
-                       </td>
+                        </div>
+                      </td>
 
-          <td className="p-4 text-center">
-            {(invoiceLevel[client.id] || 'client') === 'client' ? (
-              <Select 
-                value={clientTriggers[client.id] || client.trigger || defaultWipTargetValue} 
+                      <td className="p-4 text-center">
+                        {(invoiceLevel[client.id] || 'client') === 'client' ? (
+                          <Select
+                            value={clientTriggers[client.id] || (client.trigger?.trim() || 'none')}
                             onValueChange={async (value) => {
                               setClientTriggers(prev => ({ ...prev, [client.id]: value }));
+
+                              // Handle clearing the target
+                              if (value === 'none') {
+                                try {
+                                  await attachWipTarget({ type: 'client', clientId: client.id, wipTargetId: null }).unwrap();
+                                  if (onWipMutated) onWipMutated();
+                                } catch (err) {
+                                  console.error('Failed to clear WIP target', err);
+                                  // Revert UI state on error
+                                  setClientTriggers(prev => {
+                                    const updated = { ...prev };
+                                    delete updated[client.id];
+                                    return updated;
+                                  });
+                                }
+                                return;
+                              }
+
                               const wipTargetId = resolveWipTargetId(value);
                               if (wipTargetId) {
                                 try {
@@ -689,251 +918,308 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
                                 }
                               }
                             }}
-              >
-                <SelectTrigger className="w-40 h-8 text-xs">
-                  <SelectValue placeholder="Select trigger" />
-                </SelectTrigger>
-                <SelectContent>
-                  {getClientTriggerOptions().map(option => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              '-'
-            )}
-          </td>
-          <td className="p-4 text-center">
-            {(invoiceLevel[client.id] || 'client') === 'client' ? (
-              <div className="flex justify-center">
-                {(() => {
-                  // Use clientTargetMet directly from backend (no frontend calculation)
-                  const targetState = getClientTargetStatus(client);
-                  if (!targetState.hasTarget) {
-                    return <span className="text-xs text-muted-foreground">N/A</span>;
-                  }
-                  return targetState.met ? (
-                    <Check className="h-4 w-4 text-green-600" />
-                  ) : (
-                    <X className="h-4 w-4 text-red-600" />
-                  );
-                })()}
-              </div>
-            ) : (
-              '-'
-            )}
-          </td>
-          <td className="p-4 text-center">
-            {(invoiceLevel[client.id] || 'client') === 'client' ? (
-              (() => {
-                // Use clientTargetMet directly from backend for "Ready To Invoice" status
-                // No frontend calculation - depends solely on backend's clientTargetMet value
-                const targetState = getClientTargetStatus(client);
-                if (!targetState.hasTarget) {
-                  return <Badge variant="secondary" className="bg-gray-100 text-gray-800 text-xs">N/A</Badge>;
-                }
-                return targetState.met ? (
-                  <Badge 
-                    variant="secondary" 
-                    className="bg-green-100 text-green-800 text-xs cursor-pointer hover:bg-green-200"
-                    onClick={() => handleInvoiceNow(client)}
-                  >
-                    Invoice Now
-                  </Badge>
-                ) : (
-                  <Badge variant="secondary" className="bg-red-100 text-red-800 text-xs">
-                    Not Ready
-                  </Badge>
-                );
-              })()
-            ) : (
-              '-'
-            )}
-           </td>
-                     </tr>
-                     
-                     
-                       {/* Job Rows */}
-                       {expandedClients.has(client.id) && client.jobs.map((job) => (
-                          <tr key={job.id} className="border-b hover:bg-muted/50 h-14" style={{ backgroundColor: '#F5F3F9' }}>
-                           <td className="p-4 pl-12 text-sm">
-                             <div className="flex items-center">
-                            <span
-                              className="cursor-pointer text-blue-600 hover:text-blue-800 hover:underline"
-                                     onClick={() => {
-                                setViewingJob({
-                                  jobId: job.id,
-                                  name: job.jobName,
-                                  jobCost: job.jobFee,
-                                  actualCost: job.wipAmount,
-                                  status: job.jobStatus,
-                                         clientName: client.clientName,
-                                  hoursLogged: job.hoursLogged || 0,
-                                });
-                                setViewJobDialogOpen(true);
-                              }}
-                            >
-                              {job.jobName}
-                            </span>
-                            {getWarningIcon(job)}
-                                  </div>
-                               </td>
-                             <td className="p-4 text-center text-sm">
-                               <div className="flex flex-col items-center gap-2">
-                                 <div className="text-xs text-muted-foreground">
-                                   Job Fee: {job.jobFee > 0 ? formatCurrency(job.jobFee) : 'N/A'}
-                                 </div>
-                                  {/* Progress Bar */}
-                                  {job.jobFee > 0 && (
-                                    <div className="flex flex-col items-center">
-                                      <div className="w-20 bg-gray-200 rounded-full h-2">
-                                         <div 
-                                    className={`h-2 rounded-full transition-all duration-300 ${(job.wipAmount / job.jobFee) * 100 >= warningPercentage
-                                               ? 'bg-red-500' 
-                                               : ''
-                                           }`}
-                                           style={{ 
-                                      backgroundColor: (job.wipAmount / job.jobFee) * 100 < warningPercentage ? '#38A24B' : undefined,
-                                             width: `${Math.min((job.wipAmount / job.jobFee) * 100, 100)}%` 
-                                           }}
-                                        ></div>
-                                      </div>
-                                      <div className="text-xs text-center mt-1 text-muted-foreground">
-                                        {Math.round((job.wipAmount / job.jobFee) * 100)}%
-                                      </div>
-                                    </div>
-                                  )}
-                               </div>
-                             </td>
-                        <td className="p-4 text-center text-sm">
-                          <div className="flex items-center justify-center gap-2">
-                            <button
-                              onClick={() => {
-                                const j: any = job as any;
-                                const breakdown = j.wipBreakdown || [];
-                                const timeLogs = breakdown.flatMap((member: any) => {
-                                  const tasks = Array.isArray(member.tasks) ? member.tasks : [];
-                                  return tasks.map((t: any, idx: number) => ({
-                                    id: String(t.timeLogId || `${member._id}-${idx}`),
-                                    teamMember: member.userName || 'Team Member',
-                                    hours: Number(t.duration || 0) / 3600,
-                                    billableRate: Number(member.billableRate || 0),
-                                    amount: Number(t.amount || 0),
-                                    date: t.date,
-                                    description: t.jobName || '',
-                                  }));
-                                });
-                                const openBalanceSections = Array.isArray(j.openBalances) && j.openBalances.length
-                                  ? [{
-                                    title: `${job.jobName} Open Balances`,
-                                    items: j.openBalances
-                                  }]
-                                  : [];
-                                setSelectedTimeLogsData({
-                                  clientName: client.clientName,
-                                  jobName: job.jobName,
-                                  timeLogs,
-                                  totalAmount: job.wipAmount,
-                                  openBalanceSections
-                                });
-                                setShowTimeLogsDialog(true);
-                              }}
-                              className={`inline-flex items-center px-2 py-1 rounded-full text-sm font-semibold cursor-pointer hover:opacity-80 ${(invoiceLevel[client.id] || 'client') === 'job'
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-blue-100 text-blue-800'
-                                }`}
-                            >
-                              {formatCurrency(job.wipAmount)}
-                            </button>
-                          </div>
-                        </td>
-                        <td className="p-4 text-center text-sm">
-                          <span className="text-sm text-muted-foreground">-</span>
-                        </td>
-                             <td className="p-4 text-center text-sm">{formatLastInvoiced(job.lastInvoiced, job.daysSinceLastInvoice)}</td>
-                           <td className="p-4 text-center">
-                             <span className="text-sm text-muted-foreground">-</span>
-                           </td>
-              <td className="p-4 text-center">
-                {(invoiceLevel[client.id] || 'client') === 'job' ? (
-                  <Select 
-                    value={jobTriggers[job.id] || job.trigger || 'job-closed'} 
-                              onValueChange={async (value) => {
-                                setJobTriggers(prev => ({ ...prev, [job.id]: value }));
-                                const wipTargetId = resolveWipTargetId(value);
-                                if (wipTargetId) {
-                                  try {
-                                    await attachWipTarget({ type: 'job', jobId: job.id, wipTargetId }).unwrap();
-                                    if (onWipMutated) onWipMutated();
-                                  } catch (err) {
-                                    // noop
-                                  }
-                                }
-                              }}
-                  >
-                   <SelectTrigger className="w-40 h-8 text-xs">
-                     <SelectValue placeholder="Select trigger" />
-                   </SelectTrigger>
-                    <SelectContent>
-                      {getJobTriggerOptions().map(option => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                 </Select>
-               ) : (
-                 '-'
-               )}
-             </td>
-                <td className="p-4 text-center">
-                  {(invoiceLevel[client.id] || 'client') === 'job' ? (
-                    <div className="flex justify-center">
-                      {(() => {
-                                const targetState = getJobTargetStatus(job);
-                                if (!targetState.hasTarget) {
-                                  return <span className="text-xs text-muted-foreground">N/A</span>;
-                                }
-                                return targetState.met ? (
-                          <Check className="h-4 w-4 text-green-600" />
+                          >
+                            <SelectTrigger className="w-40 h-8 text-xs">
+                              <SelectValue placeholder="Select trigger" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {getClientTriggerOptions().map(option => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         ) : (
-                          <X className="h-4 w-4 text-red-600" />
-                        );
-                      })()}
-                    </div>
-                  ) : (
-                    '-'
-                  )}
-                </td>
-               <td className="p-4 text-center">
-                 {(invoiceLevel[client.id] || 'client') === 'job' ? (
-                   (() => {
-                              const targetState = getJobTargetStatus(job);
+                          '-'
+                        )}
+                      </td>
+                      <td className="p-4 text-center">
+                        {(invoiceLevel[client.id] || 'client') === 'client' ? (
+                          <div className="flex justify-center">
+                            {(() => {
+                              // Use clientTargetMet directly from backend (no frontend calculation)
+                              const targetState = getClientTargetStatus(client);
                               if (!targetState.hasTarget) {
-                                return <Badge variant="secondary" className="bg-gray-100 text-gray-800 text-xs">N/A</Badge>;
+                                return <span className="text-xs text-muted-foreground">N/A</span>;
                               }
                               return targetState.met ? (
-                       <Badge 
-                         variant="secondary" 
-                         className="bg-green-100 text-green-800 text-xs cursor-pointer hover:bg-green-200"
-                         onClick={() => handleInvoiceNow(client, job)}
-                       >
-                         Invoice Now
-                       </Badge>
-                     ) : (
-                       <Badge variant="secondary" className="bg-red-100 text-red-800 text-xs">
-                         Not Ready
-                       </Badge>
-                     );
-                   })()
-                 ) : (
-                  '-'
-                )}
-              </td>
-                       </tr>
-                     ))}
+                                <Check className="h-4 w-4 text-green-600" />
+                              ) : (
+                                <X className="h-4 w-4 text-red-600" />
+                              );
+                            })()}
+                          </div>
+                        ) : (
+                          '-'
+                        )}
+                      </td>
+                      <td className="p-4 text-center">
+                        {(invoiceLevel[client.id] || 'client') === 'client' ? (
+                          (() => {
+                            // Use clientTargetMet directly from backend for "Ready To Invoice" status
+                            // No frontend calculation - depends solely on backend's clientTargetMet value
+                            const targetState = getClientTargetStatus(client);
+                            if (!targetState.hasTarget) {
+                              return <Badge variant="secondary" className="bg-gray-100 text-gray-800 text-xs">N/A</Badge>;
+                            }
+                            return targetState.met ? (
+                              <Badge
+                                variant="secondary"
+                                className="bg-green-100 text-green-800 text-xs cursor-pointer hover:bg-green-200"
+                                onClick={() => handleInvoiceNow(client)}
+                              >
+                                Invoice Now
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary" className="bg-red-100 text-red-800 text-xs">
+                                Not Ready
+                              </Badge>
+                            );
+                          })()
+                        ) : (
+                          '-'
+                        )}
+                      </td>
+                    </tr>
+
+
+                    {/* Job Rows - Filter out completed jobs */}
+                    {expandedClients.has(client.id) && client.jobs
+                      .filter((job) => {
+                        // Filter out completed jobs
+                        const originalStatus = (job as any).originalStatus || 'queued';
+                        return originalStatus !== 'completed';
+                      })
+                      .map((job) => (
+                        <tr key={job.id} className="border-b hover:bg-muted/50 h-14" style={{ backgroundColor: '#F5F3F9' }}>
+                          <td className="p-4 pl-12 text-sm">
+                            <div className="flex items-center">
+                              <span
+                                className="cursor-pointer text-blue-600 hover:text-blue-800 hover:underline"
+                                onClick={() => {
+                                  setViewingJob({
+                                    jobId: job.id,
+                                    name: job.jobName,
+                                    jobCost: job.jobFee,
+                                    actualCost: job.wipAmount,
+                                    status: job.jobStatus,
+                                    clientName: client.clientName,
+                                    hoursLogged: job.hoursLogged || 0,
+                                  });
+                                  setViewJobDialogOpen(true);
+                                }}
+                              >
+                                {job.jobName}
+                              </span>
+                              {getWarningIcon(job)}
+                            </div>
+                          </td>
+                          <td className="p-4 text-center text-sm">
+                            <div className="flex flex-col items-center gap-2">
+                              <div className="text-xs text-muted-foreground">
+                                Job Fee: {job.jobFee > 0 ? formatCurrency(job.jobFee) : 'N/A'}
+                              </div>
+                              {/* Progress Bar */}
+                              {job.jobFee > 0 && (
+                                <div className="flex flex-col items-center">
+                                  <div className="w-20 bg-gray-200 rounded-full h-2">
+                                    <div
+                                      className={`h-2 rounded-full transition-all duration-300 ${(job.wipAmount / job.jobFee) * 100 >= warningPercentage
+                                        ? 'bg-red-500'
+                                        : ''
+                                        }`}
+                                      style={{
+                                        backgroundColor: (job.wipAmount / job.jobFee) * 100 < warningPercentage ? '#38A24B' : undefined,
+                                        width: `${Math.min((job.wipAmount / job.jobFee) * 100, 100)}%`
+                                      }}
+                                    ></div>
+                                  </div>
+                                  <div className="text-xs text-center mt-1 text-muted-foreground">
+                                    {Math.round((job.wipAmount / job.jobFee) * 100)}%
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                          <td className="p-4 text-center">
+                            {/* Job Status Dropdown - Always show for jobs */}
+                            <Select
+                              value={(job as any).originalStatus || 'queued'}
+                              onValueChange={async (value: 'queued' | 'awaitingRecords' | 'inProgress' | 'withClient' | 'forApproval' | 'completed') => {
+                                try {
+                                  await updateJob({
+                                    jobId: job.id,
+                                    jobData: { status: value }
+                                  }).unwrap();
+                                  toast.success('Job status updated successfully');
+                                  if (onWipMutated) {
+                                    onWipMutated();
+                                  }
+                                } catch (error: any) {
+                                  console.error('Failed to update job status', error);
+                                  toast.error(error?.data?.message || 'Failed to update job status');
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="w-36 h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="queued">Queued</SelectItem>
+                                <SelectItem value="awaitingRecords">Awaiting Records</SelectItem>
+                                <SelectItem value="inProgress">In Progress</SelectItem>
+                                <SelectItem value="withClient">With Client</SelectItem>
+                                <SelectItem value="forApproval">For Approval</SelectItem>
+                                <SelectItem value="completed">Completed</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </td>
+                          <td className="p-4 text-left text-sm">
+                            <div className="flex items-center justify-start gap-2">
+                              <button
+                                onClick={() => {
+                                  const j: any = job as any;
+                                  const breakdown = j.wipBreakdown || [];
+                                  const timeLogs = breakdown.flatMap((member: any) => {
+                                    const tasks = Array.isArray(member.tasks) ? member.tasks : [];
+                                    return tasks.map((t: any, idx: number) => ({
+                                      id: String(t.timeLogId || `${member._id}-${idx}`),
+                                      teamMember: member.userName || 'Team Member',
+                                      hours: Number(t.duration || 0) / 3600,
+                                      billableRate: Number(member.billableRate || 0),
+                                      amount: Number(t.amount || 0),
+                                      date: t.date,
+                                      description: t.jobName || '',
+                                    }));
+                                  });
+                                  const openBalanceSections = Array.isArray(j.openBalances) && j.openBalances.length
+                                    ? [{
+                                      title: `${job.jobName} Open Balances`,
+                                      items: j.openBalances
+                                    }]
+                                    : [];
+                                  setSelectedTimeLogsData({
+                                    clientName: client.clientName,
+                                    jobName: job.jobName,
+                                    timeLogs,
+                                    totalAmount: job.wipAmount,
+                                    openBalanceSections
+                                  });
+                                  setShowTimeLogsDialog(true);
+                                }}
+                                className={`inline-flex items-center px-2 py-1 rounded-full text-sm font-semibold cursor-pointer hover:opacity-80 ${(invoiceLevel[client.id] || 'client') === 'job'
+                                  ? 'bg-green-100 text-green-800'
+                                  : 'bg-blue-100 text-blue-800'
+                                  }`}
+                              >
+                                {formatCurrency(job.wipAmount)}
+                              </button>
+                            </div>
+                          </td>
+                          <td className="p-4 text-center text-sm">
+                            <span className="text-sm text-muted-foreground">-</span>
+                          </td>
+                          <td className="p-4 text-center">
+                            {/* Invoice Level column - always show '-' for jobs */}
+                            <span className="text-sm text-muted-foreground">-</span>
+                          </td>
+                          <td className="p-4 text-center">
+                            {(invoiceLevel[client.id] || 'client') === 'job' ? (
+                              <Select
+                                value={jobTriggers[job.id] || (job.trigger?.trim() || 'none')}
+                                onValueChange={async (value) => {
+                                  setJobTriggers(prev => ({ ...prev, [job.id]: value }));
+
+                                  // Handle clearing the target
+                                  if (value === 'none') {
+                                    try {
+                                      await attachWipTarget({ type: 'job', jobId: job.id, wipTargetId: null }).unwrap();
+                                      if (onWipMutated) onWipMutated();
+                                    } catch (err) {
+                                      console.error('Failed to clear WIP target', err);
+                                      // Revert UI state on error
+                                      setJobTriggers(prev => {
+                                        const updated = { ...prev };
+                                        delete updated[job.id];
+                                        return updated;
+                                      });
+                                    }
+                                    return;
+                                  }
+
+                                  const wipTargetId = resolveWipTargetId(value);
+                                  if (wipTargetId) {
+                                    try {
+                                      await attachWipTarget({ type: 'job', jobId: job.id, wipTargetId }).unwrap();
+                                      if (onWipMutated) onWipMutated();
+                                    } catch (err) {
+                                      // noop
+                                    }
+                                  }
+                                }}
+                              >
+                                <SelectTrigger className="w-40 h-8 text-xs">
+                                  <SelectValue placeholder="Select trigger" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {getJobTriggerOptions().map(option => (
+                                    <SelectItem key={option.value} value={option.value}>
+                                      {option.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">-</span>
+                            )}
+                          </td>
+                          <td className="p-4 text-center">
+                            {(invoiceLevel[client.id] || 'client') === 'job' ? (
+                              <div className="flex justify-center">
+                                {(() => {
+                                  const targetState = getJobTargetStatus(job);
+                                  if (!targetState.hasTarget) {
+                                    return <span className="text-xs text-muted-foreground">N/A</span>;
+                                  }
+                                  return targetState.met ? (
+                                    <Check className="h-4 w-4 text-green-600" />
+                                  ) : (
+                                    <X className="h-4 w-4 text-red-600" />
+                                  );
+                                })()}
+                              </div>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">-</span>
+                            )}
+                          </td>
+                          <td className="p-4 text-center">
+                            {(invoiceLevel[client.id] || 'client') === 'job' ? (
+                              (() => {
+                                const targetState = getJobTargetStatus(job);
+                                if (!targetState.hasTarget) {
+                                  return <Badge variant="secondary" className="bg-gray-100 text-gray-800 text-xs">N/A</Badge>;
+                                }
+                                return targetState.met ? (
+                                  <Badge
+                                    variant="secondary"
+                                    className="bg-green-100 text-green-800 text-xs cursor-pointer hover:bg-green-200"
+                                    onClick={() => handleInvoiceNow(client, job)}
+                                  >
+                                    Invoice Now
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="secondary" className="bg-red-100 text-red-800 text-xs">
+                                    Not Ready
+                                  </Badge>
+                                );
+                              })()
+                            ) : (
+                              <span className="text-sm text-muted-foreground">-</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
                   </React.Fragment>
                 ))}
               </tbody>
@@ -961,7 +1247,7 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
           hoursLogged={viewingJob.hoursLogged}
         />
       )}
-      
+
       {selectedInvoiceData && (
         <InvoicePreviewDialog
           isOpen={showInvoiceDialog}
@@ -971,7 +1257,7 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
           openLogInvoiceOnly={openLogInvoiceOnly}
         />
       )}
-      
+
       {showWIPBalanceDialog && wipBalanceData && (
         <WIPOpeningBalanceDialog
           isOpen={showWIPBalanceDialog}
@@ -991,7 +1277,7 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
           })}
         />
       )}
-      
+
       {selectedExpensesData && (
         <ActiveExpensesDialog
           isOpen={showActiveExpensesDialog}
@@ -1000,7 +1286,7 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
           expenses={selectedExpensesData.expenses}
         />
       )}
-      
+
       {selectedTimeLogsData && (
         <TimeLogsBreakdownDialog
           open={showTimeLogsDialog}
@@ -1012,9 +1298,22 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
           importedWipBalance={selectedTimeLogsData.importedWipBalance || 0}
           importedWipDate={selectedTimeLogsData.importedWipDate}
           openBalanceSections={selectedTimeLogsData.openBalanceSections || []}
+          onDeleteImportedWip={selectedTimeLogsData.clientId ? () => handleDeleteImportedWip(selectedTimeLogsData.clientId) : undefined}
+          onDeleteOpenBalance={() => {
+            // Refresh WIP data after deletion
+            if (onWipMutated) {
+              onWipMutated();
+            }
+            // Close and reopen dialog to refresh data
+            setShowTimeLogsDialog(false);
+            setTimeout(() => {
+              // Reopen with fresh data - the parent component will need to refresh
+              // For now, just trigger the refresh callback
+            }, 100);
+          }}
         />
       )}
-      
+
 
       {/* Invoice Options Dialog */}
       <Dialog open={showInvoiceOptionsDialog} onOpenChange={setShowInvoiceOptionsDialog}>
@@ -1024,14 +1323,14 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
           </DialogHeader>
           <div className="space-y-4 mt-4">
             <div className="space-y-3">
-              <Button 
+              <Button
                 onClick={handleGenerateInvoice}
                 className="w-full justify-start bg-blue-600 hover:bg-blue-700 text-white"
                 variant="outline"
               >
                 Generate Invoice
               </Button>
-              <Button 
+              <Button
                 onClick={handleLogInvoiceOnly}
                 className="w-full justify-start bg-blue-600 hover:bg-blue-700 text-white"
                 variant="outline"
@@ -1043,6 +1342,52 @@ export const WIPTable = ({ wipData, expandedClients, onToggleClient, targetMetFi
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowInvoiceOptionsDialog(false)}>
               Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Job Completion Dialog */}
+      <Dialog open={showJobCompletionDialog} onOpenChange={handleJobCompletionCancel}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Mark Jobs as Completed?</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <p className="text-sm text-muted-foreground">
+              The invoice has been created successfully. Would you like to mark any of these jobs as completed?
+            </p>
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {jobsToComplete.map((job) => (
+                <div key={job.id} className="flex items-center space-x-2 p-2 hover:bg-muted/50 rounded">
+                  <Checkbox
+                    id={`job-${job.id}`}
+                    checked={job.selected}
+                    onCheckedChange={() => toggleJobSelection(job.id)}
+                  />
+                  <label
+                    htmlFor={`job-${job.id}`}
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1"
+                  >
+                    {job.name}
+                  </label>
+                </div>
+              ))}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={handleJobCompletionCancel}
+              disabled={isUpdatingJobStatus}
+            >
+              Skip
+            </Button>
+            <Button
+              onClick={handleJobCompletionConfirm}
+              disabled={isUpdatingJobStatus}
+            >
+              {isUpdatingJobStatus ? 'Updating...' : 'Mark Selected as Completed'}
             </Button>
           </DialogFooter>
         </DialogContent>

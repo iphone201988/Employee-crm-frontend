@@ -293,7 +293,12 @@ const InvoiceLogTab = ({ invoiceEntries }: InvoiceLogTabProps) => {
   const displayEntries = useMemo(() => {
     const apiData = invoicesResp?.data || [];
     if (apiData.length === 0 && invoiceEntries.length > 0) return invoiceEntries;
-    return apiData.map((inv: any) => {
+    // Filter out invoices for inactive/deleted clients (safety check, backend should also filter)
+    const filteredData = apiData.filter((inv: any) => {
+      // Only include invoices where client is active or client doesn't exist (edge case)
+      return !inv.client || inv.client.status === 'active';
+    });
+    return filteredData.map((inv: any) => {
       const total = Number(inv.totalAmount || 0);
       const paid = Number(inv.paidAmount || 0);
       const status: 'paid' | 'issued' | 'part paid' = paid >= total ? 'paid' : paid > 0 ? 'part paid' : 'issued';

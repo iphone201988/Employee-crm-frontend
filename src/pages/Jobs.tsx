@@ -78,8 +78,22 @@ const Jobs = () => {
       <div className='mt-5'>
 
         {activeTab === 'services' && <ServicesTab />}
-        {activeTab === 'jobTemplates' && <JobTemplatesTab />}
-        {activeTab === 'jobBuilder' && <JobBuilderTab />}
+        {activeTab === 'jobTemplates' && (
+          <>
+            <div className="mb-4 rounded-md border border-dashed border-orange-300 bg-orange-50 text-orange-800 px-4 py-3 text-sm">
+              This is a placeholder. This functionality will be coming soon.
+            </div>
+            <JobTemplatesTab />
+          </>
+        )}
+        {activeTab === 'jobBuilder' && (
+          <>
+            <div className="mb-4 rounded-md border border-dashed border-orange-300 bg-orange-50 text-orange-800 px-4 py-3 text-sm">
+              This is a placeholder. This functionality will be coming soon.
+            </div>
+            <JobBuilderTab />
+          </>
+        )}
         {activeTab === 'jobList' && <JobsTab />}
         {activeTab === '' && <div>YOU HAVE NO ACCESS</div>}
       </div>

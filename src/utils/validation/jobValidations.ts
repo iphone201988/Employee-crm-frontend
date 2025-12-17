@@ -37,10 +37,10 @@ export const validateJobType = (jobTypeId: string): string | null => {
     return null;
 };
 
-export const validateJobManager = (jobManagerId: string): string | null => {
-    if (!jobManagerId) return 'Job manager is required.';
-    return null;
-};
+// export const validateJobManager = (jobManagerId: string): string | null => {
+//     if (!jobManagerId) return 'Job manager is required.';
+//     return null;
+// };
 
 export const validateStartDate = (startDate: string): string | null => {
     if (!startDate) return 'Start date is required.';
@@ -66,12 +66,12 @@ export const validateJobCost = (jobCost?: number): string | null => {
     return null;
 };
 
-export const validateTeamMembers = (teamMembers?: string[]): string | null => {
-    if (!teamMembers || !Array.isArray(teamMembers) || teamMembers.length === 0) {
-        return 'At least one team member is required.';
-    }
-    return null;
-};
+// export const validateTeamMembers = (teamMembers?: string[]): string | null => {
+//     if (!teamMembers || !Array.isArray(teamMembers) || teamMembers.length === 0) {
+//         return 'At least one team member is required.';
+//     }
+//     return null;
+// };
 
 export const validateJobForm = (formData: JobFormData, clientList: { _id: string, name: string }[]): ValidationResult => {
     const errors: Partial<Record<keyof JobFormData | 'teamMembers', string>> = {};
@@ -85,8 +85,8 @@ export const validateJobForm = (formData: JobFormData, clientList: { _id: string
     const jobTypeError = validateJobType(formData.jobTypeId);
     if (jobTypeError) errors.jobTypeId = jobTypeError;
 
-    const jobManagerError = validateJobManager(formData.jobManagerId);
-    if (jobManagerError) errors.jobManagerId = jobManagerError;
+    // const jobManagerError = validateJobManager(formData.jobManagerId);
+    // if (jobManagerError) errors.jobManagerId = jobManagerError;
 
     const startDateError = validateStartDate(formData.startDate);
     if (startDateError) errors.startDate = startDateError;
@@ -97,8 +97,8 @@ export const validateJobForm = (formData: JobFormData, clientList: { _id: string
     const jobCostError = validateJobCost(formData.jobCost);
     if (jobCostError) errors.jobCost = jobCostError;
 
-    const teamMembersError = validateTeamMembers(formData.teamMembers);
-    if (teamMembersError) errors.teamMembers = teamMembersError;
+    // const teamMembersError = validateTeamMembers(formData.teamMembers);
+    // if (teamMembersError) errors.teamMembers = teamMembersError;
 
     // Description is optional, no validation needed
 

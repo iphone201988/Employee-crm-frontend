@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -64,18 +64,46 @@ export const JobDetailsDialog: React.FC<JobDetailsDialogProps> = ({
   const [editingValue, setEditingValue] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [editableJob, setEditableJob] = useState<any | null>(null);
+  const [showClientSuggestions, setShowClientSuggestions] = useState(false);
+  const [clientNameInput, setClientNameInput] = useState('');
+  const clientInputContainerRef = useRef<HTMLDivElement>(null);
   const { data: jobTypeOptionsResp } = useGetDropdownOptionsQuery('job');
   const { data: teamOptionsResp } = useGetDropdownOptionsQuery('team');
+  const { data: clientOptionsResp } = useGetDropdownOptionsQuery('client');
   
   const apiJob = jobResp?.data;
   const apiLogs = jobResp?.timeLogs || [];
   const timeLogEntries: TimeEntry[] = useMemo(() => {
+    // Normalize various duration shapes (seconds, hours, or HH:MM:SS) to hours
+    const parseDurationToHours = (value: any): number => {
+      if (value === null || value === undefined) return 0;
+      if (typeof value === 'number') {
+        // Heuristic: large numbers are likely seconds; small numbers (<=10) are hours
+        return value > 10 ? value / 3600 : value;
+      }
+      if (typeof value === 'string') {
+        if (value.includes(':')) {
+          const [h = '0', m = '0', s = '0'] = value.split(':');
+          const hours = Number(h) || 0;
+          const minutes = Number(m) || 0;
+          const seconds = Number(s) || 0;
+          return hours + minutes / 60 + seconds / 3600;
+        }
+        const num = Number(value);
+        if (!Number.isNaN(num)) {
+          return num > 10 ? num / 3600 : num;
+        }
+      }
+      return 0;
+    };
+
     if (apiLogs.length > 0) {
       return apiLogs.map((l: any) => ({
         id: l._id,
         date: l.date,
         description: l.description || '',
-        hours: typeof l.durationHours === 'number' ? l.durationHours : Number(l.duration || 0) / 3600,
+        // prefer explicit hours, else seconds from API aggregate (durationSeconds), else raw duration
+        hours: parseDurationToHours(l.durationHours ?? l.durationSeconds ?? l.duration),
         rate: Number(l.rate || 0),
         amount: Number(l.amount || 0),
         employee: l.user?.name || '—'
@@ -95,6 +123,21 @@ export const JobDetailsDialog: React.FC<JobDetailsDialogProps> = ({
     () => (teamOptionsResp?.data?.teams || []).map((member: any) => ({ value: member._id, label: member.name })),
     [teamOptionsResp]
   );
+
+  const clientOptions = useMemo(
+    () => (clientOptionsResp?.data?.clients || []).map((client: any) => ({ _id: client._id, name: client.name })),
+    [clientOptionsResp]
+  );
+
+  const teamMemberOptions = useMemo(
+    () => (teamOptionsResp?.data?.teams || []).map((member: any) => ({ _id: member._id, name: member.name })),
+    [teamOptionsResp]
+  );
+
+  const filteredClients = useMemo(() => {
+    if (!clientNameInput) return [];
+    return clientOptions.filter(client => client.name.toLowerCase().includes(clientNameInput.toLowerCase()));
+  }, [clientNameInput, clientOptions]);
 
   const statusOptions: { value: string; label: string }[] = [
     { value: 'queued', label: 'Queued' },
@@ -121,17 +164,53 @@ export const JobDetailsDialog: React.FC<JobDetailsDialogProps> = ({
   useEffect(() => {
     if (apiJob) {
       setEditableJob(apiJob);
+      // Set client name input when job data loads
+      if (apiJob.clientId?.name) {
+        setClientNameInput(apiJob.clientId.name);
+      }
     }
   }, [apiJob]);
 
   useEffect(() => {
     if (!isOpen) {
-      setIsEditing(false);
+      setShowClientSuggestions(false);
+      setClientNameInput('');
     }
   }, [isOpen]);
 
+  useEffect(() => {
+    if (!isOpen) {
+      setIsEditing(false);
+      setShowClientSuggestions(false);
+    }
+  }, [isOpen]);
+
+  // Handle click outside for client suggestions
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (clientInputContainerRef.current && !clientInputContainerRef.current.contains(event.target as Node)) {
+        setShowClientSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => { document.removeEventListener("mousedown", handleClickOutside); };
+  }, []);
+
   const handleEditableChange = (field: string, value: any) => {
     setEditableJob((prev: any) => (prev ? { ...prev, [field]: value } : prev));
+  };
+
+  const handleClientNameChange = (value: string) => {
+    setClientNameInput(value);
+    setShowClientSuggestions(true);
+    // Clear clientId when user types
+    setEditableJob((prev: any) => (prev ? { ...prev, clientId: '' } : prev));
+  };
+
+  const handleClientSuggestionClick = (client: { _id: string; name: string }) => {
+    setClientNameInput(client.name);
+    setShowClientSuggestions(false);
+    setEditableJob((prev: any) => (prev ? { ...prev, clientId: client._id } : prev));
   };
 
   const normalizeDateValue = (value?: string) => {
@@ -173,9 +252,26 @@ export const JobDetailsDialog: React.FC<JobDetailsDialogProps> = ({
     }
   };
 
+  const handleStartJobEdit = () => {
+    setIsEditing(true);
+    // Initialize client name input when editing starts
+    if (apiJob?.clientId?.name) {
+      setClientNameInput(apiJob.clientId.name);
+    } else {
+      setClientNameInput('');
+    }
+  };
+
   const handleCancelJobEdit = () => {
     setIsEditing(false);
     setEditableJob(apiJob || null);
+    // Reset client name input
+    if (apiJob?.clientId?.name) {
+      setClientNameInput(apiJob.clientId.name);
+    } else {
+      setClientNameInput('');
+    }
+    setShowClientSuggestions(false);
   };
 
   const displayPriority = () => {
@@ -269,7 +365,7 @@ export const JobDetailsDialog: React.FC<JobDetailsDialogProps> = ({
                   </Button>
                 </>
               ) : (
-                <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} disabled={isLoading || !apiJob}>
+                <Button variant="outline" size="sm" onClick={handleStartJobEdit} disabled={isLoading || !apiJob}>
                   <Edit className="h-4 w-4 mr-1" />
                   Edit
                 </Button>
@@ -288,6 +384,7 @@ export const JobDetailsDialog: React.FC<JobDetailsDialogProps> = ({
           <TabsContent value="job-details" className="mt-6">
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* 1. Job Name */}
                 <div className="space-y-2">
                   <Label>Job Name</Label>
                   {isEditing ? (
@@ -300,6 +397,49 @@ export const JobDetailsDialog: React.FC<JobDetailsDialogProps> = ({
                   )}
                 </div>
                 
+                {/* 2. Client Name */}
+                <div className="space-y-2 relative" ref={clientInputContainerRef}>
+                  <Label>Client Name</Label>
+                  {isEditing ? (
+                    <>
+                      <Input
+                        value={clientNameInput}
+                        onChange={(e) => handleClientNameChange(e.target.value)}
+                        onFocus={() => setShowClientSuggestions(true)}
+                        autoComplete="off"
+                      />
+                      {showClientSuggestions && (
+                        <ul className="absolute z-10 w-full bg-background border border-border rounded-md mt-1 max-h-40 overflow-y-auto shadow-lg">
+                          {filteredClients.length > 0 ? (
+                            filteredClients.map((client) => (
+                              <li
+                                key={client._id}
+                                onClick={() => handleClientSuggestionClick(client)}
+                                className="px-3 py-2 cursor-pointer hover:bg-muted"
+                              >
+                                {client.name}
+                              </li>
+                            ))
+                          ) : (
+                            <li className="px-3 py-2 text-muted-foreground">
+                              Type client name.{" "}
+                              <a
+                                href="/clients"
+                                className="text-primary hover:underline font-medium"
+                              >
+                                Add new client
+                              </a>
+                            </li>
+                          )}
+                        </ul>
+                      )}
+                    </>
+                  ) : (
+                    <Input value={apiJob?.clientId?.name || '—'} readOnly className="bg-muted" />
+                  )}
+                </div>
+                
+                {/* 3. Job Type */}
                 <div className="space-y-2">
                   <Label>Job Type</Label>
                   {isEditing ? (
@@ -323,8 +463,83 @@ export const JobDetailsDialog: React.FC<JobDetailsDialogProps> = ({
                   )}
                 </div>
                 
+                {/* 4. Job Fee */}
                 <div className="space-y-2">
-                  <Label>Job Status</Label>
+                  <Label>Job Fee</Label>
+                  {isEditing ? (
+                    <Input
+                      type="number"
+                      value={editableJob?.jobCost ?? 0}
+                      onChange={(e) => handleEditableChange('jobCost', e.target.value)}
+                    />
+                  ) : (
+                    <Input value={formatCurrency(apiJob?.jobCost ?? jobFee)} readOnly className="bg-muted" />
+                  )}
+                </div>
+                
+                {/* 5. Start Date */}
+                <div className="space-y-2">
+                  <Label>Start Date</Label>
+                  {isEditing ? (
+                    <Input
+                      type="date"
+                      value={normalizeDateValue(editableJob?.startDate)}
+                      onChange={(e) => handleEditableChange('startDate', e.target.value)}
+                    />
+                  ) : (
+                    <Input
+                      value={apiJob?.startDate ? new Date(apiJob.startDate).toLocaleDateString('en-GB') : '—'}
+                      readOnly
+                      className="bg-muted"
+                    />
+                  )}
+                </div>
+                
+                {/* 6. End Date */}
+                <div className="space-y-2">
+                  <Label>End Date</Label>
+                  {isEditing ? (
+                    <Input
+                      type="date"
+                      value={normalizeDateValue(editableJob?.endDate)}
+                      onChange={(e) => handleEditableChange('endDate', e.target.value)}
+                    />
+                  ) : (
+                    <Input
+                      value={apiJob?.endDate ? new Date(apiJob.endDate).toLocaleDateString('en-GB') : '—'}
+                      readOnly
+                      className="bg-muted"
+                    />
+                  )}
+                </div>
+                
+                {/* 7. Priority */}
+                <div className="space-y-2">
+                  <Label>Priority</Label>
+                  {isEditing ? (
+                    <Select
+                      value={editableJob?.priority || 'medium'}
+                      onValueChange={(value) => handleEditableChange('priority', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select priority" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {priorityOptions.map(option => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input value={displayPriority()} readOnly className="bg-muted" />
+                  )}
+                </div>
+                
+                {/* 8. Status */}
+                <div className="space-y-2">
+                  <Label>Status</Label>
                   {isEditing ? (
                     <Select
                       value={editableJob?.status || 'queued'}
@@ -350,48 +565,9 @@ export const JobDetailsDialog: React.FC<JobDetailsDialogProps> = ({
                   )}
                 </div>
                 
+                {/* 9. Job Manager */}
                 <div className="space-y-2">
-                  <Label>Job Fee</Label>
-                  {isEditing ? (
-                    <Input
-                      type="number"
-                      value={editableJob?.jobCost ?? 0}
-                      onChange={(e) => handleEditableChange('jobCost', e.target.value)}
-                    />
-                  ) : (
-                    <Input value={formatCurrency(apiJob?.jobCost ?? jobFee)} readOnly className="bg-muted" />
-                  )}
-                </div>
-                
-                <div className="space-y-2">
-                  <Label>WIP Amount</Label>
-                  <Input value={formatCurrency(wipAmount)} readOnly className="bg-muted" />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label>Hours Logged</Label>
-                  <Input value={`${hoursLogged} hours`} readOnly className="bg-muted" />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label>Start Date</Label>
-                  {isEditing ? (
-                    <Input
-                      type="date"
-                      value={normalizeDateValue(editableJob?.startDate)}
-                      onChange={(e) => handleEditableChange('startDate', e.target.value)}
-                    />
-                  ) : (
-                    <Input
-                      value={apiJob?.startDate ? new Date(apiJob.startDate).toLocaleDateString('en-GB') : '—'}
-                      readOnly
-                      className="bg-muted"
-                    />
-                  )}
-                </div>
-                
-                <div className="space-y-2">
-                  <Label>Assigned To</Label>
+                  <Label>Job Manager</Label>
                   {isEditing ? (
                     <Select
                       value={getIdValue(editableJob?.jobManagerId)}
@@ -413,38 +589,83 @@ export const JobDetailsDialog: React.FC<JobDetailsDialogProps> = ({
                   )}
                 </div>
 
+                {/* 10. Team Members */}
                 <div className="space-y-2">
-                  <Label>Priority</Label>
+                  <Label>Team Members *</Label>
                   {isEditing ? (
-                    <Select
-                      value={editableJob?.priority || 'medium'}
-                      onValueChange={(value) => handleEditableChange('priority', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select priority" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {priorityOptions.map(option => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <>
+                      <Select
+                        onValueChange={(value) => {
+                          const currentMembers = Array.isArray(editableJob?.teamMembers) 
+                            ? editableJob.teamMembers.map((m: any) => getIdValue(m))
+                            : [];
+                          if (value && !currentMembers.includes(value)) {
+                            handleEditableChange('teamMembers', [...currentMembers, value]);
+                          }
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Add team member" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {teamMemberOptions.map(member => (
+                            <SelectItem key={member._id} value={member._id}>
+                              {member.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {(Array.isArray(editableJob?.teamMembers) ? editableJob.teamMembers : []).map((member: any) => {
+                          const memberId = getIdValue(member);
+                          const memberName = teamMemberOptions.find(tm => tm._id === memberId)?.name || memberId;
+                          return (
+                            <Badge key={memberId} variant="secondary" className="text-xs">
+                              {memberName}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const currentMembers = editableJob.teamMembers.map((m: any) => getIdValue(m));
+                                  handleEditableChange('teamMembers', currentMembers.filter((id: string) => id !== memberId));
+                                }}
+                                className="ml-1 font-bold"
+                              >
+                                ×
+                              </button>
+                            </Badge>
+                          );
+                        })}
+                      </div>
+                    </>
                   ) : (
-                    <Input value={displayPriority()} readOnly className="bg-muted" />
+                    <div className="flex flex-wrap gap-1">
+                      {(Array.isArray(apiJob?.teamMembers) ? apiJob.teamMembers : []).map((member: any) => {
+                        const memberName = typeof member === 'object' ? member.name : teamMemberOptions.find(tm => tm._id === member)?.name || member;
+                        return (
+                          <Badge key={typeof member === 'object' ? member._id : member} variant="secondary" className="text-xs">
+                            {memberName}
+                          </Badge>
+                        );
+                      })}
+                      {(!apiJob?.teamMembers || apiJob.teamMembers.length === 0) && (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </div>
                   )}
                 </div>
+
               </div>
               
+              {/* 11. Description - Full width */}
               <div className="space-y-2">
-                <Label>Job Description</Label>
+                <Label>Description</Label>
                 {isEditing ? (
                   <Textarea
                     className="w-full"
                     rows={3}
                     value={editableJob?.description || ''}
                     onChange={(e) => handleEditableChange('description', e.target.value)}
+                    placeholder="Job description..."
                   />
                 ) : (
                   <textarea 
@@ -454,13 +675,6 @@ export const JobDetailsDialog: React.FC<JobDetailsDialogProps> = ({
                     readOnly
                   />
                 )}
-              </div>
-
-              <div className="space-y-2">
-                <Label>Job Tags</Label>
-                <div className="flex gap-2">
-                  <Badge variant="secondary">{displayPriority()}</Badge>
-                </div>
               </div>
             </div>
           </TabsContent>

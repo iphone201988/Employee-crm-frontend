@@ -299,11 +299,11 @@ const JobsTab = () => {
             clientId: job.clientId._id,
             clientName: job.clientId.name,
             jobTypeId: job.jobTypeId._id,
-            jobManagerId: job.jobManagerId._id,
+            jobManagerId: job?.jobManagerId?._id || '',
             startDate: job.startDate.split('T')[0],
             endDate: job.endDate.split('T')[0],
             estimatedCost: job.jobCost,
-            team: job.teamMembers.map(tm => tm._id),
+            team: job?.teamMembers?.map(tm => tm._id) || [],
             status: job.status,
             priority: job.priority,
             description: job.description,
@@ -685,51 +685,51 @@ const JobsTab = () => {
                             >
                                 Queued ({statusBreakdown.queued || 0})
                             </button>
-          <button
-            onClick={() => handleStatusTabChange('awaitingRecords')}
-            className={`px-4 py-2 text-sm font-medium transition-colors ${statusFilter === 'awaitingRecords'
-              ? 'bg-[#381980] text-white'
-              : 'bg-transparent text-[#71717A]'
-              }`}
-          >
-            Awaiting Records ({statusBreakdown.awaitingRecords || 0})
-          </button>
-          <button
-            onClick={() => handleStatusTabChange('inProgress')}
-            className={`px-4 py-2 text-sm font-medium transition-colors ${statusFilter === 'inProgress'
-              ? 'bg-[#381980] text-white'
-              : 'bg-transparent text-[#71717A]'
-              }`}
-          >
-            In Progress ({statusBreakdown.inProgress || 0})
-          </button>
-          <button
-            onClick={() => handleStatusTabChange('withClient')}
-            className={`px-4 py-2 text-sm font-medium transition-colors ${statusFilter === 'withClient'
-              ? 'bg-[#381980] text-white'
-              : 'bg-transparent text-[#71717A]'
-              }`}
-          >
-            With Client ({statusBreakdown.withClient || 0})
-          </button>
-          <button
-            onClick={() => handleStatusTabChange('forApproval')}
-            className={`px-4 py-2 text-sm font-medium transition-colors ${statusFilter === 'forApproval'
-              ? 'bg-[#381980] text-white'
-              : 'bg-transparent text-[#71717A]'
-              }`}
-          >
-            For Approval ({statusBreakdown.forApproval || 0})
-          </button>
-          <button
-            onClick={() => handleStatusTabChange('completed')}
-            className={`px-4 py-2 text-sm font-medium transition-colors rounded-r-full ${statusFilter === 'completed'
-              ? 'bg-[#381980] text-white'
-              : 'bg-transparent text-[#71717A]'
-              }`}
-          >
-            Completed ({statusBreakdown.completed || 0})
-          </button>
+                            <button
+                                onClick={() => handleStatusTabChange('awaitingRecords')}
+                                className={`px-4 py-2 text-sm font-medium transition-colors ${statusFilter === 'awaitingRecords'
+                                    ? 'bg-[#381980] text-white'
+                                    : 'bg-transparent text-[#71717A]'
+                                    }`}
+                            >
+                                Awaiting Records ({statusBreakdown.awaitingRecords || 0})
+                            </button>
+                            <button
+                                onClick={() => handleStatusTabChange('inProgress')}
+                                className={`px-4 py-2 text-sm font-medium transition-colors ${statusFilter === 'inProgress'
+                                    ? 'bg-[#381980] text-white'
+                                    : 'bg-transparent text-[#71717A]'
+                                    }`}
+                            >
+                                In Progress ({statusBreakdown.inProgress || 0})
+                            </button>
+                            <button
+                                onClick={() => handleStatusTabChange('withClient')}
+                                className={`px-4 py-2 text-sm font-medium transition-colors ${statusFilter === 'withClient'
+                                    ? 'bg-[#381980] text-white'
+                                    : 'bg-transparent text-[#71717A]'
+                                    }`}
+                            >
+                                With Client ({statusBreakdown.withClient || 0})
+                            </button>
+                            <button
+                                onClick={() => handleStatusTabChange('forApproval')}
+                                className={`px-4 py-2 text-sm font-medium transition-colors ${statusFilter === 'forApproval'
+                                    ? 'bg-[#381980] text-white'
+                                    : 'bg-transparent text-[#71717A]'
+                                    }`}
+                            >
+                                For Approval ({statusBreakdown.forApproval || 0})
+                            </button>
+                            <button
+                                onClick={() => handleStatusTabChange('completed')}
+                                className={`px-4 py-2 text-sm font-medium transition-colors rounded-r-full ${statusFilter === 'completed'
+                                    ? 'bg-[#381980] text-white'
+                                    : 'bg-transparent text-[#71717A]'
+                                    }`}
+                            >
+                                Completed ({statusBreakdown.completed || 0})
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -934,7 +934,7 @@ const JobsTab = () => {
                         <span className="text-sm text-[#381980] font-semibold">{totalJobCount} Rows</span>
                         <Button onClick={openAddDialog} className="bg-[#017DB9] text-white hover:bg-[#016798]">
                             <Plus className="w-4 h-4 mr-2" />
-                             New Job
+                            New Job
                         </Button>
                     </div>
                 </div>
@@ -956,13 +956,13 @@ const JobsTab = () => {
                                         </button>
                                     </TableHead>
                                     <TableHead>
-                                <button type="button" className="flex items-center gap-1 font-semibold" onClick={() => handleSort('jobType')}>
+                                        <button type="button" className="flex items-center gap-1 font-semibold" onClick={() => handleSort('jobType')}>
                                             Job Type {getSortIcon('jobType')}
                                         </button>
                                     </TableHead>
                                     <TableHead>
                                         <button type="button" className="flex items-center gap-1 font-semibold" onClick={() => handleSort('status')}>
-                                            Status {getSortIcon('status')}
+                                           Job Status {getSortIcon('status')}
                                         </button>
                                     </TableHead>
                                     <TableHead>
@@ -1028,7 +1028,7 @@ const JobsTab = () => {
                                             />
                                         </TableCell>
                                         <TableCell className='px-4'>
-                                            <ClientNameLink clientName={job.clientId.name} ciientId={job.clientId._id} />
+                                            <ClientNameLink clientName={job?.clientId?.name} ciientId={job?.clientId?._id} />
                                         </TableCell>
                                         <TableCell className='px-4'>{job?.jobTypeId?.name}</TableCell>
                                         <TableCell className='px-4'>
@@ -1036,7 +1036,7 @@ const JobsTab = () => {
                                                 {formatTitle(job.status)}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell className='px-4'>{job.jobManagerId.name}</TableCell>
+                                        <TableCell className='px-4'>{job?.jobManagerId?.name}</TableCell>
                                         <TableCell className='px-4'>
                                             <div className="flex -space-x-2">
                                                 {job.teamMembers.map(tm => (
